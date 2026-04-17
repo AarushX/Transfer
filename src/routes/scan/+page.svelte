@@ -32,6 +32,8 @@
 					status = 'ok';
 					if (attendanceBody?.action === 'activate') {
 						message = 'Attendance display activated.';
+					} else if (attendanceBody?.action === 'deactivate') {
+						message = 'Attendance display disabled.';
 					} else {
 						message =
 							attendanceBody?.action === 'check_out'

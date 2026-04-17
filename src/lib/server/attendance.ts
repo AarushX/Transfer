@@ -51,6 +51,9 @@ export const attendanceHourBucket = (date: Date = new Date(), timeZone = attenda
 	return `${yyyyMmDd(p.year, p.month, p.day)}-${p.hour.toString().padStart(2, '0')}`;
 };
 
+export const ATTENDANCE_PUBLIC_DISPLAY_KEY = 'public-attendance-display';
+export const ATTENDANCE_PUBLIC_ACTIVATION_QR = 'attendance_activate_public_v1';
+
 export const createAttendanceAccessToken = async (attendeeUserId: string, issuedBy: string) =>
 	new SignJWT({ kind: 'attendance_access', attendee_user_id: attendeeUserId, issued_by: issuedBy })
 		.setProtectedHeader({ alg: 'HS256' })
@@ -79,6 +82,18 @@ export const createAttendanceHourlyToken = async (attendeeUserId: string) => {
 		.sign(attendanceSecret());
 };
 
+export const createAttendancePublicHourlyToken = async () => {
+	const bucket = attendanceHourBucket();
+	return new SignJWT({
+		kind: 'attendance_public_hourly',
+		bucket
+	})
+		.setProtectedHeader({ alg: 'HS256' })
+		.setIssuedAt()
+		.setExpirationTime('65m')
+		.sign(attendanceSecret());
+};
+
 export const createAttendanceActivationToken = async (accessToken: string) =>
 	new SignJWT({
 		kind: 'attendance_activate',
@@ -95,6 +110,14 @@ export const verifyAttendanceHourlyToken = async (token: string) => {
 	const attendeeUserId = String(payload.attendee_user_id ?? '');
 	if (!attendeeUserId) throw new Error('Invalid attendance QR token');
 	return { attendeeUserId };
+};
+
+export const verifyAttendancePublicHourlyToken = async (token: string) => {
+	const { payload } = await jwtVerify(token, attendanceSecret());
+	if (String(payload.kind ?? '') !== 'attendance_public_hourly') {
+		throw new Error('Invalid attendance QR token');
+	}
+	return { bucket: String(payload.bucket ?? '') };
 };
 
 export const verifyAttendanceActivationToken = async (token: string) => {

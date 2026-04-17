@@ -1,8 +1,9 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
+	ATTENDANCE_PUBLIC_ACTIVATION_QR,
+	ATTENDANCE_PUBLIC_DISPLAY_KEY,
 	attendanceDayKey,
-	verifyAttendanceActivationToken,
-	verifyAttendanceHourlyToken
+	verifyAttendancePublicHourlyToken
 } from '$lib/server/attendance';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -13,38 +14,40 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const token = String(body?.token ?? '').trim();
 	if (!token) return json({ error: 'Attendance QR token is required.' }, { status: 400 });
 
-	try {
-		const { accessToken } = await verifyAttendanceActivationToken(token);
+	if (token === ATTENDANCE_PUBLIC_ACTIVATION_QR) {
 		if (!profile || !['mentor', 'admin'].includes(profile.role)) {
 			return json({ error: 'Only mentors can activate attendance displays.' }, { status: 403 });
 		}
 		const { data: session } = await locals.supabase
 			.from('attendance_display_sessions')
 			.select('id,activated_at')
-			.eq('access_token', accessToken)
+			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 			.maybeSingle();
 		if (!session) return json({ error: 'Attendance display session not found.' }, { status: 404 });
-		if (!session.activated_at) {
-			const { error: activateErr } = await locals.supabase
-				.from('attendance_display_sessions')
-				.update({
-					activated_at: new Date().toISOString(),
-					activated_by: user.id
-				})
-				.eq('id', session.id);
-			if (activateErr) return json({ error: activateErr.message }, { status: 400 });
-		}
-		return json({ ok: true, action: 'activate' });
-	} catch {
-		// Not an activation QR; continue with hourly attendance token flow.
+		const nextActive = !session.activated_at;
+		const { error: toggleErr } = await locals.supabase
+			.from('attendance_display_sessions')
+			.update({
+				activated_at: nextActive ? new Date().toISOString() : null,
+				activated_by: nextActive ? user.id : null
+			})
+			.eq('id', session.id);
+		if (toggleErr) return json({ error: toggleErr.message }, { status: 400 });
+		return json({ ok: true, action: nextActive ? 'activate' : 'deactivate' });
 	}
 
-	let attendeeUserId = '';
 	try {
-		const resolved = await verifyAttendanceHourlyToken(token);
-		attendeeUserId = resolved.attendeeUserId;
+		await verifyAttendancePublicHourlyToken(token);
 	} catch {
 		return json({ error: 'Invalid or expired attendance QR token.' }, { status: 400 });
+	}
+	const { data: displaySession } = await locals.supabase
+		.from('attendance_display_sessions')
+		.select('activated_at')
+		.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
+		.maybeSingle();
+	if (!displaySession?.activated_at) {
+		return json({ error: 'Attendance display is not activated yet.' }, { status: 400 });
 	}
 
 	const todayKey = attendanceDayKey();
@@ -53,13 +56,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const { data: existing } = await locals.supabase
 		.from('attendance_daily_sessions')
 		.select('id,check_in_at,check_out_at')
-		.eq('attendee_user_id', attendeeUserId)
+		.eq('attendee_user_id', user.id)
 		.eq('attendance_day', todayKey)
 		.maybeSingle();
 
 	if (!existing) {
 		const { error: insertErr } = await locals.supabase.from('attendance_daily_sessions').insert({
-			attendee_user_id: attendeeUserId,
+			attendee_user_id: user.id,
 			attendance_day: todayKey,
 			check_in_at: nowIso,
 			check_out_at: null,

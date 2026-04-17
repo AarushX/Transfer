@@ -1,41 +1,20 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import QRCode from 'qrcode';
 import {
-	createAttendanceActivationToken,
-	createAttendanceHourlyToken,
-	verifyAttendanceAccessToken
+	ATTENDANCE_PUBLIC_ACTIVATION_QR,
+	ATTENDANCE_PUBLIC_DISPLAY_KEY,
+	createAttendancePublicHourlyToken
 } from '$lib/server/attendance';
 
-export const POST: RequestHandler = async ({ locals, request }) => {
-	const body = await request.json().catch(() => null);
-	const accessToken = String(body?.accessToken ?? '').trim();
-	if (!accessToken) return json({ error: 'Attendance access token is required.' }, { status: 400 });
-
-	let attendeeUserId = '';
-	try {
-		const resolved = await verifyAttendanceAccessToken(accessToken);
-		attendeeUserId = resolved.attendeeUserId;
-	} catch {
-		return json({ error: 'Invalid or expired attendance link.' }, { status: 400 });
-	}
-
-	const { data: attendee } = await locals.supabase
-		.from('profiles')
-		.select('id,full_name,email')
-		.eq('id', attendeeUserId)
-		.maybeSingle();
-	if (!attendee) return json({ error: 'Attendee not found.' }, { status: 404 });
-
+export const POST: RequestHandler = async ({ locals }) => {
 	const { data: displaySession } = await locals.supabase
 		.from('attendance_display_sessions')
 		.select('activated_at')
-		.eq('access_token', accessToken)
+		.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 		.maybeSingle();
 
 	const isActive = Boolean(displaySession?.activated_at);
-	const token = isActive
-		? await createAttendanceHourlyToken(attendeeUserId)
-		: await createAttendanceActivationToken(accessToken);
+	const token = isActive ? await createAttendancePublicHourlyToken() : ATTENDANCE_PUBLIC_ACTIVATION_QR;
 	const qrDataUrl = await QRCode.toDataURL(token);
-	return json({ ok: true, attendee, isActive, qrDataUrl });
+	return json({ ok: true, isActive, qrDataUrl });
 };
