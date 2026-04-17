@@ -7,24 +7,37 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const { data: node } = await locals.supabase
 		.from('nodes')
-		.select('id,title,description,video_url,physical_task')
+		.select('id,title,description,video_url,physical_task,subteam_id')
 		.eq('slug', params.nodeSlug)
 		.single();
 
 	if (!node) throw error(404, 'Module not found');
 
-	const { data: assessment } = await locals.supabase
-		.from('assessments')
-		.select('questions')
-		.eq('node_id', node.id)
-		.single();
+	const [{ data: assessment }, { data: cert }, { data: statusRow }] = await Promise.all([
+		locals.supabase
+			.from('assessments')
+			.select('questions,passing_score')
+			.eq('node_id', node.id)
+			.maybeSingle(),
+		locals.supabase
+			.from('certifications')
+			.select('status,quiz_score,quiz_passed_at,approved_at')
+			.eq('node_id', node.id)
+			.eq('user_id', user.id)
+			.maybeSingle(),
+		locals.supabase
+			.from('v_user_node_status')
+			.select('computed_status')
+			.eq('node_id', node.id)
+			.eq('user_id', user.id)
+			.maybeSingle()
+	]);
 
-	const { data: cert } = await locals.supabase
-		.from('certifications')
-		.select('status')
-		.eq('node_id', node.id)
-		.eq('user_id', user.id)
-		.single();
-
-	return { node, questions: assessment?.questions ?? [], certStatus: cert?.status ?? 'locked' };
+	return {
+		node,
+		questions: assessment?.questions ?? [],
+		passingScore: assessment?.passing_score ?? 80,
+		certStatus: statusRow?.computed_status ?? cert?.status ?? 'locked',
+		cert: cert ?? null
+	};
 };

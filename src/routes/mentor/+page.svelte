@@ -48,7 +48,14 @@
 </script>
 
 <section class="space-y-4">
-	<h1 class="text-2xl font-semibold">Pending Checkoffs</h1>
+	<div class="flex flex-wrap items-center justify-between gap-3">
+		<h1 class="text-2xl font-semibold">Pending Checkoffs</h1>
+		<a
+			href="/mentor/courses"
+			class="rounded bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600"
+			>Manage courses →</a
+		>
+	</div>
 	{#if !queue.length}
 		<p class="text-slate-300">No students are waiting for checkoff.</p>
 	{:else}
