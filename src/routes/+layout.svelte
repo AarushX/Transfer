@@ -11,6 +11,8 @@
 	const roleLabel = $derived(roleBadgeParts(data.profile).join(' · '));
 
 	let mobileOpen = $state(false);
+	let installPromptEvent = $state<any>(null);
+	let showInstallButton = $state(false);
 
 	type NavItem = { href: string; label: string; match?: (p: string) => boolean };
 
@@ -45,6 +47,16 @@
 	const isActive = (item: NavItem, p: string) =>
 		item.match ? item.match(p) : p === item.href;
 
+	const handleInstallClick = async () => {
+		if (!installPromptEvent) return;
+		await installPromptEvent.prompt();
+		const choice = await installPromptEvent.userChoice?.catch(() => null);
+		if (choice?.outcome === 'accepted' || choice?.outcome === 'dismissed') {
+			installPromptEvent = null;
+			showInstallButton = false;
+		}
+	};
+
 	$effect(() => {
 		const isMobileViewport = window.matchMedia('(max-width: 767px)').matches;
 		const shouldLockBackground = mobileOpen && isMobileViewport;
@@ -53,6 +65,31 @@
 		return () => {
 			document.body.style.overflow = '';
 			document.body.style.touchAction = '';
+		};
+	});
+
+	$effect(() => {
+		const media = window.matchMedia('(max-width: 767px)');
+		const syncMobileFlag = () => {
+			showInstallButton = media.matches && Boolean(installPromptEvent);
+		};
+		const onBeforeInstallPrompt = (event: Event) => {
+			event.preventDefault();
+			installPromptEvent = event as any;
+			syncMobileFlag();
+		};
+		const onInstalled = () => {
+			installPromptEvent = null;
+			showInstallButton = false;
+		};
+		syncMobileFlag();
+		media.addEventListener('change', syncMobileFlag);
+		window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+		window.addEventListener('appinstalled', onInstalled);
+		return () => {
+			media.removeEventListener('change', syncMobileFlag);
+			window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+			window.removeEventListener('appinstalled', onInstalled);
 		};
 	});
 </script>
@@ -223,6 +260,17 @@
 				<span class="w-8"></span>
 			{/if}
 		</header>
+		{#if showInstallButton}
+			<div class="border-b border-slate-800 bg-slate-900 px-4 py-2 md:hidden">
+				<button
+					type="button"
+					onclick={handleInstallClick}
+					class="w-full rounded-md border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-200 active:bg-sky-500/20"
+				>
+					Install app
+				</button>
+			</div>
+		{/if}
 
 		<main class="flex-1 bg-slate-950 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10">
 			<div class="mx-auto w-full max-w-6xl">
