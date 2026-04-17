@@ -53,6 +53,22 @@
 					if (res.ok) location.reload();
 				}
 			)
+			.on(
+				'postgres_changes',
+				{ event: '*', schema: 'public', table: 'checkoff_submissions' },
+				async () => {
+					const res = await fetch('/mentor');
+					if (res.ok) location.reload();
+				}
+			)
+			.on(
+				'postgres_changes',
+				{ event: '*', schema: 'public', table: 'checkoff_reviews' },
+				async () => {
+					const res = await fetch('/mentor');
+					if (res.ok) location.reload();
+				}
+			)
 			.subscribe();
 		return () => {
 			supabase.removeChannel(channel);

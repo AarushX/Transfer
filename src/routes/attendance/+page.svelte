@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { createBrowserClient } from '@supabase/ssr';
+	import { env as publicEnv } from '$env/dynamic/public';
+	import { onMount } from 'svelte';
 	let { data } = $props();
 
 	let studentQrDataUrl = $state<string>('');
@@ -9,6 +12,9 @@
 	let currentBucket = $state('');
 	let animateActivation = $state(false);
 	let statePollingHandle: ReturnType<typeof setInterval> | null = null;
+	const PUBLIC_SUPABASE_URL = publicEnv.PUBLIC_SUPABASE_URL ?? 'https://example.supabase.co';
+	const PUBLIC_SUPABASE_ANON_KEY = publicEnv.PUBLIC_SUPABASE_ANON_KEY ?? 'public-anon-key';
+	const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
 	const applyActiveState = (nextActive: boolean) => {
 		const changedToActive = !isActive && nextActive;
@@ -75,6 +81,27 @@
 			document.removeEventListener('visibilitychange', onVisible);
 			if (statePollingHandle) clearInterval(statePollingHandle);
 			statePollingHandle = null;
+		};
+	});
+
+	onMount(() => {
+		const channel = supabase
+			.channel('attendance-kiosk-live')
+			.on(
+				'postgres_changes',
+				{
+					event: '*',
+					schema: 'public',
+					table: 'attendance_display_sessions',
+					filter: 'access_token=eq.public-attendance-display'
+				},
+				async () => {
+					await refreshQr();
+				}
+			)
+			.subscribe();
+		return () => {
+			supabase.removeChannel(channel);
 		};
 	});
 </script>
