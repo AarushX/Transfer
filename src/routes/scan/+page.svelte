@@ -6,9 +6,10 @@
 	let message = $state('');
 	let machine = $state<{ name?: string; description?: string } | null>(null);
 	let lastToken = $state('');
+	let releaseLastTokenHandle: ReturnType<typeof setTimeout> | null = null;
 
 	const authorize = async (token: string) => {
-		if (!token || token === lastToken) return;
+		if (!token || status === 'checking' || token === lastToken) return;
 		lastToken = token;
 		status = 'checking';
 		message = '';
@@ -72,6 +73,12 @@
 		} catch {
 			status = 'denied';
 			message = 'Network error. Try again.';
+		} finally {
+			if (releaseLastTokenHandle) clearTimeout(releaseLastTokenHandle);
+			releaseLastTokenHandle = setTimeout(() => {
+				lastToken = '';
+				releaseLastTokenHandle = null;
+			}, 900);
 		}
 	};
 
@@ -80,12 +87,6 @@
 		if (data.machineToken) authorize(data.machineToken);
 	});
 
-	const reset = () => {
-		status = 'idle';
-		message = '';
-		machine = null;
-		lastToken = '';
-	};
 </script>
 
 <section class="space-y-6">
@@ -138,15 +139,7 @@
 				</div>
 			{/if}
 
-			{#if status !== 'idle'}
-				<button
-					type="button"
-					onclick={reset}
-					class="w-full rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900/50"
-				>
-					Scan another
-				</button>
-			{/if}
+			<p class="text-center text-xs text-slate-500">Ready for next scan automatically.</p>
 		</div>
 	</div>
 </section>
