@@ -8,8 +8,8 @@
 		<a href="/mentor/courses" class="text-xs text-slate-400">← All courses</a>
 		<h1 class="text-2xl font-semibold">New course</h1>
 		<p class="text-sm text-slate-400">
-			Create a module with its video, tier, and physical checkoff task. You can add a quiz and
-			prerequisites after saving.
+			Create a module with its video and ordering. You can configure quiz, prerequisites, and
+			checkoff requirements after saving.
 		</p>
 	</div>
 
@@ -60,17 +60,7 @@
 				placeholder="https://www.youtube.com/..."
 			/>
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Tier</span>
-			<input
-				class="rounded bg-slate-800 px-2 py-2"
-				name="tier"
-				type="number"
-				min="1"
-				value={v('tier', 1)}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-sm">
+		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Order</span>
 			<input
 				class="rounded bg-slate-800 px-2 py-2"
@@ -78,15 +68,6 @@
 				type="number"
 				min="0"
 				value={v('ordering', 0)}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Physical task (Do step)</span>
-			<input
-				class="rounded bg-slate-800 px-2 py-2"
-				name="physical_task"
-				value={v('physicalTask')}
-				placeholder="What the student must demonstrate to a mentor"
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">

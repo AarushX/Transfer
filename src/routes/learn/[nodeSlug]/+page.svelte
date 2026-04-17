@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	function extractVideoId(url: string): string | null {
 		if (!url) return null;
@@ -70,6 +71,35 @@
 	const statusInfo = $derived(
 		statusLabels[certStatus] ?? { label: certStatus, tone: 'slate' }
 	);
+
+	let uploadPreview = $state<string>(data.submission?.photo_data_url ?? '');
+	let checkoffMessage = $state('');
+
+	const checklist = $derived(Array.isArray(data.checkoff?.mentor_checklist) ? data.checkoff.mentor_checklist : []);
+	const resourceLinks = $derived(
+		Array.isArray(data.checkoff?.resource_links) ? data.checkoff.resource_links : []
+	);
+	const showCheckoffSection = $derived(videoDone && (awaitingMentor || completed));
+
+	async function onPhotoSelected(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		if (!file.type.startsWith('image/')) {
+			checkoffMessage = 'Please choose an image file.';
+			return;
+		}
+		if (file.size > 1_500_000) {
+			checkoffMessage = 'Image too large. Keep it under ~1.5MB.';
+			return;
+		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			uploadPreview = String(reader.result ?? '');
+			checkoffMessage = '';
+		};
+		reader.readAsDataURL(file);
+	}
 </script>
 
 <section class="space-y-4">
@@ -157,15 +187,94 @@
 		</div>
 	{/if}
 
+	{#if showCheckoffSection}
+		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<div class="mb-3">
+				<h2 class="text-lg font-semibold">{data.checkoff?.title || 'Physical checkoff'}</h2>
+				<p class="text-sm text-slate-300">
+					{data.checkoff?.directions || 'Demonstrate your work to a mentor for final signoff.'}
+				</p>
+			</div>
+			{#if checklist.length > 0}
+				<div class="mb-3 rounded bg-slate-950/60 p-3">
+					<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+						Mentor checklist
+					</p>
+					<ul class="list-disc space-y-1 pl-5 text-sm text-slate-200">
+						{#each checklist as item}
+							<li>{item}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+			{#if resourceLinks.length > 0}
+				<div class="mb-3 rounded bg-slate-950/60 p-3">
+					<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Resources</p>
+					<ul class="space-y-1 text-sm">
+						{#each resourceLinks as link}
+							<li>
+								<a href={link} class="text-yellow-300 underline" target="_blank" rel="noopener noreferrer"
+									>{link}</a
+								>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			<form
+				method="POST"
+				action="?/saveSubmission"
+				use:enhance={() => {
+					return async ({ result }) => {
+						if (result.type === 'success') {
+							checkoffMessage = 'Checkoff submission saved.';
+							await invalidateAll();
+						}
+						if (result.type === 'failure') {
+							checkoffMessage = (result.data?.error as string) ?? 'Could not save submission.';
+						}
+					};
+				}}
+				class="space-y-3 rounded border border-slate-800 bg-slate-950/60 p-3"
+			>
+				<label class="flex flex-col gap-1 text-sm">
+					<span class="text-slate-300">What did you complete?</span>
+					<textarea
+						name="notes"
+						rows="3"
+						class="rounded bg-slate-800 px-2 py-2"
+						placeholder="Describe what you built/demonstrated, tools used, and any issues."
+					>{data.submission?.notes ?? ''}</textarea>
+				</label>
+				<label class="flex flex-col gap-1 text-sm">
+					<span class="text-slate-300">
+						Photo evidence
+						{#if data.checkoff?.evidence_mode === 'photo_required'}(required){/if}
+						{#if data.checkoff?.evidence_mode === 'photo_optional'}(optional){/if}
+					</span>
+					<input type="file" accept="image/*" capture="environment" onchange={onPhotoSelected} />
+					<input type="hidden" name="photo_data_url" value={uploadPreview} />
+				</label>
+				{#if uploadPreview}
+					<img src={uploadPreview} alt="Checkoff submission preview" class="max-h-52 rounded border border-slate-700" />
+				{/if}
+				{#if checkoffMessage}
+					<p class="text-xs text-slate-300">{checkoffMessage}</p>
+				{/if}
+				<button class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900" type="submit">
+					Save checkoff submission
+				</button>
+			</form>
+		</div>
+	{/if}
+
 	{#if awaitingMentor}
 		<div class="rounded-xl border border-sky-700 bg-sky-900/20 p-4">
 			<h2 class="mb-1 text-lg font-semibold">Awaiting mentor checkoff</h2>
 			<p class="text-sm text-sky-100">
-				Quiz passed{data.cert?.quiz_score != null ? ` (${data.cert.quiz_score}%)` : ''}. Find a
-				mentor to complete the hands-on step:
-			</p>
-			<p class="mt-2 rounded bg-slate-900 p-3 text-sm text-slate-200">
-				{data.node.physical_task || 'Demonstrate the skills from this module to a mentor.'}
+				Quiz passed{data.cert?.quiz_score != null ? ` (${data.cert.quiz_score}%)` : ''}. Your submission is
+				ready for mentor review.
 			</p>
 		</div>
 	{/if}

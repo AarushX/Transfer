@@ -9,7 +9,7 @@ with machining as (
 	select id from public.subteams where slug = 'machining'
 ),
 inserted_nodes as (
-	insert into public.nodes (title, slug, description, video_url, subteam_id, tier, physical_task, ordering)
+	insert into public.nodes (title, slug, description, video_url, subteam_id, ordering)
 	select * from (
 		values
 			(
@@ -18,8 +18,6 @@ inserted_nodes as (
 				'PPE, hazard recognition, and safe behavior in the machine shop.',
 				'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
 				(select id from machining),
-				1,
-				'Demonstrate proper PPE and identify three hazards in the shop.',
 				1
 			),
 			(
@@ -28,8 +26,6 @@ inserted_nodes as (
 				'Safe setup, clamping, and drilling procedures.',
 				'https://www.youtube.com/watch?v=9bZkp7q19f0',
 				(select id from machining),
-				1,
-				'Set up and drill a clean through-hole with correct clamping.',
 				2
 			),
 			(
@@ -38,16 +34,13 @@ inserted_nodes as (
 				'Lathe safety, facing, and simple turning operations.',
 				'https://www.youtube.com/watch?v=3JZ_D3ELwOQ',
 				(select id from machining),
-				2,
-				'Face stock and turn to target diameter within tolerance.',
 				3
 			)
-	) as v(title, slug, description, video_url, subteam_id, tier, physical_task, ordering)
+	) as v(title, slug, description, video_url, subteam_id, ordering)
 	on conflict (slug) do update set
 		title = excluded.title,
 		description = excluded.description,
 		video_url = excluded.video_url,
-		physical_task = excluded.physical_task,
 		ordering = excluded.ordering
 	returning id, slug
 )
@@ -76,6 +69,24 @@ from inserted_nodes n
 on conflict (node_id) do update set
 	passing_score = excluded.passing_score,
 	questions = excluded.questions;
+
+insert into public.node_checkoff_requirements (node_id, directions, evidence_mode)
+select
+	n.id,
+	case n.slug
+		when 'shop-safety-fundamentals' then
+			'Demonstrate proper PPE and identify three hazards in the shop.'
+		when 'drill-press-basics' then
+			'Set up and drill a clean through-hole with correct clamping.'
+		else
+			'Face stock and turn to target diameter within tolerance.'
+	end,
+	'none'
+from public.nodes n
+where n.slug in ('shop-safety-fundamentals', 'drill-press-basics', 'lathe-intro')
+on conflict (node_id) do update set
+	directions = excluded.directions,
+	evidence_mode = excluded.evidence_mode;
 
 insert into public.node_prerequisites (node_id, prerequisite_node_id)
 select n2.id, n1.id

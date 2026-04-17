@@ -11,6 +11,11 @@
 			href: '/dashboard'
 		},
 		{
+			title: 'Teams',
+			description: 'Pick your primary team and manage mentor team preferences.',
+			href: '/teams'
+		},
+		{
 			title: 'Passport',
 			description: 'Digital passport, badges, and QR identity.',
 			href: '/passport'

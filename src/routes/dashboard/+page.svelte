@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SkillTree from '$lib/components/SkillTree.svelte';
 
-	type Node = { id: string; title: string; slug: string; tier: number; ordering: number; subteam_id: string };
+	type Node = { id: string; title: string; slug: string; ordering: number; subteam_id: string };
 	type Status = { node_id: string; computed_status: string };
 	type Subteam = { id: string; name: string; slug: string };
 
@@ -42,7 +42,12 @@
 				subteam: subteamMap.get(subteamId),
 				nodes
 			}))
-			.sort((a, b) => (a.subteam?.name ?? '').localeCompare(b.subteam?.name ?? ''));
+			.sort((a, b) => {
+				const primary = data.profile?.subteam_id;
+				if (primary && a.subteam?.id === primary) return -1;
+				if (primary && b.subteam?.id === primary) return 1;
+				return (a.subteam?.name ?? '').localeCompare(b.subteam?.name ?? '');
+			});
 	});
 
 	const summary = $derived.by(() => {
@@ -118,9 +123,20 @@
 				<p class="text-lg font-semibold">{summary.locked}</p>
 			</div>
 		</div>
+		{#if !data.profile?.subteam_id}
+			<p class="mt-3 text-xs text-amber-200">
+				No primary team selected yet.
+				<a class="underline" href="/teams">Pick your team</a> to organize modules for you.
+			</p>
+		{:else}
+			<p class="mt-3 text-xs text-slate-400">
+				Your primary team appears first in the module list.
+				<a class="underline" href="/teams">Change team</a>
+			</p>
+		{/if}
 	</div>
 
-	<SkillTree nodes={data.nodes} statuses={data.statuses} />
+	<SkillTree nodes={data.nodes} statuses={data.statuses} prerequisites={data.prerequisites} />
 
 	<div class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
 		<div class="flex flex-wrap items-center gap-2">
@@ -154,7 +170,6 @@
 						>
 							<span>
 								<span class="font-medium">{node.title}</span>
-								<span class="ml-2 text-xs text-slate-500">T{node.tier}</span>
 							</span>
 							<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
 								{statusLabel(status)}

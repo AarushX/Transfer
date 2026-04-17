@@ -11,13 +11,13 @@ const slugify = (value: string) =>
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { data: node, error: nodeErr } = await locals.supabase
 		.from('nodes')
-		.select('id,title,slug,description,video_url,physical_task,tier,ordering,subteam_id')
+		.select('id,title,slug,description,video_url,ordering,subteam_id')
 		.eq('slug', params.slug)
 		.single();
 
 	if (nodeErr || !node) throw error(404, 'Course not found');
 
-	const [subteamsResp, assessmentResp, prereqsResp, allNodesResp] = await Promise.all([
+	const [subteamsResp, assessmentResp, prereqsResp, allNodesResp, checkoffResp] = await Promise.all([
 		locals.supabase.from('subteams').select('id,name').order('name'),
 		locals.supabase
 			.from('assessments')
@@ -32,10 +32,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.eq('node_id', node.id),
 		locals.supabase
 			.from('nodes')
-			.select('id,title,slug,tier,ordering,subteam_id')
+			.select('id,title,slug,ordering,subteam_id')
 			.neq('id', node.id)
-			.order('tier')
-			.order('ordering')
+			.order('ordering'),
+		locals.supabase
+			.from('node_checkoff_requirements')
+			.select('title,directions,mentor_checklist,resource_links,evidence_mode')
+			.eq('node_id', node.id)
+			.maybeSingle()
 	]);
 
 	return {
@@ -53,7 +57,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		prereqIds: (prereqsResp.data ?? []).map((p: { prerequisite_node_id: string }) =>
 			p.prerequisite_node_id
 		),
-		allNodes: allNodesResp.data ?? []
+		allNodes: allNodesResp.data ?? [],
+		checkoff: checkoffResp.data ?? {
+			title: 'Physical checkoff',
+			directions: '',
+			mentor_checklist: [],
+			resource_links: [],
+			evidence_mode: 'none'
+		}
 	};
 };
 
@@ -66,8 +77,6 @@ export const actions: Actions = {
 		const subteamId = String(form.get('subteam_id') ?? '');
 		const videoUrl = String(form.get('video_url') ?? '').trim();
 		const description = String(form.get('description') ?? '');
-		const physicalTask = String(form.get('physical_task') ?? '');
-		const tier = Number(form.get('tier') ?? 1);
 		const ordering = Number(form.get('ordering') ?? 0);
 
 		if (!title || !slug || !subteamId) {
@@ -82,8 +91,6 @@ export const actions: Actions = {
 				subteam_id: subteamId,
 				video_url: videoUrl,
 				description,
-				physical_task: physicalTask,
-				tier,
 				ordering
 			})
 			.eq('slug', params.slug);
@@ -191,6 +198,53 @@ export const actions: Actions = {
 			}
 		}
 		return { ok: true, section: 'prereqs' };
+	},
+
+	saveCheckoff: async ({ locals, params, request }) => {
+		const form = await request.formData();
+		const title = String(form.get('checkoff_title') ?? 'Physical checkoff').trim();
+		const directions = String(form.get('checkoff_directions') ?? '').trim();
+		const evidenceMode = String(form.get('evidence_mode') ?? 'none');
+		const checklistInput = String(form.get('mentor_checklist_text') ?? '');
+		const linksInput = String(form.get('resource_links_text') ?? '');
+
+		const validEvidenceModes = new Set(['none', 'photo_optional', 'photo_required']);
+		if (!validEvidenceModes.has(evidenceMode)) {
+			return fail(400, { error: 'Invalid evidence mode.', section: 'checkoff' });
+		}
+
+		const mentorChecklist = checklistInput
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+		const resourceLinks = linksInput
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+
+		const { data: node } = await locals.supabase
+			.from('nodes')
+			.select('id')
+			.eq('slug', params.slug)
+			.single();
+		if (!node) return fail(404, { error: 'Course not found', section: 'checkoff' });
+
+		const { error: upsertError } = await locals.supabase
+			.from('node_checkoff_requirements')
+			.upsert(
+				{
+					node_id: node.id,
+					title: title || 'Physical checkoff',
+					directions,
+					mentor_checklist: mentorChecklist,
+					resource_links: resourceLinks,
+					evidence_mode: evidenceMode
+				},
+				{ onConflict: 'node_id' }
+			);
+		if (upsertError) return fail(400, { error: upsertError.message, section: 'checkoff' });
+
+		return { ok: true, section: 'checkoff' };
 	},
 
 	deleteNode: async ({ locals, params }) => {

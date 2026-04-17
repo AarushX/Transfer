@@ -173,17 +173,7 @@
 				value={data.node.video_url ?? ''}
 			/>
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Tier</span>
-			<input
-				class="rounded bg-slate-800 px-2 py-2"
-				name="tier"
-				type="number"
-				min="1"
-				value={data.node.tier}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-sm">
+		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Order</span>
 			<input
 				class="rounded bg-slate-800 px-2 py-2"
@@ -191,14 +181,6 @@
 				type="number"
 				min="0"
 				value={data.node.ordering}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Physical task (Do step)</span>
-			<input
-				class="rounded bg-slate-800 px-2 py-2"
-				name="physical_task"
-				value={data.node.physical_task ?? ''}
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
@@ -452,7 +434,7 @@
 						checked={data.prereqIds.includes(n.id)}
 					/>
 					<span class="truncate">{n.title}</span>
-					<span class="ml-auto text-xs text-slate-500">T{n.tier}</span>
+					<span class="ml-auto text-xs text-slate-500">{n.slug}</span>
 				</label>
 			{:else}
 				<p class="text-sm text-slate-400">No matching courses.</p>
@@ -461,6 +443,73 @@
 		<div class="flex justify-end">
 			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900"
 				>Save prerequisites</button
+			>
+		</div>
+	</form>
+
+	<form
+		method="POST"
+		action="?/saveCheckoff"
+		class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4"
+	>
+		<div>
+			<h2 class="text-lg font-semibold">Physical Checkoff Section</h2>
+			<p class="text-xs text-slate-400">
+				This appears under the quiz and drives what mentors verify before approval.
+			</p>
+		</div>
+		<label class="flex flex-col gap-1 text-sm">
+			<span class="text-slate-300">Section title</span>
+			<input
+				class="rounded bg-slate-800 px-2 py-2"
+				name="checkoff_title"
+				value={data.checkoff.title ?? 'Physical checkoff'}
+			/>
+		</label>
+		<label class="flex flex-col gap-1 text-sm">
+			<span class="text-slate-300">Student directions</span>
+			<textarea
+				class="rounded bg-slate-800 px-2 py-2"
+				name="checkoff_directions"
+				rows="3"
+				placeholder="Detailed steps for student demo/evidence submission..."
+			>{data.checkoff.directions ?? ''}</textarea>
+		</label>
+		<div class="grid gap-2 md:grid-cols-2">
+			<label class="flex flex-col gap-1 text-sm">
+				<span class="text-slate-300">Mentor checklist (one item per line)</span>
+				<textarea
+					class="rounded bg-slate-800 px-2 py-2"
+					name="mentor_checklist_text"
+					rows="4"
+					placeholder="- Check safety\n- Verify process"
+				>{(data.checkoff.mentor_checklist ?? []).join('\n')}</textarea>
+			</label>
+			<label class="flex flex-col gap-1 text-sm">
+				<span class="text-slate-300">Resource links (one URL per line)</span>
+				<textarea
+					class="rounded bg-slate-800 px-2 py-2"
+					name="resource_links_text"
+					rows="4"
+					placeholder="https://... reference doc or rubric"
+				>{(data.checkoff.resource_links ?? []).join('\n')}</textarea>
+			</label>
+		</div>
+		<label class="flex flex-col gap-1 text-sm md:w-80">
+			<span class="text-slate-300">Photo evidence requirement</span>
+			<select name="evidence_mode" class="rounded bg-slate-800 px-2 py-2">
+				<option value="none" selected={data.checkoff.evidence_mode === 'none'}>No photo</option>
+				<option value="photo_optional" selected={data.checkoff.evidence_mode === 'photo_optional'}
+					>Photo optional</option
+				>
+				<option value="photo_required" selected={data.checkoff.evidence_mode === 'photo_required'}
+					>Photo required</option
+				>
+			</select>
+		</label>
+		<div class="flex justify-end">
+			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900"
+				>Save checkoff section</button
 			>
 		</div>
 	</form>

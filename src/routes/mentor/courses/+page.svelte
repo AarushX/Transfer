@@ -58,7 +58,6 @@
 					<th class="px-3 py-2">Title</th>
 					<th class="px-3 py-2">Slug</th>
 					<th class="px-3 py-2">Subteam</th>
-					<th class="px-3 py-2">Tier</th>
 					<th class="px-3 py-2">Order</th>
 					<th class="px-3 py-2 text-right">Actions</th>
 				</tr>
@@ -69,7 +68,6 @@
 						<td class="px-3 py-2 font-medium">{node.title}</td>
 						<td class="px-3 py-2 text-slate-400">{node.slug}</td>
 						<td class="px-3 py-2">{subteamName(node.subteam_id)}</td>
-						<td class="px-3 py-2">T{node.tier}</td>
 						<td class="px-3 py-2">{node.ordering}</td>
 						<td class="px-3 py-2 text-right">
 							<a
@@ -85,7 +83,7 @@
 					</tr>
 				{:else}
 					<tr>
-						<td colspan="6" class="px-3 py-6 text-center text-slate-400">No courses found.</td>
+						<td colspan="5" class="px-3 py-6 text-center text-slate-400">No courses found.</td>
 					</tr>
 				{/each}
 			</tbody>

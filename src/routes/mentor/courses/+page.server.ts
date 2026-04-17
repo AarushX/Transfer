@@ -11,8 +11,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	let query = locals.supabase
 		.from('nodes')
-		.select('id,title,slug,tier,ordering,subteam_id')
-		.order('tier', { ascending: true })
+		.select('id,title,slug,ordering,subteam_id')
 		.order('ordering', { ascending: true });
 
 	if (subteamFilter) query = query.eq('subteam_id', subteamFilter);

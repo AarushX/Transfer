@@ -25,33 +25,46 @@ export const actions: Actions = {
 		const subteamId = String(form.get('subteam_id') ?? '');
 		const videoUrl = String(form.get('video_url') ?? '').trim();
 		const description = String(form.get('description') ?? '');
-		const physicalTask = String(form.get('physical_task') ?? '');
-		const tier = Number(form.get('tier') ?? 1);
 		const ordering = Number(form.get('ordering') ?? 0);
 
 		if (!title || !slug || !subteamId) {
 			return fail(400, {
 				error: 'Title, slug, and subteam are required.',
-				values: { title, slug, subteamId, videoUrl, description, physicalTask, tier, ordering }
+				values: { title, slug, subteamId, videoUrl, description, ordering }
 			});
 		}
 
-		const { error } = await locals.supabase.from('nodes').insert({
+		const { data: node, error } = await locals.supabase
+			.from('nodes')
+			.insert({
 			title,
 			slug,
 			subteam_id: subteamId,
 			video_url: videoUrl,
 			description,
-			physical_task: physicalTask,
-			tier,
 			ordering
-		});
+			})
+			.select('id')
+			.single();
 
 		if (error) {
 			return fail(400, {
 				error: error.message,
-				values: { title, slug, subteamId, videoUrl, description, physicalTask, tier, ordering }
+				values: { title, slug, subteamId, videoUrl, description, ordering }
 			});
+		}
+		if (node?.id) {
+			await locals.supabase.from('node_checkoff_requirements').upsert(
+				{
+					node_id: node.id,
+					title: 'Physical checkoff',
+					directions: '',
+					mentor_checklist: [],
+					resource_links: [],
+					evidence_mode: 'none'
+				},
+				{ onConflict: 'node_id' }
+			);
 		}
 
 		throw redirect(303, `/mentor/courses/${slug}`);

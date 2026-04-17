@@ -5,23 +5,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user) throw redirect(303, '/login');
 
-	const [nodesResp, statusesResp, subteamsResp] = await Promise.all([
+	const [nodesResp, statusesResp, subteamsResp, prereqResp] = await Promise.all([
 		locals.supabase
 			.from('nodes')
-			.select('id,title,slug,tier,ordering,subteam_id')
-			.order('tier', { ascending: true })
+			.select('id,title,slug,ordering,subteam_id')
 			.order('ordering', { ascending: true }),
 		locals.supabase
 			.from('v_user_node_status')
 			.select('node_id,computed_status')
 			.eq('user_id', user.id),
-		locals.supabase.from('subteams').select('id,name,slug').order('name')
+		locals.supabase.from('subteams').select('id,name,slug').order('name'),
+		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id')
 	]);
 
 	return {
 		profile,
 		nodes: nodesResp.data ?? [],
 		statuses: statusesResp.data ?? [],
-		subteams: subteamsResp.data ?? []
+		subteams: subteamsResp.data ?? [],
+		prerequisites: prereqResp.data ?? []
 	};
 };

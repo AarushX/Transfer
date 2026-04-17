@@ -5,7 +5,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { data: nodes } = await locals.supabase
 		.from('nodes')
 		.select('id,title,slug,subteam_id')
-		.order('tier')
 		.order('ordering');
 	return { subteams: subteams ?? [], nodes: nodes ?? [] };
 };
@@ -17,16 +16,31 @@ export const actions: Actions = {
 		const slug = String(form.get('slug') ?? '');
 		const videoUrl = String(form.get('video_url') ?? '');
 		const subteamId = String(form.get('subteam_id') ?? '');
-		await locals.supabase.from('nodes').insert({
+		const { data: node } = await locals.supabase
+			.from('nodes')
+			.insert({
 			title,
 			slug,
 			video_url: videoUrl,
 			subteam_id: subteamId,
 			description: String(form.get('description') ?? ''),
-			tier: Number(form.get('tier') ?? 1),
-			ordering: Number(form.get('ordering') ?? 0),
-			physical_task: String(form.get('physical_task') ?? '')
-		});
+			ordering: Number(form.get('ordering') ?? 0)
+			})
+			.select('id')
+			.single();
+		if (node?.id) {
+			await locals.supabase.from('node_checkoff_requirements').upsert(
+				{
+					node_id: node.id,
+					title: 'Physical checkoff',
+					directions: '',
+					mentor_checklist: [],
+					resource_links: [],
+					evidence_mode: 'none'
+				},
+				{ onConflict: 'node_id' }
+			);
+		}
 		return { ok: true };
 	}
 };

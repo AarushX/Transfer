@@ -22,6 +22,9 @@
 				<a href="/dashboard" class={page.url.pathname === '/dashboard' ? 'text-yellow-300' : ''}
 					>Dashboard</a
 				>
+				<a href="/teams" class={page.url.pathname.startsWith('/teams') ? 'text-yellow-300' : ''}
+					>Teams</a
+				>
 				{#if canMentor}
 					<a
 						href="/mentor"
