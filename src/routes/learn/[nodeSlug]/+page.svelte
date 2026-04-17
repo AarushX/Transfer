@@ -72,7 +72,17 @@
 		statusLabels[certStatus] ?? { label: certStatus, tone: 'slate' }
 	);
 
-	let uploadPreview = $state<string>(data.submission?.photo_data_url ?? '');
+	const initialSubmissionPhotos = $derived.by(() => {
+		if (Array.isArray(data.submission?.photo_data_urls) && data.submission.photo_data_urls.length > 0) {
+			return data.submission.photo_data_urls as string[];
+		}
+		if (data.submission?.photo_data_url) return [data.submission.photo_data_url] as string[];
+		return [] as string[];
+	});
+	let uploadPreviews = $state<string[]>([]);
+	$effect(() => {
+		uploadPreviews = initialSubmissionPhotos;
+	});
 	let checkoffMessage = $state('');
 
 	const checklist = $derived(Array.isArray(data.checkoff?.mentor_checklist) ? data.checkoff.mentor_checklist : []);
@@ -81,24 +91,53 @@
 	);
 	const showCheckoffSection = $derived(videoDone && (awaitingMentor || completed));
 
+	async function compressImage(file: File): Promise<string> {
+		const dataUrl = await new Promise<string>((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(String(reader.result ?? ''));
+			reader.onerror = () => reject(new Error('Could not read image'));
+			reader.readAsDataURL(file);
+		});
+		const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+			const el = new Image();
+			el.onload = () => resolve(el);
+			el.onerror = () => reject(new Error('Could not load image'));
+			el.src = dataUrl;
+		});
+		const maxDim = 1280;
+		const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+		const width = Math.max(1, Math.round(img.width * scale));
+		const height = Math.max(1, Math.round(img.height * scale));
+		const canvas = document.createElement('canvas');
+		canvas.width = width;
+		canvas.height = height;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return dataUrl;
+		ctx.drawImage(img, 0, 0, width, height);
+		return canvas.toDataURL('image/jpeg', 0.78);
+	}
+
 	async function onPhotoSelected(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		if (!file.type.startsWith('image/')) {
-			checkoffMessage = 'Please choose an image file.';
+		const files = Array.from(input.files ?? []);
+		if (!files.length) return;
+		const accepted = files.filter((f) => f.type.startsWith('image/')).slice(0, 4);
+		if (!accepted.length) {
+			checkoffMessage = 'Please choose image files.';
 			return;
 		}
-		if (file.size > 1_500_000) {
-			checkoffMessage = 'Image too large. Keep it under ~1.5MB.';
-			return;
+		const compressed: string[] = [];
+		for (const file of accepted) {
+			const next = await compressImage(file);
+			compressed.push(next);
 		}
-		const reader = new FileReader();
-		reader.onload = () => {
-			uploadPreview = String(reader.result ?? '');
-			checkoffMessage = '';
-		};
-		reader.readAsDataURL(file);
+		uploadPreviews = compressed;
+		checkoffMessage = 'Photos prepared and compressed for upload.';
+	}
+
+	function removePhoto(index: number) {
+		uploadPreviews = uploadPreviews.filter((_, i) => i !== index);
+		checkoffMessage = 'Photo removed. Save to persist this change.';
 	}
 </script>
 
@@ -253,11 +292,34 @@
 						{#if data.checkoff?.evidence_mode === 'photo_required'}(required){/if}
 						{#if data.checkoff?.evidence_mode === 'photo_optional'}(optional){/if}
 					</span>
-					<input type="file" accept="image/*" capture="environment" onchange={onPhotoSelected} />
-					<input type="hidden" name="photo_data_url" value={uploadPreview} />
+					<input
+						type="file"
+						accept="image/*"
+						capture="environment"
+						multiple
+						onchange={onPhotoSelected}
+					/>
+					<input type="hidden" name="photo_data_urls_json" value={JSON.stringify(uploadPreviews)} />
 				</label>
-				{#if uploadPreview}
-					<img src={uploadPreview} alt="Checkoff submission preview" class="max-h-52 rounded border border-slate-700" />
+				{#if uploadPreviews.length}
+					<div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+						{#each uploadPreviews as photo, idx}
+							<div class="relative">
+								<img
+									src={photo}
+									alt="Checkoff submission preview"
+									class="h-24 w-full rounded border border-slate-700 object-cover"
+								/>
+								<button
+									type="button"
+									onclick={() => removePhoto(idx)}
+									class="absolute right-1 top-1 rounded bg-slate-900/80 px-1.5 py-0.5 text-[11px] text-red-200"
+								>
+									Remove
+								</button>
+							</div>
+						{/each}
+					</div>
 				{/if}
 				{#if checkoffMessage}
 					<p class="text-xs text-slate-300">{checkoffMessage}</p>
@@ -266,6 +328,24 @@
 					Save checkoff submission
 				</button>
 			</form>
+			{#if data.review}
+				<div class="mt-3 rounded border border-slate-700 bg-slate-950/40 p-3 text-sm">
+					<p class="font-semibold text-slate-200">Latest mentor feedback</p>
+					<p class="mt-1 text-slate-300">{data.review.mentor_notes || 'No notes yet.'}</p>
+					{#if data.review.status === 'needs_review'}
+						<p class="mt-2 text-xs text-amber-200">
+							Mentor requested updates. Your current submission stays saved; update notes/photos and save again.
+						</p>
+					{/if}
+					{#if (data.review.checklist_results ?? []).length > 0}
+						<ul class="mt-2 list-disc pl-5 text-xs text-slate-300">
+							{#each data.review.checklist_results as row}
+								<li>{row.item}: {row.passed ? 'passed' : 'needs work'}</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 

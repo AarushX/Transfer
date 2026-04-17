@@ -1,14 +1,39 @@
 <script lang="ts">
-	let { item, onApprove, onReview } = $props();
+	let { item, onApprove, onReview, onRetryCheckoff } = $props();
 
-	let busy = $state<'' | 'approve' | 'review'>('');
+	let busy = $state<'' | 'approve' | 'review' | 'retry'>('');
 	let notes = $state('');
+	let checklistStates = $state<Record<string, boolean>>({});
+
+	const photosFor = (submission: any): string[] => {
+		if (Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0) {
+			return submission.photo_data_urls;
+		}
+		if (submission?.photo_data_url) return [submission.photo_data_url];
+		return [];
+	};
+
+	$effect(() => {
+		const initial: Record<string, boolean> = {};
+		for (const row of item.review?.checklist_results ?? []) {
+			const key = String(row?.item ?? '');
+			if (key) initial[key] = !!row?.passed;
+		}
+		if (!Object.keys(initial).length) {
+			for (const row of item.requirement?.mentor_checklist ?? []) {
+				initial[String(row)] = false;
+			}
+		}
+		checklistStates = initial;
+		notes = item.review?.mentor_notes ?? '';
+	});
 
 	async function approve() {
 		if (busy) return;
 		busy = 'approve';
 		try {
-			await onApprove(item, notes.trim());
+			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
+			await onApprove(item, notes.trim(), checklist_results);
 		} finally {
 			busy = '';
 		}
@@ -17,12 +42,28 @@
 	async function review() {
 		if (busy) return;
 		const ok = confirm(
-			`Send back to quiz_pending for ${item.profile?.full_name || item.profile?.email}?`
+			`Reset quiz and send ${item.profile?.full_name || item.profile?.email} to try again?`
 		);
 		if (!ok) return;
 		busy = 'review';
 		try {
-			await onReview(item, notes.trim());
+			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
+			await onReview(item, notes.trim(), checklist_results);
+		} finally {
+			busy = '';
+		}
+	}
+
+	async function retryCheckoff() {
+		if (busy) return;
+		const ok = confirm(
+			`Keep quiz pass and request checkoff rework for ${item.profile?.full_name || item.profile?.email}?`
+		);
+		if (!ok) return;
+		busy = 'retry';
+		try {
+			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
+			await onRetryCheckoff(item, notes.trim(), checklist_results);
 		} finally {
 			busy = '';
 		}
@@ -52,11 +93,21 @@
 			</p>
 		{/if}
 		{#if (item.requirement?.mentor_checklist ?? []).length}
-			<ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-300">
+			<div class="mt-2 space-y-1 text-xs text-slate-300">
+				<p class="font-semibold text-slate-400">Mentor checklist</p>
 				{#each item.requirement.mentor_checklist as c}
-					<li>{c}</li>
+					<label class="flex items-start gap-2 rounded px-2 py-1 hover:bg-slate-800/40">
+						<input
+							type="checkbox"
+							class="mt-0.5 accent-yellow-400"
+							checked={!!checklistStates[c]}
+							onchange={(event) =>
+								(checklistStates[c] = (event.currentTarget as HTMLInputElement).checked)}
+						/>
+						<span>{c}</span>
+					</label>
 				{/each}
-			</ul>
+			</div>
 		{/if}
 		{#if item.submission}
 			<div class="mt-2 rounded border border-slate-700 bg-slate-950/40 p-2 text-xs">
@@ -64,13 +115,14 @@
 				<p class="mt-1 whitespace-pre-wrap text-slate-300">
 					{item.submission.notes || 'No notes submitted.'}
 				</p>
-				{#if item.submission.photo_data_url}
-					<a
-						class="mt-2 inline-flex rounded border border-slate-700 px-2 py-1 text-xs text-yellow-300"
-						href={item.submission.photo_data_url}
-						target="_blank"
-						rel="noopener noreferrer">Open submitted photo</a
-					>
+				{#if photosFor(item.submission).length}
+					<div class="mt-2 grid grid-cols-3 gap-2">
+						{#each photosFor(item.submission) as photo}
+							<a href={photo} target="_blank" rel="noopener noreferrer">
+								<img src={photo} alt="Student evidence" class="h-16 w-full rounded object-cover" />
+							</a>
+						{/each}
+					</div>
 				{/if}
 			</div>
 		{:else if item.requirement?.evidence_mode === 'photo_required'}
@@ -78,9 +130,14 @@
 				Photo evidence is required but student has not submitted one yet.
 			</p>
 		{/if}
+		{#if item.review}
+			<p class="mt-2 text-[11px] text-slate-500">
+				Last review: {item.review.status} · {new Date(item.review.updated_at).toLocaleString()}
+			</p>
+		{/if}
 	</div>
 	<label class="flex flex-col gap-1 text-xs text-slate-400">
-		<span>Mentor notes (optional)</span>
+		<span>Mentor feedback</span>
 		<textarea
 			class="rounded bg-slate-800 px-2 py-2 text-sm text-slate-100"
 			rows="2"
@@ -102,7 +159,14 @@
 			onclick={review}
 			disabled={!!busy}
 		>
-			{busy === 'review' ? 'Sending back…' : 'Needs Review'}
+			{busy === 'review' ? 'Resetting…' : 'Reset Quiz & Try Again'}
+		</button>
+		<button
+			class="rounded bg-slate-700 px-3 py-1 text-sm font-semibold hover:bg-slate-600 disabled:opacity-60"
+			onclick={retryCheckoff}
+			disabled={!!busy}
+		>
+			{busy === 'retry' ? 'Saving…' : 'Retry Checkoff (Keep Quiz)'}
 		</button>
 	</div>
 </article>

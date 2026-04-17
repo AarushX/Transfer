@@ -13,7 +13,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	if (!node) throw error(404, 'Module not found');
 
-	const [{ data: assessment }, { data: cert }, { data: statusRow }, { data: checkoff }, { data: submission }] =
+	const [
+		{ data: assessment },
+		{ data: cert },
+		{ data: statusRow },
+		{ data: checkoff },
+		{ data: submission },
+		{ data: review }
+	] =
 		await Promise.all([
 		locals.supabase
 			.from('assessments')
@@ -39,7 +46,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.maybeSingle(),
 		locals.supabase
 			.from('checkoff_submissions')
-			.select('notes,photo_data_url,updated_at')
+			.select('notes,photo_data_url,photo_data_urls,updated_at')
+			.eq('node_id', node.id)
+			.eq('user_id', user.id)
+			.maybeSingle(),
+		locals.supabase
+			.from('checkoff_reviews')
+			.select('status,mentor_notes,checklist_results,updated_at')
 			.eq('node_id', node.id)
 			.eq('user_id', user.id)
 			.maybeSingle()
@@ -58,7 +71,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			resource_links: [],
 			evidence_mode: 'none'
 		},
-		submission: submission ?? null
+		submission: submission ?? null,
+		review: review ?? null
 	};
 };
 
@@ -76,13 +90,35 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const notes = String(form.get('notes') ?? '').trim();
-		const photoDataUrl = String(form.get('photo_data_url') ?? '').trim();
-
-		if (photoDataUrl && !photoDataUrl.startsWith('data:image/')) {
-			return fail(400, { error: 'Photo upload data is invalid.', section: 'checkoff' });
+		let photoDataUrls: string[] = [];
+		try {
+			photoDataUrls = JSON.parse(String(form.get('photo_data_urls_json') ?? '[]'));
+		} catch {
+			return fail(400, { error: 'Photo payload is invalid.', section: 'checkoff' });
 		}
-		if (photoDataUrl.length > 3_000_000) {
-			return fail(400, { error: 'Uploaded image is too large. Please use a smaller photo.', section: 'checkoff' });
+		if (!Array.isArray(photoDataUrls)) {
+			return fail(400, { error: 'Photo payload is invalid.', section: 'checkoff' });
+		}
+		photoDataUrls = photoDataUrls
+			.map((v) => String(v))
+			.filter((v) => v.startsWith('data:image/'))
+			.slice(0, 4);
+		for (const photo of photoDataUrls) {
+			if (photo.length > 1_500_000) {
+				return fail(400, {
+					error: 'One of the uploaded images is too large. Please use a smaller photo.',
+					section: 'checkoff'
+				});
+			}
+		}
+
+		const { data: requirement } = await locals.supabase
+			.from('node_checkoff_requirements')
+			.select('evidence_mode')
+			.eq('node_id', node.id)
+			.maybeSingle();
+		if (requirement?.evidence_mode === 'photo_required' && photoDataUrls.length === 0) {
+			return fail(400, { error: 'At least one photo is required for this checkoff.', section: 'checkoff' });
 		}
 
 		const { error: upsertError } = await locals.supabase.from('checkoff_submissions').upsert(
@@ -90,7 +126,8 @@ export const actions: Actions = {
 				user_id: user.id,
 				node_id: node.id,
 				notes,
-				photo_data_url: photoDataUrl || null
+				photo_data_url: photoDataUrls[0] ?? null,
+				photo_data_urls: photoDataUrls
 			},
 			{ onConflict: 'user_id,node_id' }
 		);

@@ -62,6 +62,26 @@
 		return counts;
 	});
 
+	const availableNow = $derived(
+		(data.nodes as Node[]).filter((n) => {
+			const s = statusMap.get(n.id) ?? 'locked';
+			return s === 'available' || s === 'video_pending' || s === 'quiz_pending';
+		})
+	);
+	const awaitingMentor = $derived(
+		(data.nodes as Node[]).filter((n) => (statusMap.get(n.id) ?? 'locked') === 'mentor_checkoff_pending')
+	);
+	const recommendedNext = $derived.by(() => {
+		const preferredTeam = data.profile?.subteam_id;
+		const candidates = availableNow.slice().sort((a, b) => {
+			const ap = preferredTeam && a.subteam_id === preferredTeam ? 0 : 1;
+			const bp = preferredTeam && b.subteam_id === preferredTeam ? 0 : 1;
+			if (ap !== bp) return ap - bp;
+			return a.ordering - b.ordering;
+		});
+		return candidates[0] ?? null;
+	});
+
 	const statusPillClass = (status: string) => {
 		switch (status) {
 			case 'completed':
@@ -136,11 +156,48 @@
 		{/if}
 	</div>
 
+	<div class="grid gap-3 md:grid-cols-3">
+		<div class="rounded-xl border border-yellow-700/40 bg-yellow-900/20 p-4 md:col-span-2">
+			<p class="text-xs font-semibold uppercase tracking-wide text-yellow-300">Next action</p>
+			{#if recommendedNext}
+				<h2 class="mt-1 text-lg font-semibold">{recommendedNext.title}</h2>
+				<p class="text-sm text-yellow-100">Start this module now to keep progressing.</p>
+				<a
+					href={`/learn/${recommendedNext.slug}`}
+					class="mt-3 inline-flex rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900"
+					>Start module</a
+				>
+			{:else if awaitingMentor.length > 0}
+				<h2 class="mt-1 text-lg font-semibold">You're waiting on mentor signoff</h2>
+				<p class="text-sm text-yellow-100">
+					You have {awaitingMentor.length} module{awaitingMentor.length === 1 ? '' : 's'} ready for checkoff.
+					Find a mentor at your next meeting.
+				</p>
+				<a href="/passport" class="mt-3 inline-flex rounded border border-yellow-300 px-3 py-2 text-sm"
+					>Open passport</a
+				>
+			{:else}
+				<h2 class="mt-1 text-lg font-semibold">No available modules right now</h2>
+				<p class="text-sm text-yellow-100">
+					Check prerequisites in the graph below or ask a mentor if you think this is unexpected.
+				</p>
+			{/if}
+		</div>
+		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">At a glance</p>
+			<ul class="mt-2 space-y-1 text-sm text-slate-300">
+				<li>{availableNow.length} ready to work on</li>
+				<li>{awaitingMentor.length} awaiting mentor</li>
+				<li>{summary.completed} completed total</li>
+			</ul>
+		</div>
+	</div>
+
 	<SkillTree nodes={data.nodes} statuses={data.statuses} prerequisites={data.prerequisites} />
 
 	<div class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
 		<div class="flex flex-wrap items-center gap-2">
-			<h2 class="mr-auto text-lg font-semibold">Modules</h2>
+			<h2 class="mr-auto text-lg font-semibold">All Modules (by team)</h2>
 			<input
 				bind:value={filter}
 				placeholder="Search modules..."

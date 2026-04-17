@@ -2,16 +2,17 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!profile || !['mentor', 'admin'].includes(profile.role)) {
+	if (!user || !profile || !['mentor', 'admin'].includes(profile.role)) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
-	const { nodeId, userId, action, notes } = await request.json();
-	if (!nodeId || !userId || !['approve', 'review'].includes(action)) {
+	const { nodeId, userId, action, notes, checklist_results } = await request.json();
+	const normalizedAction = action === 'review' ? 'reset_quiz' : action;
+	if (!nodeId || !userId || !['approve', 'reset_quiz', 'retry_checkoff'].includes(normalizedAction)) {
 		return json({ error: 'Invalid request payload' }, { status: 400 });
 	}
 
-	if (action === 'approve') {
+	if (normalizedAction === 'approve') {
 		const [{ data: requirement }, { data: submission }] = await Promise.all([
 			locals.supabase
 				.from('node_checkoff_requirements')
@@ -20,12 +21,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				.maybeSingle(),
 			locals.supabase
 				.from('checkoff_submissions')
-				.select('photo_data_url')
+				.select('photo_data_url,photo_data_urls')
 				.eq('node_id', nodeId)
 				.eq('user_id', userId)
 				.maybeSingle()
 		]);
-		if (requirement?.evidence_mode === 'photo_required' && !submission?.photo_data_url) {
+		const hasPhoto = Boolean(
+			submission?.photo_data_url ||
+				(Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0)
+		);
+		if (requirement?.evidence_mode === 'photo_required' && !hasPhoto) {
 			return json(
 				{ error: 'Photo evidence is required before this checkoff can be approved.' },
 				{ status: 400 }
@@ -47,13 +52,28 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
-	const status = action === 'approve' ? 'completed' : 'quiz_pending';
-	const { error } = await locals.supabase.rpc('transition_certification', {
-		p_node_id: nodeId,
-		p_new_status: status,
-		p_target_user_id: userId,
-		p_mentor_notes: notes ?? null
-	});
-	if (error) return json({ error: error.message }, { status: 400 });
+	if (normalizedAction === 'approve' || normalizedAction === 'reset_quiz') {
+		const status = normalizedAction === 'approve' ? 'completed' : 'quiz_pending';
+		const { error } = await locals.supabase.rpc('transition_certification', {
+			p_node_id: nodeId,
+			p_new_status: status,
+			p_target_user_id: userId,
+			p_mentor_notes: notes ?? null
+		});
+		if (error) return json({ error: error.message }, { status: 400 });
+	}
+
+	await locals.supabase.from('checkoff_reviews').upsert(
+		{
+			user_id: userId,
+			node_id: nodeId,
+			reviewer_id: user.id,
+			status: normalizedAction === 'approve' ? 'approved' : 'needs_review',
+			mentor_notes: String(notes ?? ''),
+			checklist_results: Array.isArray(checklist_results) ? checklist_results : []
+		},
+		{ onConflict: 'user_id,node_id' }
+	);
+
 	return json({ ok: true });
 };

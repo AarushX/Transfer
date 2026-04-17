@@ -5,6 +5,12 @@
 	import { onMount } from 'svelte';
 	let { data } = $props();
 	let queue = $state<any[]>([]);
+	let actionError = $state('');
+	const summary = $derived({
+		total: queue.length,
+		withEvidence: queue.filter((q) => (q.submission?.photo_data_urls?.length ?? 0) > 0 || q.submission?.photo_data_url).length,
+		needsEvidence: queue.filter((q) => q.requirement?.evidence_mode === 'photo_required' && !(q.submission?.photo_data_urls?.length || q.submission?.photo_data_url)).length
+	});
 	const PUBLIC_SUPABASE_URL = publicEnv.PUBLIC_SUPABASE_URL ?? 'https://example.supabase.co';
 	const PUBLIC_SUPABASE_ANON_KEY = publicEnv.PUBLIC_SUPABASE_ANON_KEY ?? 'public-anon-key';
 
@@ -28,22 +34,71 @@
 		};
 	});
 
-	const onApprove = async (item: any, notes = '') => {
-		await fetch('/api/mentor/checkoff', {
+	const onApprove = async (item: any, notes = '', checklist_results: any[] = []) => {
+		const res = await fetch('/api/mentor/checkoff', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ nodeId: item.node_id, userId: item.user_id, action: 'approve', notes })
+			body: JSON.stringify({
+				nodeId: item.node_id,
+				userId: item.user_id,
+				action: 'approve',
+				notes,
+				checklist_results
+			})
 		});
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			actionError = body?.error ?? 'Could not approve checkoff.';
+			return;
+		}
+		actionError = '';
 		queue = queue.filter((entry: any) => entry.id !== item.id);
 	};
 
-	const onReview = async (item: any, notes = '') => {
-		await fetch('/api/mentor/checkoff', {
+	const onResetQuiz = async (item: any, notes = '', checklist_results: any[] = []) => {
+		const res = await fetch('/api/mentor/checkoff', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ nodeId: item.node_id, userId: item.user_id, action: 'review', notes })
+			body: JSON.stringify({
+				nodeId: item.node_id,
+				userId: item.user_id,
+				action: 'reset_quiz',
+				notes,
+				checklist_results
+			})
 		});
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			actionError = body?.error ?? 'Could not reset quiz.';
+			return;
+		}
+		actionError = '';
 		queue = queue.filter((entry: any) => entry.id !== item.id);
+	};
+
+	const onRetryCheckoff = async (item: any, notes = '', checklist_results: any[] = []) => {
+		const res = await fetch('/api/mentor/checkoff', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				nodeId: item.node_id,
+				userId: item.user_id,
+				action: 'retry_checkoff',
+				notes,
+				checklist_results
+			})
+		});
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			actionError = body?.error ?? 'Could not request checkoff retry.';
+			return;
+		}
+		actionError = '';
+		queue = queue.map((entry: any) =>
+			entry.id === item.id
+				? { ...entry, review: { ...(entry.review ?? {}), status: 'needs_review', mentor_notes: notes } }
+				: entry
+		);
 	};
 </script>
 
@@ -56,6 +111,11 @@
 			>Manage courses →</a
 		>
 	</div>
+	{#if data.error || actionError}
+		<div class="rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-100">
+			{data.error || actionError}
+		</div>
+	{/if}
 	<div class="rounded-xl border border-slate-800 bg-slate-900 p-3">
 		<form method="GET" class="flex flex-wrap items-center gap-2">
 			<label for="scope" class="text-xs text-slate-400">Scope</label>
@@ -81,12 +141,26 @@
 			</p>
 		{/if}
 	</div>
+	<div class="grid gap-2 md:grid-cols-3">
+		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
+			<p class="text-xs text-slate-400">Pending</p>
+			<p class="text-xl font-semibold">{summary.total}</p>
+		</div>
+		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
+			<p class="text-xs text-slate-400">With evidence</p>
+			<p class="text-xl font-semibold text-emerald-200">{summary.withEvidence}</p>
+		</div>
+		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
+			<p class="text-xs text-slate-400">Missing required evidence</p>
+			<p class="text-xl font-semibold text-amber-200">{summary.needsEvidence}</p>
+		</div>
+	</div>
 	{#if !queue.length}
 		<p class="text-slate-300">No students are waiting for checkoff.</p>
 	{:else}
 		<div class="grid gap-3 md:grid-cols-2">
 			{#each queue as item}
-				<CheckoffCard {item} {onApprove} {onReview} />
+				<CheckoffCard {item} {onApprove} onReview={onResetQuiz} onRetryCheckoff={onRetryCheckoff} />
 			{/each}
 		</div>
 	{/if}
