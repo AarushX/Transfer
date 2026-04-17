@@ -298,6 +298,8 @@
 		uploadPreviews = uploadPreviews.filter((_, i) => i !== index);
 		checkoffMessage = 'Photo removed. Save to persist this change.';
 	}
+	let photoInputEl = $state<HTMLInputElement | null>(null);
+	const openPhotoPicker = () => photoInputEl?.click();
 
 	function blockTypeMeta(type: BlockType) {
 		if (type === 'video')
@@ -615,19 +617,31 @@
 							>{data.submission?.notes ?? ''}</textarea>
 						</label>
 						<label class="flex flex-col gap-1 text-sm">
-							<span class="text-slate-300">
-								Photo evidence
-								{#if c.evidence_mode === 'photo_required'}(required){/if}
-								{#if c.evidence_mode === 'photo_optional'}(optional){/if}
-							</span>
 							<input
+								bind:this={photoInputEl}
 								type="file"
 								accept="image/*"
 								capture="environment"
 								multiple
 								onchange={onPhotoSelected}
 								disabled={blockedByMentor}
+								class="hidden"
 							/>
+							<div class="flex flex-wrap items-center gap-2">
+								<button
+									type="button"
+									onclick={openPhotoPicker}
+									disabled={blockedByMentor}
+									class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+								>
+									Upload Photo or File
+								</button>
+								<span class="text-xs text-slate-400">
+									{uploadPreviews.length > 0
+										? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
+										: 'PNG/JPG, up to 4 files'}
+								</span>
+							</div>
 							<input type="hidden" name="photo_data_urls_json" value={JSON.stringify(uploadPreviews)} />
 						</label>
 						{#if uploadPreviews.length}
