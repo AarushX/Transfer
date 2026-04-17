@@ -4,6 +4,9 @@
 	import { page } from '$app/state';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { isAdmin, isMentor, roleBadgeParts } from '$lib/roles';
+	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
+
+	injectSpeedInsights();
 
 	let { children, data } = $props();
 	const canMentor = $derived(isMentor(data.profile));
