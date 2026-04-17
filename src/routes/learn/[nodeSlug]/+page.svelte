@@ -173,15 +173,22 @@
 	);
 
 	let marking = $state(false);
+	let videoActionMessage = $state('');
 	async function markLegacyVideoDone() {
 		if (marking) return;
 		marking = true;
 		try {
-			await fetch('/api/nodes/video-complete', {
+			const res = await fetch('/api/nodes/video-complete', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ nodeId: data.node.id })
 			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				videoActionMessage = body?.error ?? 'Could not mark video complete.';
+				return;
+			}
+			videoActionMessage = '';
 			await invalidateAll();
 		} finally {
 			marking = false;
@@ -192,11 +199,17 @@
 		if (marking) return;
 		marking = true;
 		try {
-			await fetch('/api/nodes/block-complete', {
+			const res = await fetch('/api/nodes/block-complete', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ nodeId: data.node.id, blockId: block.id })
 			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				videoActionMessage = body?.error ?? 'Could not mark block complete.';
+				return;
+			}
+			videoActionMessage = '';
 			await invalidateAll();
 		} finally {
 			marking = false;
@@ -514,6 +527,9 @@
 							<span class="text-xs text-slate-400">
 								Marks this video complete and unlocks the next block.
 							</span>
+							{#if videoActionMessage}
+								<p class="text-xs text-red-300">{videoActionMessage}</p>
+							{/if}
 						{:else}
 							<span class="text-xs text-slate-400">
 								Viewing a completed step. Return to the current step to continue progress.

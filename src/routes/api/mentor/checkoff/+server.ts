@@ -127,10 +127,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	if (profile.role === 'mentor' && user) {
-		if (!qrToken && !checkoffToken) {
-			return json({ error: 'Mentor must scan student passport QR before checkoff actions.' }, { status: 400 });
-		}
-		if (!checkoffToken) {
+		if (!checkoffToken && qrToken) {
 			try {
 				const { payload } = await jwtVerify(
 					String(qrToken),
