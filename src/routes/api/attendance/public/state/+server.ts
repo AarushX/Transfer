@@ -8,9 +8,16 @@ export const GET: RequestHandler = async ({ locals }) => {
 		.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 		.maybeSingle();
 
-	return json({
-		ok: true,
-		isActive: Boolean(displaySession?.activated_at),
-		bucket: attendanceHourBucket()
-	});
+	return json(
+		{
+			ok: true,
+			isActive: Boolean(displaySession?.activated_at),
+			bucket: attendanceHourBucket()
+		},
+		{
+			headers: {
+				'cache-control': 'no-store'
+			}
+		}
+	);
 };

@@ -8,26 +8,30 @@
 	let isActive = $state<boolean>(false);
 	let currentBucket = $state('');
 	let animateActivation = $state(false);
-	let previousActive = $state(false);
 	let statePollingHandle: ReturnType<typeof setInterval> | null = null;
+
+	const applyActiveState = (nextActive: boolean) => {
+		const changedToActive = !isActive && nextActive;
+		isActive = nextActive;
+		if (changedToActive) {
+			animateActivation = true;
+			setTimeout(() => (animateActivation = false), 1400);
+		}
+	};
 
 	$effect(() => {
 		studentQrDataUrl = String(data.studentQrDataUrl ?? '');
 		mentorQrDataUrl = String(data.mentorQrDataUrl ?? '');
-		isActive = Boolean(data.isActive);
+		applyActiveState(Boolean(data.isActive));
 		currentBucket = String(data.bucket ?? '');
-		if (!previousActive && isActive) {
-			animateActivation = true;
-			setTimeout(() => (animateActivation = false), 1400);
-		}
-		previousActive = isActive;
 	});
 
 	const refreshQr = async (showManualLoading = false) => {
 		if (showManualLoading) manualRefreshing = true;
 		try {
-			const res = await fetch('/api/attendance/public/refresh', {
-				method: 'POST'
+			const res = await fetch(`/api/attendance/public/refresh?t=${Date.now()}`, {
+				method: 'POST',
+				cache: 'no-store'
 			});
 			const body = await res.json().catch(() => null);
 			if (!res.ok) {
@@ -36,7 +40,7 @@
 			}
 			studentQrDataUrl = String(body?.studentQrDataUrl ?? '');
 			mentorQrDataUrl = String(body?.mentorQrDataUrl ?? '');
-			isActive = Boolean(body?.isActive);
+			applyActiveState(Boolean(body?.isActive));
 			currentBucket = String(body?.bucket ?? currentBucket);
 			error = '';
 		} finally {
@@ -45,7 +49,9 @@
 	};
 
 	const pollState = async () => {
-		const res = await fetch('/api/attendance/public/state');
+		const res = await fetch(`/api/attendance/public/state?t=${Date.now()}`, {
+			cache: 'no-store'
+		});
 		const body = await res.json().catch(() => null);
 		if (!res.ok || !body) return;
 		const nextActive = Boolean(body.isActive);
