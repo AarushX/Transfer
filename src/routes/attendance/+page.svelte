@@ -32,32 +32,23 @@
 	});
 
 	const refreshQr = async () => {
-		const res = await fetch(`/api/attendance/public/refresh?t=${Date.now()}`, {
-			method: 'POST',
-			cache: 'no-store'
-		});
-		const body = await res.json().catch(() => null);
-		if (!res.ok) {
-			error = body?.error ?? 'Could not refresh attendance QR.';
-			return;
-		}
-		studentQrDataUrl = String(body?.studentQrDataUrl ?? '');
-		mentorQrDataUrl = String(body?.mentorQrDataUrl ?? '');
-		applyActiveState(Boolean(body?.isActive));
-		currentBucket = String(body?.bucket ?? currentBucket);
-		error = '';
-	};
-
-	const pollState = async () => {
-		const res = await fetch(`/api/attendance/public/state?t=${Date.now()}`, {
-			cache: 'no-store'
-		});
-		const body = await res.json().catch(() => null);
-		if (!res.ok || !body) return;
-		const nextActive = Boolean(body.isActive);
-		const nextBucket = String(body.bucket ?? '');
-		if (nextActive !== isActive || (nextActive && nextBucket && nextBucket !== currentBucket)) {
-			await refreshQr();
+		try {
+			const res = await fetch(`/api/attendance/public/refresh?t=${Date.now()}`, {
+				method: 'POST',
+				cache: 'no-store'
+			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				error = body?.error ?? 'Could not refresh attendance QR.';
+				return;
+			}
+			studentQrDataUrl = String(body?.studentQrDataUrl ?? '');
+			mentorQrDataUrl = String(body?.mentorQrDataUrl ?? '');
+			applyActiveState(Boolean(body?.isActive));
+			currentBucket = String(body?.bucket ?? currentBucket);
+			error = '';
+		} catch {
+			error = 'Could not refresh attendance QR.';
 		}
 	};
 
@@ -65,10 +56,10 @@
 		void refreshQr();
 		if (statePollingHandle) clearInterval(statePollingHandle);
 		statePollingHandle = setInterval(() => {
-			void pollState();
+			void refreshQr();
 		}, 4_000);
 		const onVisible = () => {
-			if (!document.hidden) void pollState();
+			if (!document.hidden) void refreshQr();
 		};
 		document.addEventListener('visibilitychange', onVisible);
 		return () => {
