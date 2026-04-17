@@ -47,11 +47,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const resolved = await verifyAttendancePublicHourlyToken(token);
 		if (!profile) return json({ error: 'Unauthorized' }, { status: 401 });
-		if (resolved.audience === 'students' && ['mentor', 'admin'].includes(profile.role)) {
-			return json({ error: 'Mentors must use the mentor attendance QR.' }, { status: 403 });
-		}
-		if (resolved.audience === 'mentors' && !['mentor', 'admin'].includes(profile.role)) {
+		const isMentorOrAdmin = ['mentor', 'admin'].includes(profile.role);
+		if (resolved.audience === 'mentors' && !isMentorOrAdmin) {
 			return json({ error: 'This attendance QR is for mentors only.' }, { status: 403 });
+		}
+
+		if (resolved.audience === 'students' && isMentorOrAdmin) {
+			const { error: deactivateErr } = await locals.supabase
+				.from('attendance_display_sessions')
+				.update({
+					activated_at: null,
+					activated_by: user.id
+				})
+				.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY);
+			if (deactivateErr) return json({ error: deactivateErr.message }, { status: 400 });
+			return json({ ok: true, action: 'deactivate' });
 		}
 	} catch {
 		return json({ error: 'Invalid or expired attendance QR token.' }, { status: 400 });

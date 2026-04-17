@@ -8,12 +8,13 @@ import {
 } from '$lib/server/attendance';
 
 export const POST: RequestHandler = async ({ locals }) => {
-	const { data: displaySessions } = await locals.supabase
+	const { data: displaySessions, error } = await locals.supabase
 		.from('attendance_display_sessions')
 		.select('id,activated_at')
 		.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 		.order('created_at', { ascending: false })
 		.limit(50);
+	if (error) return json({ error: error.message }, { status: 500 });
 
 	const isActive = (displaySessions ?? []).some((row: any) => Boolean(row.activated_at));
 	const bucket = attendanceHourBucket();

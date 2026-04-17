@@ -8,17 +8,20 @@ import {
 } from '$lib/server/attendance';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { data: displaySessions } = await locals.supabase
+	const { data: displaySessions, error } = await locals.supabase
 		.from('attendance_display_sessions')
 		.select('id,activated_at')
 		.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 		.order('created_at', { ascending: false })
 		.limit(50);
-	if (!displaySessions || displaySessions.length === 0) {
-		await locals.supabase.from('attendance_display_sessions').insert({
-			attendee_user_id: null,
-			access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
-		});
+	if (error) {
+		return {
+			authorized: true,
+			isActive: false,
+			bucket: attendanceHourBucket(),
+			studentQrDataUrl: await QRCode.toDataURL(ATTENDANCE_PUBLIC_ACTIVATION_QR),
+			mentorQrDataUrl: await QRCode.toDataURL(ATTENDANCE_PUBLIC_ACTIVATION_QR)
+		};
 	}
 
 	const isActive = (displaySessions ?? []).some((row: any) => Boolean(row.activated_at));
