@@ -78,7 +78,7 @@
 			releaseLastTokenHandle = setTimeout(() => {
 				lastToken = '';
 				releaseLastTokenHandle = null;
-			}, 900);
+			}, 4500);
 		}
 	};
 
