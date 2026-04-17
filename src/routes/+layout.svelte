@@ -47,6 +47,7 @@
 
 	const isActive = (item: NavItem, p: string) =>
 		item.match ? item.match(p) : p === item.href;
+	const isAttendanceKiosk = $derived(page.url.pathname === '/attendance');
 
 	const handleInstallClick = async () => {
 		if (!installPromptEvent) return;
@@ -100,6 +101,11 @@
 	<meta name="theme-color" content="#020617" />
 </svelte:head>
 
+{#if isAttendanceKiosk}
+	<main class="min-h-dvh bg-slate-950 text-slate-100">
+		{@render children()}
+	</main>
+{:else}
 <div class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden">
 	<!-- Sidebar -->
 	<aside
@@ -280,3 +286,4 @@
 		</main>
 	</div>
 </div>
+{/if}
