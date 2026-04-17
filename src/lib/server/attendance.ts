@@ -3,7 +3,7 @@ import { jwtVerify, SignJWT } from 'jose';
 const encoder = new TextEncoder();
 const attendanceSecret = () =>
 	encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me');
-const attendanceTimezone = () => process.env.ATTENDANCE_TIMEZONE ?? 'America/Los_Angeles';
+const attendanceTimezone = () => process.env.ATTENDANCE_TIMEZONE ?? 'America/New_York';
 
 const datePartsInZone = (date: Date, timeZone: string) => {
 	const parts = new Intl.DateTimeFormat('en-CA', {

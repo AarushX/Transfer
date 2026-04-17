@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const profileById = new Map((profiles ?? []).map((p: any) => [String(p.id), p]));
 
 	return {
-		timeZone: process.env.ATTENDANCE_TIMEZONE ?? 'America/Los_Angeles',
+		timeZone: process.env.ATTENDANCE_TIMEZONE ?? 'America/New_York',
 		sessions:
 			(sessions ?? []).map((row: any) => ({
 				...row,
