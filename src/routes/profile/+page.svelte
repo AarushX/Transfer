@@ -2,6 +2,8 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import PassportQR from '$lib/components/PassportQR.svelte';
 	import { isMentor, roleBadgeParts } from '$lib/roles';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
 	const canMentor = $derived(isMentor(data.profile));
@@ -23,6 +25,14 @@
 		bio = data.profile?.bio ?? '';
 		avatarUrl = data.profile?.avatar_url ?? '';
 	});
+
+	const refreshOnSuccess = () => {
+		return async ({ result }: { result: { type: string } }) => {
+			if (result.type === 'success') {
+				await invalidateAll();
+			}
+		};
+	};
 </script>
 
 <section class="mx-auto max-w-3xl space-y-6">
@@ -60,7 +70,7 @@
 			</div>
 		</div>
 
-		<form method="POST" action="?/save" class="space-y-4 p-5">
+		<form method="POST" action="?/save" use:enhance={refreshOnSuccess} class="space-y-4 p-5">
 			<label class="block space-y-1">
 				<span class="text-xs font-medium uppercase tracking-wider text-slate-400">
 					Display name
@@ -114,7 +124,7 @@
 
 	<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
 		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Teams</p>
-		<form method="POST" action="?/setPrimaryTeam" class="mt-3">
+		<form method="POST" action="?/setPrimaryTeam" use:enhance={refreshOnSuccess} class="mt-3">
 			<p class="mb-2 text-sm font-medium">Primary team</p>
 			<div class="grid gap-2 md:grid-cols-2">
 				{#each data.subteams as team}
@@ -143,7 +153,12 @@
 			</div>
 		</form>
 		{#if canMentor}
-			<form method="POST" action="?/saveMentorTeams" class="mt-5 border-t border-slate-700 pt-4">
+			<form
+				method="POST"
+				action="?/saveMentorTeams"
+				use:enhance={refreshOnSuccess}
+				class="mt-5 border-t border-slate-700 pt-4"
+			>
 				<p class="mb-2 text-sm font-medium">Mentor checkoff teams</p>
 				<div class="grid gap-2 md:grid-cols-2">
 					{#each data.subteams as team}

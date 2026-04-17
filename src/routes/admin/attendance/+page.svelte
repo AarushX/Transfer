@@ -1,5 +1,20 @@
 <script lang="ts">
 	let { data } = $props();
+	const formatDateTime = (value: string | null | undefined) => {
+		if (!value) return '—';
+		const timeZone = (data as any).timeZone ?? 'America/Los_Angeles';
+		return new Intl.DateTimeFormat(undefined, {
+			timeZone,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: true,
+			timeZoneName: 'short'
+		}).format(new Date(value));
+	};
 </script>
 
 <section class="space-y-6">
@@ -27,8 +42,8 @@
 					<tr class="border-t border-slate-800">
 						<td class="p-2">{row.attendance_day}</td>
 						<td class="p-2">{row.attendee?.full_name || row.attendee?.email || row.attendee_user_id}</td>
-						<td class="p-2">{row.check_in_at ? new Date(row.check_in_at).toLocaleString() : '—'}</td>
-						<td class="p-2">{row.check_out_at ? new Date(row.check_out_at).toLocaleString() : '—'}</td>
+						<td class="p-2">{formatDateTime(row.check_in_at)}</td>
+						<td class="p-2">{formatDateTime(row.check_out_at)}</td>
 						<td class="p-2">{row.lastScanner?.full_name || row.lastScanner?.email || '—'}</td>
 					</tr>
 				{:else}
@@ -56,9 +71,9 @@
 			<tbody>
 				{#each data.displays as row}
 					<tr class="border-t border-slate-800">
-						<td class="p-2">{new Date(row.created_at).toLocaleString()}</td>
+						<td class="p-2">{formatDateTime(row.created_at)}</td>
 						<td class="p-2">{row.attendee?.full_name || row.attendee?.email || row.attendee_user_id}</td>
-						<td class="p-2">{row.activated_at ? new Date(row.activated_at).toLocaleString() : 'Inactive'}</td>
+						<td class="p-2">{row.activated_at ? formatDateTime(row.activated_at) : 'Inactive'}</td>
 						<td class="p-2">{row.activatedBy?.full_name || row.activatedBy?.email || '—'}</td>
 					</tr>
 				{:else}
