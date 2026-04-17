@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			.select('node_id,status,nodes!inner(title)')
 			.eq('user_id', userId)
 			.eq('status', 'completed');
-		return json({ profile: profileData, certifications: certs ?? [] });
+		return json({ token, profile: profileData, certifications: certs ?? [] });
 	} catch {
 		return json({ error: 'Invalid QR token' }, { status: 400 });
 	}

@@ -41,6 +41,7 @@
 		{ href: '/admin/settings', label: 'Workspace' },
 		{ href: '/admin/users', label: 'Users' },
 		{ href: '/admin/content', label: 'Content' },
+		{ href: '/admin/attendance', label: 'Attendance' },
 		{ href: '/admin/audit', label: 'Audit log' }
 	];
 

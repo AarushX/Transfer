@@ -21,6 +21,26 @@
 			});
 			const body = await res.json().catch(() => null);
 			if (!res.ok) {
+				// Fall back to attendance scan flow when this QR is not a machine token.
+				const attendanceRes = await fetch('/api/attendance/scan', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ token })
+				});
+				const attendanceBody = await attendanceRes.json().catch(() => null);
+				if (attendanceRes.ok) {
+					status = 'ok';
+					if (attendanceBody?.action === 'activate') {
+						message = 'Attendance display activated.';
+					} else {
+						message =
+							attendanceBody?.action === 'check_out'
+								? 'Attendance check-out recorded.'
+								: 'Attendance check-in recorded.';
+					}
+					machine = null;
+					return;
+				}
 				status = 'denied';
 				message = body?.error ?? 'Not authorized.';
 				machine = body?.machine ?? null;

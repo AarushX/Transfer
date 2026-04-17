@@ -2,7 +2,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { isAdmin, isMentor } from '$lib/roles';
 
-const PUBLIC_ROUTES = new Set(['/', '/login']);
+const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -38,7 +38,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const { user, profile } = await event.locals.safeGetSession();
 	const path = event.url.pathname;
-	const isPublicPath = PUBLIC_ROUTES.has(path) || path.startsWith('/auth/');
+	const isPublicPath =
+		PUBLIC_ROUTES.has(path) ||
+		path.startsWith('/auth/') ||
+		path.startsWith('/api/attendance/public/');
 
 	if (!user && !isPublicPath) throw redirect(303, '/login');
 	if (user && path === '/login') throw redirect(303, '/dashboard');
