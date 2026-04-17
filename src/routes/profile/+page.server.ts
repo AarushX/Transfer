@@ -1,10 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import QRCode from 'qrcode';
-import { SignJWT } from 'jose';
 import { isMentor } from '$lib/roles';
-
-const encoder = new TextEncoder();
+import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -67,13 +64,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		...(masteredTracks >= 3 ? ['Multi-Track Legend'] : [])
 	];
 
-	const secret = encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me');
-	const token = await new SignJWT({ user_id: user.id })
-		.setProtectedHeader({ alg: 'HS256' })
-		.setIssuedAt()
-		.setExpirationTime('10m')
-		.sign(secret);
-	const qrDataUrl = await QRCode.toDataURL(token);
+	const { data: qrProfile } = await locals.supabase
+		.from('profiles')
+		.select('passport_qr_version')
+		.eq('id', user.id)
+		.single();
+	const qrVersion = Number(qrProfile?.passport_qr_version ?? 0);
+	const qrDataUrl = await buildPassportQrDataUrl(user.id, qrVersion);
 
 	return {
 		profile,

@@ -292,13 +292,25 @@ const progressLabelFor = (nodeId: string) => {
 	</div>
 
 	<div class="space-y-3">
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-3">
 			<h2 class="mr-auto text-lg font-semibold">{primaryTeamName ? `${primaryTeamName} Training` : 'My Team Training'}</h2>
-			<input
-				bind:value={filter}
-				placeholder="Search courses..."
-				class="w-full rounded bg-slate-800 px-2 py-2 text-sm md:w-64"
-			/>
+			<label class="w-full md:w-72">
+				<span class="sr-only">Search courses</span>
+				<div class="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2">
+					<svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-500" aria-hidden="true">
+						<path
+							fill-rule="evenodd"
+							d="M9 3.75a5.25 5.25 0 1 0 3.3 9.334l3.808 3.808a.75.75 0 0 0 1.06-1.06l-3.807-3.808A5.25 5.25 0 0 0 9 3.75Zm-3.75 5.25a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0Z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+					<input
+						bind:value={filter}
+						placeholder="Search courses..."
+						class="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+					/>
+				</div>
+			</label>
 		</div>
 
 		{#if filtered.length === 0}
