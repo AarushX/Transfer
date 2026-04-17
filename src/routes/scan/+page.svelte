@@ -31,9 +31,9 @@
 				if (attendanceRes.ok) {
 					status = 'ok';
 					if (attendanceBody?.action === 'activate') {
-						message = 'Attendance display activated.';
+						message = 'Attendance kiosk activated.';
 					} else if (attendanceBody?.action === 'deactivate') {
-						message = 'Attendance display disabled.';
+						message = 'Attendance kiosk disabled.';
 					} else {
 						message =
 							attendanceBody?.action === 'check_out'

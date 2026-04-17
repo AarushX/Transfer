@@ -3,10 +3,11 @@
 
 	let qrDataUrl = $state<string>('');
 	let error = $state('');
-	let refreshing = $state(false);
+	let manualRefreshing = $state(false);
 	let isActive = $state<boolean>(false);
 	let animateActivation = $state(false);
 	let previousActive = $state(false);
+	let pollingHandle: ReturnType<typeof setInterval> | null = null;
 
 	$effect(() => {
 		qrDataUrl = String(data.qrDataUrl ?? '');
@@ -18,8 +19,8 @@
 		previousActive = isActive;
 	});
 
-	const refreshQr = async () => {
-		refreshing = true;
+	const refreshQr = async (showManualLoading = false) => {
+		if (showManualLoading) manualRefreshing = true;
 		try {
 			const res = await fetch('/api/attendance/public/refresh', {
 				method: 'POST'
@@ -33,50 +34,61 @@
 			isActive = Boolean(body?.isActive);
 			error = '';
 		} finally {
-			refreshing = false;
+			if (showManualLoading) manualRefreshing = false;
 		}
 	};
 
+	const restartPolling = () => {
+		if (pollingHandle) clearInterval(pollingHandle);
+		const ms = isActive ? 15_000 : 4_000;
+		pollingHandle = setInterval(() => {
+			void refreshQr();
+		}, ms);
+	};
+
 	$effect(() => {
-		const timer = setInterval(() => {
-			if (!isActive) {
-				void refreshQr();
-				return;
-			}
-			const now = new Date();
-			if (now.getMinutes() === 0) void refreshQr();
-		}, 30_000);
-		return () => clearInterval(timer);
+		void refreshQr();
+		restartPolling();
+		const onVisible = () => {
+			if (!document.hidden) void refreshQr();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisible);
+			if (pollingHandle) clearInterval(pollingHandle);
+			pollingHandle = null;
+		};
 	});
 </script>
 
-<section class="mx-auto max-w-xl space-y-5 py-4">
-	<div class={`rounded-xl border p-5 text-center transition-colors duration-500 ${isActive ? 'border-sky-500 bg-slate-900' : 'border-red-500 bg-red-950/20'}`}>
-		<p class="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Attendance QR</p>
-		<h1 class="mt-1 text-2xl font-semibold">Shop Attendance</h1>
-		<p class="mt-2 text-sm text-slate-400">
-			{#if isActive}
-				Active. Anyone scanning this QR is toggled check-in/check-out for the 4:30 AM - 4:29 AM day.
-			{:else}
-				Inactive. Mentor scans this red QR once to activate. Student scans of red QR do not mark attendance.
-			{/if}
+<section class="fixed inset-0 flex items-center justify-center bg-slate-950 p-6">
+	<div class="w-full max-w-xl text-center">
+		<p class={`mb-4 text-xs font-semibold uppercase tracking-[0.24em] ${isActive ? 'text-sky-300' : 'text-red-300'}`}>
+			{isActive ? 'Attendance Active' : 'Attendance Inactive'}
 		</p>
 		{#if qrDataUrl}
-			<img
-				src={qrDataUrl}
-				alt="Attendance QR code"
-				class={`mx-auto mt-4 w-72 max-w-full rounded-lg bg-white p-3 transition-all duration-500 ${isActive ? 'border-2 border-sky-500' : 'border-2 border-red-500'} ${animateActivation ? 'scale-105 shadow-[0_0_0_8px_rgba(56,189,248,0.22)]' : ''}`}
-			/>
+			<div
+				class={`mx-auto aspect-square w-[min(86vw,34rem)] rounded-3xl border-2 bg-white p-5 transition-all duration-500 ${
+					isActive ? 'border-sky-500 shadow-[0_0_40px_rgba(14,165,233,0.28)]' : 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.2)]'
+				} ${animateActivation ? 'scale-[1.03] shadow-[0_0_0_12px_rgba(56,189,248,0.22)]' : ''}`}
+			>
+				<img
+					src={qrDataUrl}
+					alt="Attendance QR code"
+					class="h-full w-full rounded-2xl object-contain"
+				/>
+			</div>
 		{/if}
-		<div class="mt-4 flex justify-center">
+		<div class="mt-5 flex items-center justify-center gap-3">
 			<button
 				type="button"
-				onclick={refreshQr}
-				disabled={refreshing}
-				class="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+				onclick={() => refreshQr(true)}
+				disabled={manualRefreshing}
+				class="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-200 hover:bg-slate-800 disabled:opacity-60"
 			>
-				{refreshing ? 'Refreshing…' : 'Refresh QR'}
+				{manualRefreshing ? 'Refreshing' : 'Refresh'}
 			</button>
+			<span class="text-xs text-slate-500">4:30am day boundary</span>
 		</div>
 		{#if error}<p class="mt-3 text-sm text-red-300">{error}</p>{/if}
 	</div>
