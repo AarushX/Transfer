@@ -37,7 +37,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	try {
-		await verifyAttendancePublicHourlyToken(token);
+		const resolved = await verifyAttendancePublicHourlyToken(token);
+		if (!profile) return json({ error: 'Unauthorized' }, { status: 401 });
+		if (resolved.audience === 'students' && ['mentor', 'admin'].includes(profile.role)) {
+			return json({ error: 'Mentors must use the mentor attendance QR.' }, { status: 403 });
+		}
+		if (resolved.audience === 'mentors' && !['mentor', 'admin'].includes(profile.role)) {
+			return json({ error: 'This attendance QR is for mentors only.' }, { status: 403 });
+		}
 	} catch {
 		return json({ error: 'Invalid or expired attendance QR token.' }, { status: 400 });
 	}

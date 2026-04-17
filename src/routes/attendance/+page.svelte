@@ -1,17 +1,21 @@
 <script lang="ts">
 	let { data } = $props();
 
-	let qrDataUrl = $state<string>('');
+	let studentQrDataUrl = $state<string>('');
+	let mentorQrDataUrl = $state<string>('');
 	let error = $state('');
 	let manualRefreshing = $state(false);
 	let isActive = $state<boolean>(false);
+	let currentBucket = $state('');
 	let animateActivation = $state(false);
 	let previousActive = $state(false);
-	let pollingHandle: ReturnType<typeof setInterval> | null = null;
+	let statePollingHandle: ReturnType<typeof setInterval> | null = null;
 
 	$effect(() => {
-		qrDataUrl = String(data.qrDataUrl ?? '');
+		studentQrDataUrl = String(data.studentQrDataUrl ?? '');
+		mentorQrDataUrl = String(data.mentorQrDataUrl ?? '');
 		isActive = Boolean(data.isActive);
+		currentBucket = String(data.bucket ?? '');
 		if (!previousActive && isActive) {
 			animateActivation = true;
 			setTimeout(() => (animateActivation = false), 1400);
@@ -30,56 +34,95 @@
 				error = body?.error ?? 'Could not refresh attendance QR.';
 				return;
 			}
-			qrDataUrl = String(body?.qrDataUrl ?? '');
+			studentQrDataUrl = String(body?.studentQrDataUrl ?? '');
+			mentorQrDataUrl = String(body?.mentorQrDataUrl ?? '');
 			isActive = Boolean(body?.isActive);
+			currentBucket = String(body?.bucket ?? currentBucket);
 			error = '';
 		} finally {
 			if (showManualLoading) manualRefreshing = false;
 		}
 	};
 
-	const restartPolling = () => {
-		if (pollingHandle) clearInterval(pollingHandle);
-		const ms = isActive ? 15_000 : 4_000;
-		pollingHandle = setInterval(() => {
-			void refreshQr();
-		}, ms);
+	const pollState = async () => {
+		const res = await fetch('/api/attendance/public/state');
+		const body = await res.json().catch(() => null);
+		if (!res.ok || !body) return;
+		const nextActive = Boolean(body.isActive);
+		const nextBucket = String(body.bucket ?? '');
+		if (nextActive !== isActive || (nextActive && nextBucket && nextBucket !== currentBucket)) {
+			await refreshQr();
+		}
 	};
 
 	$effect(() => {
 		void refreshQr();
-		restartPolling();
+		if (statePollingHandle) clearInterval(statePollingHandle);
+		statePollingHandle = setInterval(() => {
+			void pollState();
+		}, 4_000);
 		const onVisible = () => {
-			if (!document.hidden) void refreshQr();
+			if (!document.hidden) void pollState();
 		};
 		document.addEventListener('visibilitychange', onVisible);
 		return () => {
 			document.removeEventListener('visibilitychange', onVisible);
-			if (pollingHandle) clearInterval(pollingHandle);
-			pollingHandle = null;
+			if (statePollingHandle) clearInterval(statePollingHandle);
+			statePollingHandle = null;
 		};
 	});
 </script>
 
-<section class="fixed inset-0 flex items-center justify-center bg-slate-950 p-6">
-	<div class="w-full max-w-xl text-center">
-		<p class={`mb-4 text-xs font-semibold uppercase tracking-[0.24em] ${isActive ? 'text-sky-300' : 'text-red-300'}`}>
+<section class="fixed inset-0 flex flex-col bg-slate-950 px-6 py-0">
+	<div class="pt-2 text-center">
+		<p class={`text-xs font-semibold uppercase tracking-[0.24em] ${isActive ? 'text-sky-300' : 'text-red-300'}`}>
 			{isActive ? 'Attendance Active' : 'Attendance Inactive'}
 		</p>
-		{#if qrDataUrl}
-			<div
-				class={`mx-auto aspect-square w-[min(86vw,34rem)] rounded-3xl border-2 bg-white p-5 transition-all duration-500 ${
-					isActive ? 'border-sky-500 shadow-[0_0_40px_rgba(14,165,233,0.28)]' : 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.2)]'
-				} ${animateActivation ? 'scale-[1.03] shadow-[0_0_0_12px_rgba(56,189,248,0.22)]' : ''}`}
-			>
-				<img
-					src={qrDataUrl}
-					alt="Attendance QR code"
-					class="h-full w-full rounded-2xl object-contain"
-				/>
+	</div>
+	<div class="flex flex-1 items-center justify-center">
+		<div class="w-full max-w-6xl text-center">
+		<div class="grid gap-6 md:grid-cols-[2fr_1fr]">
+			<div class="text-center">
+				<p class="mb-3 text-4xl font-black uppercase tracking-[0.2em] text-slate-100">Students</p>
+				{#if studentQrDataUrl}
+					<div
+						class={`mx-auto aspect-square w-[min(86vw,42rem)] rounded-3xl bg-white p-5 transition-all duration-500 ${
+							isActive
+								? 'border-2 border-sky-500 shadow-[0_0_40px_rgba(14,165,233,0.28)]'
+								: 'border-[10px] border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.26)]'
+						} ${animateActivation ? 'scale-[1.03] shadow-[0_0_0_12px_rgba(56,189,248,0.22)]' : ''}`}
+					>
+						<img
+							src={studentQrDataUrl}
+							alt="Student attendance QR code"
+							class="h-full w-full rounded-2xl object-contain"
+						/>
+					</div>
+				{/if}
 			</div>
-		{/if}
-		<div class="mt-5 flex items-center justify-center gap-3">
+			<div class="text-center">
+				<p class="mb-3 text-2xl font-black uppercase tracking-[0.2em] text-slate-100">Mentors</p>
+				{#if mentorQrDataUrl}
+					<div
+						class={`mx-auto aspect-square w-[min(44vw,18rem)] rounded-3xl bg-white p-4 transition-all duration-500 ${
+							isActive
+								? 'border-2 border-sky-500 shadow-[0_0_30px_rgba(14,165,233,0.26)]'
+								: 'border-[8px] border-red-500 shadow-[0_0_34px_rgba(239,68,68,0.26)]'
+						} ${animateActivation ? 'scale-[1.03]' : ''}`}
+					>
+						<img
+							src={mentorQrDataUrl}
+							alt="Mentor attendance QR code"
+							class="h-full w-full rounded-xl object-contain"
+						/>
+					</div>
+				{/if}
+			</div>
+		</div>
+		</div>
+	</div>
+	<div class="pb-2">
+		<div class="flex items-center justify-center gap-3">
 			<button
 				type="button"
 				onclick={() => refreshQr(true)}
@@ -88,7 +131,6 @@
 			>
 				{manualRefreshing ? 'Refreshing' : 'Refresh'}
 			</button>
-			<span class="text-xs text-slate-500">4:30am day boundary</span>
 		</div>
 		{#if error}<p class="mt-3 text-sm text-red-300">{error}</p>{/if}
 	</div>

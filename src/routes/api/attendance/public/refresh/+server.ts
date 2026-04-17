@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import {
 	ATTENDANCE_PUBLIC_ACTIVATION_QR,
 	ATTENDANCE_PUBLIC_DISPLAY_KEY,
+	attendanceHourBucket,
 	createAttendancePublicHourlyToken
 } from '$lib/server/attendance';
 
@@ -14,7 +15,10 @@ export const POST: RequestHandler = async ({ locals }) => {
 		.maybeSingle();
 
 	const isActive = Boolean(displaySession?.activated_at);
-	const token = isActive ? await createAttendancePublicHourlyToken() : ATTENDANCE_PUBLIC_ACTIVATION_QR;
-	const qrDataUrl = await QRCode.toDataURL(token);
-	return json({ ok: true, isActive, qrDataUrl });
+	const bucket = attendanceHourBucket();
+	const studentToken = isActive ? await createAttendancePublicHourlyToken('students') : '';
+	const mentorToken = isActive ? await createAttendancePublicHourlyToken('mentors') : '';
+	const studentQrDataUrl = await QRCode.toDataURL(isActive ? studentToken : ATTENDANCE_PUBLIC_ACTIVATION_QR);
+	const mentorQrDataUrl = await QRCode.toDataURL(isActive ? mentorToken : ATTENDANCE_PUBLIC_ACTIVATION_QR);
+	return json({ ok: true, isActive, bucket, studentQrDataUrl, mentorQrDataUrl });
 };
