@@ -18,20 +18,28 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (!profile || !['mentor', 'admin'].includes(profile.role)) {
 			return json({ error: 'Only mentors can activate attendance displays.' }, { status: 403 });
 		}
-		const { data: session } = await locals.supabase
+		const { data: sessions } = await locals.supabase
 			.from('attendance_display_sessions')
 			.select('id,activated_at')
 			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
-			.maybeSingle();
-		if (!session) return json({ error: 'Attendance display session not found.' }, { status: 404 });
-		const nextActive = !session.activated_at;
+			.order('created_at', { ascending: false })
+			.limit(50);
+		if (!sessions || sessions.length === 0) {
+			const { error: createErr } = await locals.supabase.from('attendance_display_sessions').insert({
+				attendee_user_id: null,
+				access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
+			});
+			if (createErr) return json({ error: createErr.message }, { status: 400 });
+		}
+		const currentActive = (sessions ?? []).some((row: any) => Boolean(row.activated_at));
+		const nextActive = !currentActive;
 		const { error: toggleErr } = await locals.supabase
 			.from('attendance_display_sessions')
 			.update({
 				activated_at: nextActive ? new Date().toISOString() : null,
 				activated_by: nextActive ? user.id : null
 			})
-			.eq('id', session.id);
+			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY);
 		if (toggleErr) return json({ error: toggleErr.message }, { status: 400 });
 		return json({ ok: true, action: nextActive ? 'activate' : 'deactivate' });
 	}

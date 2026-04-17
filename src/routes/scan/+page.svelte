@@ -14,6 +14,20 @@
 		message = '';
 		machine = null;
 		try {
+			// First, allow mentor/admin checkoff approval QR tokens from module pages.
+			const checkoffRes = await fetch('/api/mentor/checkoff', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ action: 'approve', checkoffToken: token })
+			});
+			const checkoffBody = await checkoffRes.json().catch(() => null);
+			if (checkoffRes.ok) {
+				status = 'ok';
+				message = 'Checkoff approved from QR.';
+				machine = null;
+				return;
+			}
+
 			const res = await fetch('/api/machines/use', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -44,7 +58,11 @@
 					return;
 				}
 				status = 'denied';
-				message = body?.error ?? 'Not authorized.';
+				message =
+					body?.error ??
+					checkoffBody?.error ??
+					attendanceBody?.error ??
+					'Not authorized.';
 				machine = body?.machine ?? null;
 				return;
 			}
