@@ -63,7 +63,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 	}
 
-	if (activeBlock.type === 'video') {
+	if (activeBlock.type === 'video' || activeBlock.type === 'reading') {
 		const { error: upsertErr } = await locals.supabase.from('user_node_block_progress').upsert(
 			{
 				user_id: user.id,
@@ -89,5 +89,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ ok: true });
 	}
 
-	return json({ ok: true });
+	return json({ error: 'Block completion is not supported for this block type.' }, { status: 400 });
 };

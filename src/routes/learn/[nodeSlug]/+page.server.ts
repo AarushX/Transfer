@@ -183,7 +183,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 				? mentorById.get(String(cert.approved_by))
 				: null,
 		checkoff: checkoff ?? {
-			title: 'Physical checkoff',
+			title: 'Skills Check',
 			directions: '',
 			mentor_checklist: [],
 			resource_links: [],

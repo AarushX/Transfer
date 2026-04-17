@@ -58,6 +58,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	let passingScore = Number(assessment?.passing_score ?? 80);
 	let activeSegment: any = null;
 	let activeBlock: any = null;
+	let maxAttempts: number | null = null;
 
 	if (hasBlocks && blockId) {
 		activeBlock = blockRows.find((b: any) => b.id === blockId);
@@ -100,6 +101,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const cfg = activeBlock.config ?? {};
 		questions = Array.isArray(cfg.questions) ? cfg.questions : [];
 		passingScore = Number(cfg.passing_score ?? 80);
+		const rawMaxAttempts = Number(cfg.max_attempts);
+		maxAttempts =
+			Number.isFinite(rawMaxAttempts) && rawMaxAttempts > 0
+				? clampInt(rawMaxAttempts, 1, 1, 1000)
+				: null;
 	} else if (hasSegments) {
 		if (cert.status !== 'quiz_pending' && cert.status !== 'video_pending') {
 			return json({ error: 'Quiz is not unlocked yet.' }, { status: 400 });
@@ -190,6 +196,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	const now = Date.now();
 	const newest = recentAttemptsData?.[0];
+	let totalAttempts = recentAttemptsData?.length ?? 0;
+	if (maxAttempts != null && blockId) {
+		const { count } = await locals.supabase
+			.from('block_quiz_attempts')
+			.select('id', { count: 'exact', head: true })
+			.eq('user_id', user.id)
+			.eq('block_id', blockId);
+		totalAttempts = count ?? totalAttempts;
+	}
+	if (maxAttempts != null && totalAttempts >= maxAttempts) {
+		return json({ error: `Maximum attempts reached (${maxAttempts}) for this quiz.` }, { status: 429 });
+	}
 	if (newest?.created_at) {
 		const secondsSince = Math.floor((now - new Date(newest.created_at).getTime()) / 1000);
 		if (secondsSince < minSecondsBetweenAttempts) {

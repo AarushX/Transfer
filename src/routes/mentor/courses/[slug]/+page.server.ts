@@ -8,7 +8,7 @@ const slugify = (value: string) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 
-type BlockType = 'video' | 'quiz' | 'checkoff';
+type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 type BlockDraft = {
 	id?: string;
 	type: BlockType;
@@ -34,6 +34,11 @@ function normalizeQuizConfig(raw: any) {
 	const title = String(raw?.title ?? '').trim();
 	const passing_score = clampInt(raw?.passing_score, 80, 1, 100);
 	const min_seconds_between_attempts = clampInt(raw?.min_seconds_between_attempts, 15, 0, 3600);
+	const max_attempts_raw = Number(raw?.max_attempts);
+	const max_attempts =
+		Number.isFinite(max_attempts_raw) && max_attempts_raw > 0
+			? clampInt(max_attempts_raw, 1, 1, 1000)
+			: null;
 	const fail_window_minutes = clampInt(raw?.fail_window_minutes, 10, 1, 1440);
 	const max_failed_in_window = clampInt(raw?.max_failed_in_window, 5, 1, 200);
 	const short_answer_min_chars = clampInt(raw?.short_answer_min_chars, 3, 0, 5000);
@@ -43,6 +48,7 @@ function normalizeQuizConfig(raw: any) {
 		title,
 		passing_score,
 		min_seconds_between_attempts,
+		max_attempts,
 		fail_window_minutes,
 		max_failed_in_window,
 		short_answer_min_chars,
@@ -53,7 +59,7 @@ function normalizeQuizConfig(raw: any) {
 
 function normalizeCheckoffConfig(raw: any) {
 	const validEvidence = new Set(['none', 'photo_optional', 'photo_required']);
-	const title = String(raw?.title ?? '').trim() || 'Physical checkoff';
+	const title = String(raw?.title ?? '').trim() || 'Skills Check';
 	const directions = String(raw?.directions ?? '').trim();
 	const evidence_mode = validEvidence.has(String(raw?.evidence_mode))
 		? String(raw?.evidence_mode)
@@ -67,6 +73,15 @@ function normalizeCheckoffConfig(raw: any) {
 		? raw.resource_links.map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
 	return { title, directions, evidence_mode, mentor_checklist, resource_links };
+}
+
+function normalizeReadingConfig(raw: any) {
+	const title = String(raw?.title ?? '').trim() || 'Reading';
+	const content = String(raw?.content ?? '').trim();
+	const resource_links = Array.isArray(raw?.resource_links)
+		? raw.resource_links.map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
+		: [];
+	return { title, content, resource_links };
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -169,7 +184,7 @@ export const actions: Actions = {
 		for (let i = 0; i < draftBlocks.length; i += 1) {
 			const block = draftBlocks[i];
 			const type = block.type as BlockType;
-			if (!['video', 'quiz', 'checkoff'].includes(type)) {
+			if (!['video', 'quiz', 'checkoff', 'reading'].includes(type)) {
 				blockErrors[i] = `Unknown block type at position ${i + 1}.`;
 				continue;
 			}
@@ -196,8 +211,15 @@ export const actions: Actions = {
 					continue;
 				}
 				config = q;
-			} else {
+			} else if (type === 'checkoff') {
 				config = normalizeCheckoffConfig(block.config);
+			} else {
+				const r = normalizeReadingConfig(block.config);
+				if (!r.content && r.resource_links.length === 0) {
+					blockErrors[i] = `Reading block #${i + 1} needs content or at least one resource link.`;
+					continue;
+				}
+				config = r;
 			}
 			rows.push({ id: block.id, node_id: nodeRow.id, position: i + 1, type, config });
 		}
@@ -332,7 +354,7 @@ export const actions: Actions = {
 			await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: nodeRow.id,
-					title: 'Physical checkoff',
+					title: 'Skills Check',
 					directions: '',
 					mentor_checklist: [],
 					resource_links: [],

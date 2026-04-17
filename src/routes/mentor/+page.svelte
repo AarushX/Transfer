@@ -14,6 +14,14 @@
 	let scannedStudentId = $state('');
 	let scanMessage = $state('');
 	const getHistoryNotes = (entry: any) => entry?.mentor_notes ?? '';
+	const historyHref = (page: number) => {
+		const params = new URLSearchParams();
+		if (data.scope === 'all') params.set('scope', 'all');
+		if (data.selectedTeamId) params.set('team', data.selectedTeamId);
+		if (page > 1) params.set('historyPage', String(page));
+		const query = params.toString();
+		return query ? `/mentor?${query}` : '/mentor';
+	};
 	const summary = $derived({
 		total: queue.length,
 		withEvidence: queue.filter((q) => (q.submission?.photo_data_urls?.length ?? 0) > 0 || q.submission?.photo_data_url).length,
@@ -293,7 +301,9 @@
 	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
 		<div class="mb-2 flex items-center justify-between">
 			<h2 class="text-lg font-semibold">Past Checkoffs</h2>
-			<span class="text-xs text-slate-400">Most recent first</span>
+			<span class="text-xs text-slate-400">
+				Most recent first · {data.historyTotal} total · page {data.historyPage} of {data.historyTotalPages}
+			</span>
 		</div>
 		<ul class="space-y-2 text-sm">
 			{#each data.history as h}
@@ -322,6 +332,33 @@
 				<li class="text-slate-400">No past checkoffs yet.</li>
 			{/each}
 		</ul>
+		{#if data.historyTotalPages > 1}
+			<div class="mt-3 flex items-center justify-end gap-2 text-sm">
+				<a
+					href={historyHref(Math.max(1, data.historyPage - 1))}
+					aria-disabled={data.historyPage <= 1}
+					class={`rounded border px-3 py-1.5 ${
+						data.historyPage <= 1
+							? 'pointer-events-none border-slate-800 text-slate-600'
+							: 'border-slate-700 hover:bg-slate-800'
+					}`}
+				>
+					Previous
+				</a>
+				<span class="text-xs text-slate-400">{data.historyPage} / {data.historyTotalPages}</span>
+				<a
+					href={historyHref(Math.min(data.historyTotalPages, data.historyPage + 1))}
+					aria-disabled={data.historyPage >= data.historyTotalPages}
+					class={`rounded border px-3 py-1.5 ${
+						data.historyPage >= data.historyTotalPages
+							? 'pointer-events-none border-slate-800 text-slate-600'
+							: 'border-slate-700 hover:bg-slate-800'
+					}`}
+				>
+					Next
+				</a>
+			</div>
+		{/if}
 	</div>
 
 	{#if selectedItem}

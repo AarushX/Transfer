@@ -55,7 +55,7 @@ export const actions: Actions = {
 			await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: node.id,
-					title: 'Physical checkoff',
+					title: 'Skills Check',
 					directions: '',
 					mentor_checklist: [],
 					resource_links: [],

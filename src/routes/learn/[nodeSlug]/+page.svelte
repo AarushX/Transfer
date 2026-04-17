@@ -4,7 +4,7 @@
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 
-	type BlockType = 'video' | 'quiz' | 'checkoff';
+type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type LearnBlock = {
 		id: string;
 		type: BlockType;
@@ -306,7 +306,9 @@
 			return { label: 'Video', chip: 'bg-sky-900/30 text-sky-200', border: 'border-sky-700/50' };
 		if (type === 'quiz')
 			return { label: 'Quiz', chip: 'bg-yellow-900/40 text-yellow-200', border: 'border-yellow-700/50' };
-		return { label: 'Checkoff', chip: 'bg-emerald-900/30 text-emerald-200', border: 'border-emerald-700/50' };
+		if (type === 'reading')
+			return { label: 'Reading', chip: 'bg-violet-900/30 text-violet-200', border: 'border-violet-700/50' };
+		return { label: 'Skills Check', chip: 'bg-emerald-900/30 text-emerald-200', border: 'border-emerald-700/50' };
 	}
 
 	function blockSummary(block: LearnBlock): string {
@@ -316,7 +318,11 @@
 			const count = Array.isArray(cfg.questions) ? cfg.questions.length : 0;
 			return `${cfg.title || 'Quiz'} · ${count} question${count === 1 ? '' : 's'}`;
 		}
-		return String(cfg.title ?? 'Checkoff');
+		if (block.type === 'reading') {
+			const count = Array.isArray(cfg.resource_links) ? cfg.resource_links.length : 0;
+			return `${cfg.title || 'Reading'} · ${count} resource${count === 1 ? '' : 's'}`;
+		}
+		return String(cfg.title ?? 'Skills Check');
 	}
 </script>
 
@@ -551,6 +557,48 @@
 							lockedMessage=""
 						/>
 					{/if}
+				{:else if activeBlock.type === 'reading'}
+					{@const c = activeBlock.config}
+					<div class="space-y-3">
+						{#if c.content}
+							<div class="whitespace-pre-wrap rounded border border-slate-800 bg-slate-900/50 p-3 text-sm text-slate-200">
+								{c.content}
+							</div>
+						{/if}
+						{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
+							<div class="rounded bg-slate-900/60 p-3">
+								<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Resources</p>
+								<ul class="space-y-1 text-sm">
+									{#each c.resource_links as link}
+										<li>
+											<a href={link} class="text-yellow-300 underline" target="_blank" rel="noopener noreferrer">{link}</a>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+						<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
+							{#if viewingCurrentStep}
+								<button
+									class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
+									onclick={() => markBlockVideoDone(activeBlock)}
+									disabled={marking}
+								>
+									{marking ? 'Marking…' : 'I finished this reading'}
+								</button>
+								<span class="text-xs text-slate-400">
+									Marks this reading complete and unlocks the next block.
+								</span>
+								{#if videoActionMessage}
+									<p class="text-xs text-red-300">{videoActionMessage}</p>
+								{/if}
+							{:else}
+								<span class="text-xs text-slate-400">
+									Viewing a completed step. Return to the current step to continue progress.
+								</span>
+							{/if}
+						</div>
+					</div>
 				{:else}
 					{@const c = activeBlock.config}
 					{#if c.directions}

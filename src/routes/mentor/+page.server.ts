@@ -4,6 +4,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user, profile } = await locals.safeGetSession();
 	const scope = url.searchParams.get('scope') === 'all' ? 'all' : 'mine';
 	const selectedTeamId = url.searchParams.get('team') ?? '';
+	const rawHistoryPage = Number(url.searchParams.get('historyPage') ?? '1');
+	const historyPage = Number.isFinite(rawHistoryPage) ? Math.max(1, Math.trunc(rawHistoryPage)) : 1;
+	const historyPageSize = 25;
+	const historyRowsNeeded = historyPage * historyPageSize;
 
 	const [{ data: certRows, error: certError }, { data: subteams }] = await Promise.all([
 		locals.supabase
@@ -33,19 +37,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	const baseQueue = certRows ?? [];
-	const [{ data: historyCertRows }, { data: reviewHistoryRows }] = await Promise.all([
+	const [{ data: historyCertRows }, { data: reviewHistoryRows }, { count: completedHistoryCount }, { count: reviewHistoryCount }] = await Promise.all([
 		locals.supabase
 			.from('certifications')
 			.select('user_id,node_id,approved_at,approved_by,status')
 			.eq('status', 'completed')
 			.order('approved_at', { ascending: false })
-			.limit(120),
+			.limit(historyRowsNeeded),
 		locals.supabase
 			.from('checkoff_reviews')
 			.select('user_id,node_id,status,mentor_notes,updated_at,reviewer_id')
 			.in('status', ['needs_review', 'blocked'])
 			.order('updated_at', { ascending: false })
-			.limit(120)
+			.limit(historyRowsNeeded),
+		locals.supabase
+			.from('certifications')
+			.select('id', { count: 'exact', head: true })
+			.eq('status', 'completed'),
+		locals.supabase
+			.from('checkoff_reviews')
+			.select('id', { count: 'exact', head: true })
+			.in('status', ['needs_review', 'blocked'])
 	]);
 
 	const nodeIds = Array.from(new Set(baseQueue.map((item: any) => item.node_id)));
@@ -192,7 +204,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		queue = queue.filter((item: any) => item.node?.subteam_id === selectedTeamId);
 	}
 
-	const history: any[] = [
+	const historyCombined: any[] = [
 		...(historyCertRows ?? []).map((row: any) => {
 			const n = historyNodeById.get(row.node_id);
 			const p = historyProfileById.get(row.user_id);
@@ -217,8 +229,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		})
 	]
 		.filter((row: any) => row.user && row.node && row.updated_at)
-		.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-		.slice(0, 120);
+		.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+	const historyTotal = (completedHistoryCount ?? 0) + (reviewHistoryCount ?? 0);
+	const historyTotalPages = Math.max(1, Math.ceil(historyTotal / historyPageSize));
+	const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+	const historyStart = (safeHistoryPage - 1) * historyPageSize;
+	const history = historyCombined.slice(historyStart, historyStart + historyPageSize);
 
-	return { queue, history, subteams: subteams ?? [], mentorTeamIds, scope, selectedTeamId, error: null };
+	return {
+		queue,
+		history,
+		historyPage: safeHistoryPage,
+		historyPageSize,
+		historyTotal,
+		historyTotalPages,
+		subteams: subteams ?? [],
+		mentorTeamIds,
+		scope,
+		selectedTeamId,
+		error: null
+	};
 };

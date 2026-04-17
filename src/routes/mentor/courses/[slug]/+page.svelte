@@ -18,6 +18,7 @@
 		title: string;
 		passing_score: number;
 		min_seconds_between_attempts: number;
+	max_attempts: number | null;
 		fail_window_minutes: number;
 		max_failed_in_window: number;
 		short_answer_min_chars: number;
@@ -33,11 +34,18 @@
 		resource_links: string[];
 	};
 
-	type BlockType = 'video' | 'quiz' | 'checkoff';
+type ReadingConfig = {
+	title: string;
+	content: string;
+	resource_links: string[];
+};
+
+type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type Block =
 		| { id?: string; type: 'video'; config: VideoConfig }
 		| { id?: string; type: 'quiz'; config: QuizConfig }
-		| { id?: string; type: 'checkoff'; config: CheckoffConfig };
+	| { id?: string; type: 'checkoff'; config: CheckoffConfig }
+	| { id?: string; type: 'reading'; config: ReadingConfig };
 
 	let { data, form } = $props();
 	const postedBlocks = $derived.by<Block[] | null>(() => {
@@ -76,6 +84,10 @@
 								title: String(cfg.title ?? ''),
 								passing_score: Number(cfg.passing_score ?? 80),
 								min_seconds_between_attempts: Number(cfg.min_seconds_between_attempts ?? 15),
+								max_attempts:
+									cfg.max_attempts == null || cfg.max_attempts === ''
+										? null
+										: Number(cfg.max_attempts),
 								fail_window_minutes: Number(cfg.fail_window_minutes ?? 10),
 								max_failed_in_window: Number(cfg.max_failed_in_window ?? 5),
 								short_answer_min_chars: Number(cfg.short_answer_min_chars ?? 3),
@@ -84,11 +96,24 @@
 							}
 						} as Block;
 					}
+					if (row.type === 'reading') {
+						return {
+							id: row.id,
+							type: 'reading',
+							config: {
+								title: String(cfg.title ?? 'Reading'),
+								content: String(cfg.content ?? ''),
+								resource_links: Array.isArray(cfg.resource_links)
+									? cfg.resource_links.map((v: unknown) => String(v))
+									: []
+							}
+						} as Block;
+					}
 					return {
 						id: row.id,
 						type: 'checkoff',
 						config: {
-							title: String(cfg.title ?? 'Physical checkoff'),
+							title: String(cfg.title ?? 'Skills Check'),
 							directions: String(cfg.directions ?? ''),
 							evidence_mode:
 								cfg.evidence_mode === 'photo_required' || cfg.evidence_mode === 'photo_optional'
@@ -114,7 +139,7 @@
 	});
 
 	const blocksJson = $derived(JSON.stringify(blocks));
-	const blockErrors = $derived((form?.block_errors as Record<number, string> | undefined) ?? {});
+	const blockErrors = $derived(((form as any)?.block_errors as Record<number, string> | undefined) ?? {});
 
 	let prereqFilter = $state('');
 	const filteredNodes = $derived.by(() => {
@@ -167,6 +192,7 @@
 					title: '',
 					passing_score: 80,
 					min_seconds_between_attempts: 15,
+					max_attempts: null,
 					fail_window_minutes: 10,
 					max_failed_in_window: 5,
 					short_answer_min_chars: 3,
@@ -175,10 +201,22 @@
 				}
 			});
 		} else {
+			if (type === 'reading') {
+				blocks.push({
+					type: 'reading',
+					config: {
+						title: 'Reading',
+						content: '',
+						resource_links: []
+					}
+				});
+				expandedIndex = blocks.length - 1;
+				return;
+			}
 			blocks.push({
 				type: 'checkoff',
 				config: {
-					title: 'Physical checkoff',
+					title: 'Skills Check',
 					directions: '',
 					evidence_mode: 'none',
 					mentor_checklist: [],
@@ -246,6 +284,12 @@
 	function removeResourceLink(block: Extract<Block, { type: 'checkoff' }>, idx: number) {
 		block.config.resource_links = block.config.resource_links.filter((_, i) => i !== idx);
 	}
+function addReadingResourceLink(block: Extract<Block, { type: 'reading' }>) {
+	block.config.resource_links = [...block.config.resource_links, ''];
+}
+function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, idx: number) {
+	block.config.resource_links = block.config.resource_links.filter((_, i) => i !== idx);
+}
 
 	function blockSummary(block: Block): string {
 		if (block.type === 'video') {
@@ -261,6 +305,11 @@
 			const count = q.questions.length;
 			return `${q.title || 'Quiz'} · ${count} question${count === 1 ? '' : 's'} · pass ${q.passing_score}%`;
 		}
+		if (block.type === 'reading') {
+			const r = block.config;
+			const resources = r.resource_links.length;
+			return `${r.title || 'Reading'} · ${resources} resource${resources === 1 ? '' : 's'}`;
+		}
 		const c = block.config;
 		const evidenceLabel =
 			c.evidence_mode === 'photo_required'
@@ -268,18 +317,20 @@
 				: c.evidence_mode === 'photo_optional'
 					? 'photo optional'
 					: 'no photo';
-		return `${c.title || 'Checkoff'} · ${evidenceLabel}`;
+		return `${c.title || 'Skills Check'} · ${evidenceLabel}`;
 	}
 
 	function blockStyles(type: BlockType) {
 		if (type === 'video') return 'border-sky-700/60 bg-sky-950/30';
 		if (type === 'quiz') return 'border-yellow-700/60 bg-yellow-950/20';
+		if (type === 'reading') return 'border-violet-700/60 bg-violet-950/20';
 		return 'border-emerald-700/60 bg-emerald-950/20';
 	}
 	function blockLabel(type: BlockType) {
 		if (type === 'video') return 'Video';
 		if (type === 'quiz') return 'Quiz';
-		return 'Checkoff';
+		if (type === 'reading') return 'Reading';
+		return 'Skills Check';
 	}
 
 	function handleDeleteSubmit(event: SubmitEvent) {
@@ -400,10 +451,17 @@
 				</button>
 				<button
 					type="button"
+					class="rounded border border-violet-700/60 bg-violet-950/40 px-3 py-1 text-sm hover:bg-violet-900/30"
+					onclick={() => addBlock('reading')}
+				>
+					+ Reading
+				</button>
+				<button
+					type="button"
 					class="rounded border border-emerald-700/60 bg-emerald-950/40 px-3 py-1 text-sm hover:bg-emerald-900/30"
 					onclick={() => addBlock('checkoff')}
 				>
-					+ Checkoff
+					+ Skills Check
 				</button>
 			</div>
 		</div>
@@ -502,6 +560,21 @@
 										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
 									</label>
 									<label class="flex flex-col gap-1 text-xs text-slate-400">
+										<span>Max attempts (optional)</span>
+										<input
+											class="rounded bg-slate-800 px-2 py-2 text-sm"
+											type="number"
+											min="1"
+											max="1000"
+											placeholder="Unlimited"
+											value={block.config.max_attempts ?? ''}
+											oninput={(e) => {
+												const raw = (e.currentTarget as HTMLInputElement).value.trim();
+												block.config.max_attempts = raw ? Number(raw) : null;
+											}}
+										/>
+									</label>
+									<label class="flex flex-col gap-1 text-xs text-slate-400">
 										<span>Failed-attempt window (minutes)</span>
 										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
 									</label>
@@ -567,6 +640,31 @@
 										<p class="text-xs text-slate-500">No questions yet.</p>
 									{/each}
 								</div>
+							{:else if block.type === 'reading'}
+								<div class="space-y-3">
+									<label class="flex flex-col gap-1 text-xs text-slate-400">
+										<span>Title</span>
+										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.title} placeholder="Reading title" />
+									</label>
+									<label class="flex flex-col gap-1 text-xs text-slate-400">
+										<span>Reading content</span>
+										<textarea class="rounded bg-slate-800 px-2 py-2 text-sm" rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
+									</label>
+									<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+										<div class="mb-1 flex items-center justify-between">
+											<p class="text-xs font-semibold text-slate-300">Resource links</p>
+											<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => addReadingResourceLink(block)}>+ Link</button>
+										</div>
+										{#each block.config.resource_links as _link, idx (idx)}
+											<div class="flex items-center gap-1">
+												<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
+												<button type="button" class="px-2 text-xs text-red-300" onclick={() => removeReadingResourceLink(block, idx)}>×</button>
+											</div>
+										{:else}
+											<p class="text-xs text-slate-500">No links yet.</p>
+										{/each}
+									</div>
+								</div>
 							{:else}
 								<div class="grid gap-2 md:grid-cols-2">
 									<label class="flex flex-col gap-1 text-xs text-slate-400 md:col-span-2">
@@ -623,7 +721,7 @@
 				</div>
 			{:else}
 				<div class="rounded border border-dashed border-slate-800 p-6 text-center text-sm text-slate-400">
-					No blocks yet. Use the buttons above to add a video, quiz, or checkoff.
+					No blocks yet. Use the buttons above to add a video, quiz, reading, or skills check.
 				</div>
 			{/each}
 		</div>

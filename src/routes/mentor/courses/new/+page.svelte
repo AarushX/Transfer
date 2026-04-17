@@ -11,7 +11,7 @@
 		<a href="/mentor/courses" class="text-xs text-slate-400">← All courses</a>
 		<h1 class="text-2xl font-semibold">New course</h1>
 		<p class="text-sm text-slate-400">
-			Create the module shell. You'll add video, quiz, and checkoff blocks in the builder after
+			Create the module shell. You'll add video, quiz, reading, and skills check blocks in the builder after
 			saving.
 		</p>
 	</div>
