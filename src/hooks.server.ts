@@ -27,7 +27,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		const { data: profile } = await event.locals.supabase
 			.from('profiles')
-			.select('id,email,full_name,role,subteam_id')
+			.select('id,email,full_name,role,subteam_id,bio')
 			.eq('id', user.id)
 			.single();
 

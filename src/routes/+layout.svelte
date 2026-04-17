@@ -14,13 +14,19 @@
 <div class="min-h-screen bg-slate-950 text-slate-100">
 	<header class="border-b border-slate-800 bg-slate-900/50">
 		<div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-			<a href="/" class="font-semibold">FRC Training LMS</a>
+			<a href="/" class="leading-tight">
+				<p class="font-semibold">Transfer</p>
+				<p class="text-xs text-slate-400">{data.orgName}</p>
+			</a>
 			<nav class="flex items-center gap-4 text-sm">
 				<a href="/dashboard" class={page.url.pathname === '/dashboard' ? 'text-yellow-300' : ''}
 					>Dashboard</a
 				>
 				<a href="/teams" class={page.url.pathname.startsWith('/teams') ? 'text-yellow-300' : ''}
 					>Teams</a
+				>
+				<a href="/profile" class={page.url.pathname.startsWith('/profile') ? 'text-yellow-300' : ''}
+					>Profile</a
 				>
 				{#if canMentor}
 					<a
@@ -46,8 +52,16 @@
 						>Roster</a
 					>
 				{/if}
+				{#if canAdmin}
+					<a href="/admin" class={page.url.pathname.startsWith('/admin') ? 'text-yellow-300' : ''}
+						>Admin</a
+					>
+				{/if}
 				<a href="/passport" class={page.url.pathname === '/passport' ? 'text-yellow-300' : ''}
 					>Passport</a
+				>
+				<a href="/machines" class={page.url.pathname.startsWith('/machines') ? 'text-yellow-300' : ''}
+					>Machines</a
 				>
 				{#if data.session}
 					<form method="POST" action="/auth/signout">

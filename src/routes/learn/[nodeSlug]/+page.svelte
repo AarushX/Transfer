@@ -321,35 +321,34 @@
 			No blocks have been added to this module yet. Ask a mentor to configure the course.
 		</div>
 	{:else}
-		{#if blocks.length > 1}
-			<div class="flex flex-wrap gap-2 rounded-xl border border-slate-800 bg-slate-900 p-3">
-				{#each blocks as block, i (block.id)}
-					{@const done = isBlockCompleted(block)}
-					{@const active = i === activeBlockIndex && !done}
-					{@const meta = blockTypeMeta(block.type)}
-					<div
-						class={`flex items-center gap-2 rounded border px-3 py-1.5 text-xs ${
-							done
-								? 'border-emerald-800 bg-emerald-900/30 text-emerald-200'
-								: active
-									? 'border-yellow-500 bg-yellow-500/10 text-yellow-200'
-									: 'border-slate-800 bg-slate-950/40 text-slate-400'
-						}`}
-					>
-						<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/60 text-[10px] font-semibold">{i + 1}</span>
-						<span class={`rounded-full px-2 py-0.5 text-[10px] ${meta.chip}`}>{meta.label}</span>
-						<span class="max-w-[12rem] truncate">{blockSummary(block)}</span>
-						{#if done}
-							<span class="text-emerald-300">✓</span>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<div class="grid gap-4 lg:grid-cols-[280px,1fr]">
+			<aside class="h-fit rounded-xl border border-slate-800 bg-slate-900 p-3">
+				<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Course flow</p>
+				<div class="space-y-2">
+					{#each blocks as block, i (block.id)}
+						{@const done = isBlockCompleted(block)}
+						{@const active = i === activeBlockIndex && !done}
+						{@const meta = blockTypeMeta(block.type)}
+						<div
+							class={`rounded border px-2 py-2 text-xs ${
+								done
+									? 'border-emerald-800 bg-emerald-900/20 text-emerald-200'
+									: active
+										? 'border-yellow-500 bg-yellow-500/10 text-yellow-200'
+										: 'border-slate-800 bg-slate-950/40 text-slate-400'
+							}`}
+						>
+							<p class="font-semibold">{i + 1}. {blockSummary(block)}</p>
+							<p class="mt-1">{done ? 'Completed' : active ? 'Current step' : 'Upcoming'}</p>
+							<span class={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${meta.chip}`}>{meta.label}</span>
+						</div>
+					{/each}
+				</div>
+			</aside>
 
-		{#if activeBlock}
-			{@const meta = blockTypeMeta(activeBlock.type)}
-			<div class={`space-y-4 rounded-xl border bg-slate-900 p-4 ${meta.border}`}>
+			{#if activeBlock}
+				{@const meta = blockTypeMeta(activeBlock.type)}
+				<div class={`space-y-4 rounded-xl border bg-slate-900 p-4 ${meta.border}`}>
 				<div class="flex flex-wrap items-center gap-2">
 					<span class={`rounded-full px-2 py-0.5 text-xs ${meta.chip}`}>
 						{activeBlockIndex + 1}. {meta.label}
@@ -526,6 +525,11 @@
 					{#if data.review}
 						<div class="rounded border border-slate-700 bg-slate-950/40 p-3 text-sm">
 							<p class="font-semibold text-slate-200">Latest mentor feedback</p>
+							{#if data.reviewMentor}
+								<p class="mt-1 text-xs text-slate-400">
+									By {data.reviewMentor.full_name || data.reviewMentor.email}
+								</p>
+							{/if}
 							<p class="mt-1 text-slate-300">{data.review.mentor_notes || 'No notes yet.'}</p>
 							{#if data.review.status === 'needs_review'}
 								<p class="mt-2 text-xs text-amber-200">
@@ -547,8 +551,9 @@
 						</div>
 					{/if}
 				{/if}
-			</div>
-		{/if}
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	{#if awaitingMentor && !completed}
@@ -557,6 +562,11 @@
 			<p class="text-sm text-sky-100">
 				Your checkoff submission is ready for mentor review.
 			</p>
+			{#if data.reviewMentor}
+				<p class="mt-1 text-xs text-sky-200">
+					Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
+				</p>
+			{/if}
 		</div>
 	{/if}
 
@@ -568,6 +578,11 @@
 					? ` on ${new Date(data.cert.approved_at).toLocaleDateString()}`
 					: ''}.
 			</p>
+			{#if data.certMentor}
+				<p class="mt-1 text-xs text-emerald-200">
+					Approved by {data.certMentor.full_name || data.certMentor.email}.
+				</p>
+			{/if}
 		</div>
 	{/if}
 </section>

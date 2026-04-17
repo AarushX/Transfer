@@ -13,6 +13,7 @@ declare global {
 					full_name: string;
 					role: 'student' | 'student_lead' | 'mentor' | 'admin';
 					subteam_id: string | null;
+					bio: string;
 				} | null;
 			}>;
 		}
@@ -25,6 +26,7 @@ declare global {
 				full_name: string;
 				role: 'student' | 'student_lead' | 'mentor' | 'admin';
 				subteam_id: string | null;
+				bio: string;
 			} | null;
 		}
 		// interface PageState {}

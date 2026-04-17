@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			.maybeSingle(),
 		locals.supabase
 			.from('certifications')
-			.select('status,quiz_score,quiz_passed_at,approved_at')
+			.select('status,quiz_score,quiz_passed_at,approved_at,approved_by')
 			.eq('node_id', node.id)
 			.eq('user_id', user.id)
 			.maybeSingle(),
@@ -58,7 +58,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			.maybeSingle(),
 		locals.supabase
 			.from('checkoff_reviews')
-			.select('block_id,status,mentor_notes,checklist_results,updated_at')
+			.select('block_id,status,mentor_notes,checklist_results,updated_at,reviewer_id')
 			.eq('node_id', node.id)
 			.eq('user_id', user.id)
 			.order('updated_at', { ascending: false })
@@ -85,6 +85,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const computedStatus = statusRow?.computed_status ?? cert?.status ?? 'locked';
 	const effectiveStatus = previewBypass && computedStatus === 'locked' ? 'available' : computedStatus;
+	const mentorIds = Array.from(
+		new Set([String(cert?.approved_by ?? ''), String(review?.reviewer_id ?? '')].filter(Boolean))
+	);
+	const { data: mentorProfiles } = mentorIds.length
+		? await locals.supabase.from('profiles').select('id,full_name,email').in('id', mentorIds)
+		: { data: [] as any[] };
+	const mentorById = new Map((mentorProfiles ?? []).map((p: any) => [String(p.id), p]));
 
 	return {
 		node,
@@ -92,6 +99,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		passingScore: assessment?.passing_score ?? 80,
 		certStatus: effectiveStatus,
 		cert: cert ?? null,
+		certMentor:
+			cert?.approved_by && mentorById.has(String(cert.approved_by))
+				? mentorById.get(String(cert.approved_by))
+				: null,
 		checkoff: checkoff ?? {
 			title: 'Physical checkoff',
 			directions: '',
@@ -101,6 +112,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		},
 		submission: submission ?? null,
 		review: review ?? null,
+		reviewMentor:
+			review?.reviewer_id && mentorById.has(String(review.reviewer_id))
+				? mentorById.get(String(review.reviewer_id))
+				: null,
 		blocks: blocks ?? [],
 		blockProgress: blockProgress ?? [],
 		blockAttempts: blockAttempts ?? [],
