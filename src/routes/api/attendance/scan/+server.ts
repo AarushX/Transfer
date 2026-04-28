@@ -41,6 +41,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			})
 			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY);
 		if (toggleErr) return json({ error: toggleErr.message }, { status: 400 });
+			await locals.supabase.from('attendance_scan_events').insert({
+				attendee_user_id: null,
+				scanned_by_user_id: user.id,
+				attendance_day: attendanceDayKey(),
+				action: nextActive ? 'display_activate' : 'display_deactivate',
+				metadata: { source: 'activation_qr' }
+			});
 		return json({ ok: true, action: nextActive ? 'activate' : 'deactivate' });
 	}
 
@@ -61,6 +68,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				})
 				.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY);
 			if (deactivateErr) return json({ error: deactivateErr.message }, { status: 400 });
+			await locals.supabase.from('attendance_scan_events').insert({
+				attendee_user_id: null,
+				scanned_by_user_id: user.id,
+				attendance_day: attendanceDayKey(),
+				action: 'display_deactivate',
+				metadata: { source: 'mentor_scan_on_student_qr' }
+			});
 			return json({ ok: true, action: 'deactivate' });
 		}
 	} catch {
@@ -94,7 +108,34 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			last_scanned_by: user.id
 		});
 		if (insertErr) return json({ error: insertErr.message }, { status: 400 });
+		await locals.supabase.from('attendance_scan_events').insert({
+			attendee_user_id: user.id,
+			scanned_by_user_id: user.id,
+			attendance_day: todayKey,
+			action: 'check_in',
+			metadata: { source: 'public_qr' }
+		});
 		return json({ ok: true, action: 'check_in', attendanceDay: todayKey });
+	}
+
+	if (existing.check_out_at) {
+		return json(
+			{ error: 'You are already checked out for this attendance window.' },
+			{ status: 409 }
+		);
+	}
+
+	const checkInMs = existing.check_in_at ? new Date(existing.check_in_at).getTime() : NaN;
+	const nowMs = Date.now();
+	const minCheckoutMs = 5 * 60 * 1000;
+	if (Number.isFinite(checkInMs) && nowMs - checkInMs < minCheckoutMs) {
+		const remainingSeconds = Math.ceil((minCheckoutMs - (nowMs - checkInMs)) / 1000);
+		return json(
+			{
+				error: `Please wait ${remainingSeconds}s before checking out.`
+			},
+			{ status: 429 }
+		);
 	}
 
 	const { error: updateErr } = await locals.supabase
@@ -105,6 +146,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		})
 		.eq('id', existing.id);
 	if (updateErr) return json({ error: updateErr.message }, { status: 400 });
+	await locals.supabase.from('attendance_scan_events').insert({
+		attendee_user_id: user.id,
+		scanned_by_user_id: user.id,
+		attendance_day: todayKey,
+		action: 'check_out',
+		metadata: { source: 'public_qr' }
+	});
 
 	return json({ ok: true, action: 'check_out', attendanceDay: todayKey });
 };

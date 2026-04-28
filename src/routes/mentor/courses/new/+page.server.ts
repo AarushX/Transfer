@@ -2,11 +2,15 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { data: subteams } = await locals.supabase
-		.from('subteams')
-		.select('id,name')
-		.order('name');
-	return { subteams: subteams ?? [] };
+	const [{ data: subteams }, { data: trainingCategories }] = await Promise.all([
+		locals.supabase.from('subteams').select('id,name').order('name'),
+		locals.supabase
+			.from('training_categories')
+			.select('id,name,slug,parent_id,kind,sort_order')
+			.eq('is_active', true)
+			.order('sort_order', { ascending: true })
+	]);
+	return { subteams: subteams ?? [], trainingCategories: trainingCategories ?? [] };
 };
 
 const slugify = (value: string) =>
@@ -25,6 +29,10 @@ export const actions: Actions = {
 		const subteamId = String(form.get('subteam_id') ?? '');
 		const videoUrl = String(form.get('video_url') ?? '').trim();
 		const description = String(form.get('description') ?? '');
+		const categoryIds = form
+			.getAll('category_ids')
+			.map((v) => String(v))
+			.filter(Boolean);
 
 		if (!title || !slug || !subteamId) {
 			return fail(400, {
@@ -63,6 +71,14 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (categoryIds.length > 0) {
+				await locals.supabase.from('node_categories').insert(
+					categoryIds.map((categoryId) => ({
+						node_id: node.id,
+						category_id: categoryId
+					}))
+				);
+			}
 		}
 
 		throw redirect(303, `/mentor/courses/${slug}`);

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import QRScanner from '$lib/components/QRScanner.svelte';
-	let { data } = $props();
-	let token = $state(data.machineToken ?? '');
+	let token = $state('');
 	let error = $state('');
 	let success = $state('');
 	let machine = $state<any>(null);
@@ -34,8 +33,14 @@
 	<p class="text-sm text-slate-300">
 		Scan the machine QR before use. You must have completed all required training courses.
 	</p>
-	{#if error}<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{error}</p>{/if}
-	{#if success}<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">{success}</p>{/if}
+	{#if error}<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">
+			{error}
+		</p>{/if}
+	{#if success}<p
+			class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200"
+		>
+			{success}
+		</p>{/if}
 
 	<div class="grid gap-3 md:grid-cols-2">
 		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -47,7 +52,10 @@
 				<span>Machine token</span>
 				<input class="rounded bg-slate-800 px-2 py-2" bind:value={token} />
 			</label>
-			<button class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900" onclick={useMachine}>
+			<button
+				class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900"
+				onclick={useMachine}
+			>
 				Authorize machine use
 			</button>
 			{#if machine}

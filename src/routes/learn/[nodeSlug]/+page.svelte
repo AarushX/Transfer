@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import PageHeader from '$lib/components/ui/PageHeader.svelte';
+	import ProgressRail from '$lib/components/ui/ProgressRail.svelte';
+	import StatusChip from '$lib/components/ui/StatusChip.svelte';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 
-type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
+	type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type LearnBlock = {
 		id: string;
 		type: BlockType;
@@ -72,10 +75,10 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 		const c = data.checkoff ?? {};
 		const hasMeaningfulCheckoff = Boolean(
 			(c.directions ?? '').trim() ||
-				(Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0) ||
-				(Array.isArray(c.resource_links) && c.resource_links.length > 0) ||
-				c.evidence_mode === 'photo_optional' ||
-				c.evidence_mode === 'photo_required'
+			(Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0) ||
+			(Array.isArray(c.resource_links) && c.resource_links.length > 0) ||
+			c.evidence_mode === 'photo_optional' ||
+			c.evidence_mode === 'photo_required'
 		);
 		let pos = 1;
 		if (hasVideoUrl) {
@@ -83,7 +86,12 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				id: `legacy-video-${data.node.id}`,
 				type: 'video',
 				position: pos++,
-				config: { video_url: data.node.video_url, start_seconds: 0, end_seconds: null, title: data.node.title },
+				config: {
+					video_url: data.node.video_url,
+					start_seconds: 0,
+					end_seconds: null,
+					title: data.node.title
+				},
 				legacy: true
 			});
 		}
@@ -92,7 +100,11 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				id: `legacy-quiz-${data.node.id}`,
 				type: 'quiz',
 				position: pos++,
-				config: { questions: legacyQuestions, passing_score: data.passingScore ?? 80, title: 'Quiz' },
+				config: {
+					questions: legacyQuestions,
+					passing_score: data.passingScore ?? 80,
+					title: 'Quiz'
+				},
 				legacy: true
 			});
 		}
@@ -154,7 +166,9 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 			hasManualBlockSelection = false;
 			return;
 		}
-		const defaultIndex = allBlocksComplete ? blocks.length - 1 : Math.min(activeBlockIndex, blocks.length - 1);
+		const defaultIndex = allBlocksComplete
+			? blocks.length - 1
+			: Math.min(activeBlockIndex, blocks.length - 1);
 		if (!hasManualBlockSelection) {
 			selectedBlockIndex = defaultIndex;
 			return;
@@ -167,9 +181,13 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 		if (selectedBlockIndex > maxAccessible) selectedBlockIndex = defaultIndex;
 	});
 
-	const viewingCurrentStep = $derived(!allBlocksComplete && selectedBlockIndex === activeBlockIndex);
+	const viewingCurrentStep = $derived(
+		!allBlocksComplete && selectedBlockIndex === activeBlockIndex
+	);
 	const activeBlock = $derived(
-		selectedBlockIndex >= 0 && selectedBlockIndex < blocks.length ? blocks[selectedBlockIndex] : null
+		selectedBlockIndex >= 0 && selectedBlockIndex < blocks.length
+			? blocks[selectedBlockIndex]
+			: null
 	);
 
 	let marking = $state(false);
@@ -229,16 +247,30 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	const statusInfo = $derived(
 		statusLabels[effectiveStatus] ?? { label: effectiveStatus, tone: 'slate' }
 	);
+	const statusTone = $derived.by(() => {
+		if (statusInfo.tone === 'emerald') return 'success';
+		if (statusInfo.tone === 'red') return 'danger';
+		if (statusInfo.tone === 'sky') return 'info';
+		if (statusInfo.tone === 'yellow') return 'warning';
+		return 'neutral';
+	});
 
-	const blockedByMentor = $derived(reviewStatus === 'blocked' && certStatus === 'mentor_checkoff_pending');
+	const blockedByMentor = $derived(
+		reviewStatus === 'blocked' && certStatus === 'mentor_checkoff_pending'
+	);
 	const awaitingMentor = $derived(certStatus === 'mentor_checkoff_pending');
 	const prereqPlan = $derived((data.prereqPlan ?? []) as any[]);
 	const doablePrereqs = $derived(prereqPlan.filter((row: any) => row.isDoable));
 	const completedPrereqs = $derived(prereqPlan.filter((row: any) => row.status === 'completed'));
-	const lockedPrereqs = $derived(prereqPlan.filter((row: any) => !row.isDoable && row.status !== 'completed'));
+	const lockedPrereqs = $derived(
+		prereqPlan.filter((row: any) => !row.isDoable && row.status !== 'completed')
+	);
 
 	const initialSubmissionPhotos = $derived.by(() => {
-		if (Array.isArray(data.submission?.photo_data_urls) && data.submission.photo_data_urls.length > 0) {
+		if (
+			Array.isArray(data.submission?.photo_data_urls) &&
+			data.submission.photo_data_urls.length > 0
+		) {
 			return data.submission.photo_data_urls as string[];
 		}
 		if (data.submission?.photo_data_url) return [data.submission.photo_data_url] as string[];
@@ -305,10 +337,22 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 		if (type === 'video')
 			return { label: 'Video', chip: 'bg-sky-900/30 text-sky-200', border: 'border-sky-700/50' };
 		if (type === 'quiz')
-			return { label: 'Quiz', chip: 'bg-yellow-900/40 text-yellow-200', border: 'border-yellow-700/50' };
+			return {
+				label: 'Quiz',
+				chip: 'bg-yellow-900/40 text-yellow-200',
+				border: 'border-yellow-700/50'
+			};
 		if (type === 'reading')
-			return { label: 'Reading', chip: 'bg-violet-900/30 text-violet-200', border: 'border-violet-700/50' };
-		return { label: 'Skills Check', chip: 'bg-emerald-900/30 text-emerald-200', border: 'border-emerald-700/50' };
+			return {
+				label: 'Reading',
+				chip: 'bg-violet-900/30 text-violet-200',
+				border: 'border-violet-700/50'
+			};
+		return {
+			label: 'Skills Check',
+			chip: 'bg-emerald-900/30 text-emerald-200',
+			border: 'border-emerald-700/50'
+		};
 	}
 
 	function blockSummary(block: LearnBlock): string {
@@ -324,32 +368,27 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 		}
 		return String(cfg.title ?? 'Skills Check');
 	}
+	const blockSteps = $derived.by(() =>
+		blocks.map((block, i) => ({
+			label: `${i + 1}. ${blockSummary(block)}`,
+			done: isBlockCompleted(block),
+			current: !isBlockCompleted(block) && i === activeBlockIndex
+		}))
+	);
 </script>
 
 <section class="space-y-4">
-	<div>
-		<a href="/dashboard" class="text-xs text-slate-400">← Dashboard</a>
-		<h1 class="text-2xl font-semibold">{data.node.title}</h1>
-		{#if data.node.description}
-			<p class="text-slate-300">{data.node.description}</p>
-		{/if}
-		<p class="mt-2 text-xs">
-			<span
-				class={`inline-flex rounded-full px-2 py-0.5 ${
-					statusInfo.tone === 'emerald'
-						? 'bg-emerald-900/30 text-emerald-200'
-						: statusInfo.tone === 'red'
-							? 'bg-red-900/30 text-red-200'
-						: statusInfo.tone === 'sky'
-							? 'bg-sky-900/30 text-sky-200'
-							: statusInfo.tone === 'yellow'
-								? 'bg-yellow-900/40 text-yellow-200'
-								: 'bg-slate-800 text-slate-300'
-				}`}
-			>
-				{statusInfo.label}
-			</span>
-		</p>
+	<div class="rounded-xl border border-slate-800/80 bg-slate-900/35 p-4">
+		<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+			<a href="/dashboard" class="hover:text-slate-200">← Dashboard</a>
+			<a href="/courseloads" class="hover:text-slate-200">Courseloads</a>
+		</div>
+		<div class="mt-2">
+			<PageHeader title={data.node.title} description={data.node.description ?? ''} />
+		</div>
+		<div class="mt-3">
+			<StatusChip label={statusInfo.label} tone={statusTone} />
+		</div>
 		{#if data.previewBypass}
 			<p class="mt-2 text-xs text-sky-300">
 				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
@@ -360,9 +399,7 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	{#if awaitingMentor && !completed}
 		<div class="rounded-xl border border-sky-700 bg-sky-900/30 p-4">
 			<h2 class="mb-1 text-lg font-semibold">Awaiting mentor checkoff</h2>
-			<p class="text-sm text-sky-200">
-				Your checkoff submission is ready for mentor review.
-			</p>
+			<p class="text-sm text-sky-200">Your checkoff submission is ready for mentor review.</p>
 			{#if data.reviewMentor}
 				<p class="mt-1 text-xs text-sky-200">
 					Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
@@ -399,14 +436,16 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	{/if}
 
 	{#if locked}
-		<div class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
+		<div
+			class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300"
+		>
 			<p>
 				This module is locked. Complete its prerequisites on the
 				<a class="text-yellow-300 underline" href="/dashboard">dashboard</a> first.
 			</p>
 			{#if prereqPlan.length > 0}
 				<div class="rounded border border-emerald-700/40 bg-emerald-900/20 p-3">
-					<p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide text-emerald-300 uppercase">
 						Doable prerequisites
 					</p>
 					<div class="grid gap-1.5">
@@ -419,7 +458,9 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 									{row.title}
 									<span class="ml-1 text-[10px] text-slate-400">({row.complexity} prereq)</span>
 								</span>
-								<span class="rounded-full bg-emerald-900/40 px-1.5 py-0.5 text-[10px] text-emerald-200">
+								<span
+									class="rounded-full bg-emerald-900/40 px-1.5 py-0.5 text-[10px] text-emerald-200"
+								>
 									Doable now
 								</span>
 							</a>
@@ -430,7 +471,7 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				</div>
 
 				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
-					<p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
 						Locked prerequisites
 					</p>
 					<div class="grid gap-1.5">
@@ -454,7 +495,7 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				</div>
 
 				<div class="rounded border border-sky-700/40 bg-sky-900/20 p-3">
-					<p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-sky-300">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide text-sky-300 uppercase">
 						Completed prerequisites
 					</p>
 					<div class="grid gap-1.5">
@@ -484,110 +525,62 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 		</div>
 	{:else}
 		<div class="space-y-4 pb-24">
+			<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+				<p class="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Module progress</p>
+				<ProgressRail steps={blockSteps} />
+			</div>
 			{#if activeBlock}
 				{@const meta = blockTypeMeta(activeBlock.type)}
 				<div class={`space-y-4 rounded-xl border bg-slate-900 p-4 ${meta.border}`}>
-				<div class="flex flex-wrap items-center gap-2">
-					<span class={`rounded-full px-2 py-0.5 text-xs ${meta.chip}`}>
-						{selectedBlockIndex + 1}. {meta.label}
-					</span>
-					<h2 class="text-lg font-semibold">{blockSummary(activeBlock)}</h2>
-				</div>
-
-				{#if activeBlock.type === 'video'}
-					{@const vid = extractVideoId(activeBlock.config.video_url)}
-					{#if vid}
-						<VideoPlayer
-							videoId={vid}
-							startSeconds={Number(activeBlock.config.start_seconds ?? 0)}
-							endSeconds={activeBlock.config.end_seconds == null || activeBlock.config.end_seconds === ''
-								? null
-								: Number(activeBlock.config.end_seconds)}
-							onCompleted={() =>
-								activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
-						/>
-					{:else if activeBlock.config.video_url}
-						<div class="space-y-2">
-							<p class="text-sm text-slate-300">
-								This video can't be embedded directly. Open it on YouTube to watch, then mark it done.
-							</p>
-							<a
-								href={activeBlock.config.video_url}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="inline-flex rounded bg-slate-700 px-3 py-1.5 text-sm hover:bg-slate-600"
-								>Open on YouTube ↗</a
-							>
-						</div>
-					{:else}
-						<p class="text-sm text-slate-400">No video URL configured for this block.</p>
-					{/if}
-					<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
-						{#if viewingCurrentStep}
-							<button
-								class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
-								onclick={() =>
-									activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
-								disabled={marking}
-							>
-								{marking ? 'Marking…' : 'I finished this video'}
-							</button>
-							<span class="text-xs text-slate-400">
-								Marks this video complete and unlocks the next block.
-							</span>
-							{#if videoActionMessage}
-								<p class="text-xs text-red-300">{videoActionMessage}</p>
-							{/if}
-						{:else}
-							<span class="text-xs text-slate-400">
-								Viewing a completed step. Return to the current step to continue progress.
-							</span>
-						{/if}
+					<div class="flex flex-wrap items-center gap-2">
+						<span class={`rounded-full px-2 py-0.5 text-xs ${meta.chip}`}>
+							{selectedBlockIndex + 1}. {meta.label}
+						</span>
+						<h2 class="text-lg font-semibold">{blockSummary(activeBlock)}</h2>
 					</div>
-				{:else if activeBlock.type === 'quiz'}
-					{#if (activeBlock.config.questions ?? []).length === 0}
-						<p class="text-sm text-slate-400">No quiz questions configured yet. Ask a mentor to add some.</p>
-					{:else}
-						<Quiz
-							questions={activeBlock.config.questions}
-							nodeId={data.node.id}
-							blockId={activeBlock.legacy ? null : activeBlock.id}
-							passingScore={activeBlock.config.passing_score ?? 80}
-							allowSubmit={true}
-							lockedMessage=""
-						/>
-					{/if}
-				{:else if activeBlock.type === 'reading'}
-					{@const c = activeBlock.config}
-					<div class="space-y-3">
-						{#if c.content}
-							<div class="whitespace-pre-wrap rounded border border-slate-800 bg-slate-900/50 p-3 text-sm text-slate-200">
-								{c.content}
+
+					{#if activeBlock.type === 'video'}
+						{@const vid = extractVideoId(activeBlock.config.video_url)}
+						{#if vid}
+							<VideoPlayer
+								videoId={vid}
+								startSeconds={Number(activeBlock.config.start_seconds ?? 0)}
+								endSeconds={activeBlock.config.end_seconds == null ||
+								activeBlock.config.end_seconds === ''
+									? null
+									: Number(activeBlock.config.end_seconds)}
+								onCompleted={() =>
+									activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
+							/>
+						{:else if activeBlock.config.video_url}
+							<div class="space-y-2">
+								<p class="text-sm text-slate-300">
+									This video can't be embedded directly. Open it on YouTube to watch, then mark it
+									done.
+								</p>
+								<a
+									href={activeBlock.config.video_url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="inline-flex rounded bg-slate-700 px-3 py-1.5 text-sm hover:bg-slate-600"
+									>Open on YouTube ↗</a
+								>
 							</div>
-						{/if}
-						{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-							<div class="rounded bg-slate-900/60 p-3">
-								<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Resources</p>
-								<ul class="space-y-1 text-sm">
-									{#each c.resource_links as link}
-										<li>
-											<a href={link} class="text-yellow-300 underline" target="_blank" rel="noopener noreferrer">{link}</a>
-										</li>
-									{/each}
-								</ul>
-							</div>
+						{:else}
+							<p class="text-sm text-slate-400">No video URL configured for this block.</p>
 						{/if}
 						<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
 							{#if viewingCurrentStep}
 								<button
 									class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
-									onclick={() => markBlockVideoDone(activeBlock)}
+									onclick={() =>
+										activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
 									disabled={marking}
 								>
-									{marking ? 'Marking…' : 'I finished this reading'}
+									{marking ? 'Marking…' : 'I finished this video'}
 								</button>
 								<span class="text-xs text-slate-400">
-									Marks this reading complete and unlocks the next block.
+									Marks this video complete and unlocks the next block.
 								</span>
 								{#if videoActionMessage}
 									<p class="text-xs text-red-300">{videoActionMessage}</p>
@@ -598,165 +591,245 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 								</span>
 							{/if}
 						</div>
-					</div>
-				{:else}
-					{@const c = activeBlock.config}
-					{#if c.directions}
-						<p class="text-sm text-slate-300">{c.directions}</p>
-					{/if}
-					{#if Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
-						<div class="rounded bg-slate-900/60 p-3">
-							<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-								Mentor checklist
+					{:else if activeBlock.type === 'quiz'}
+						{#if (activeBlock.config.questions ?? []).length === 0}
+							<p class="text-sm text-slate-400">
+								No quiz questions configured yet. Ask a mentor to add some.
 							</p>
-							<ul class="list-disc space-y-1 pl-5 text-sm text-slate-200">
-								{#each c.mentor_checklist as item}
-									<li>{item}</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-						<div class="rounded bg-slate-900/60 p-3">
-							<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Resources</p>
-							<ul class="space-y-1 text-sm">
-								{#each c.resource_links as link}
-									<li>
-										<a href={link} class="text-yellow-300 underline" target="_blank" rel="noopener noreferrer">{link}</a>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					<form
-						method="POST"
-						action="?/saveSubmission"
-						use:enhance={() => {
-							return async ({ result }) => {
-								if (result.type === 'success') {
-									checkoffMessage = 'Submission saved. A mentor will review soon.';
-									await invalidateAll();
-								}
-								if (result.type === 'failure') {
-									checkoffMessage = (result.data?.error as string) ?? 'Could not save submission.';
-								}
-							};
-						}}
-						class="space-y-3 rounded border border-slate-800 bg-slate-900/60 p-3"
-					>
-						<input
-							type="hidden"
-							name="block_id"
-							value={activeBlock.legacy ? '' : activeBlock.id}
-						/>
-						{#if blockedByMentor}
-							<p class="rounded border border-red-700 bg-red-900/30 p-2 text-xs text-red-200">
-								This checkoff is blocked by a mentor. Resolve the feedback before further review.
-							</p>
-						{/if}
-						<label class="flex flex-col gap-1 text-sm">
-							<span class="text-slate-300">What did you complete?</span>
-							<textarea
-								name="notes"
-								rows="3"
-								class="rounded bg-slate-800 px-2 py-2"
-								placeholder="Describe what you built/demonstrated, tools used, and any issues."
-								disabled={blockedByMentor}
-							>{data.submission?.notes ?? ''}</textarea>
-						</label>
-						<label class="flex flex-col gap-1 text-sm">
-							<input
-								bind:this={photoInputEl}
-								type="file"
-								accept="image/*"
-								capture="environment"
-								multiple
-								onchange={onPhotoSelected}
-								disabled={blockedByMentor}
-								class="hidden"
+						{:else}
+							<Quiz
+								questions={activeBlock.config.questions}
+								nodeId={data.node.id}
+								blockId={activeBlock.legacy ? null : activeBlock.id}
+								passingScore={activeBlock.config.passing_score ?? 80}
+								allowSubmit={true}
+								lockedMessage=""
 							/>
-							<div class="flex flex-wrap items-center gap-2">
-								<button
-									type="button"
-									onclick={openPhotoPicker}
-									disabled={blockedByMentor}
-									class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+						{/if}
+					{:else if activeBlock.type === 'reading'}
+						{@const c = activeBlock.config}
+						<div class="space-y-3">
+							{#if c.content}
+								<div
+									class="rounded border border-slate-800 bg-slate-900/50 p-3 text-sm whitespace-pre-wrap text-slate-200"
 								>
-									Upload Photo or File
-								</button>
-								<span class="text-xs text-slate-400">
-									{uploadPreviews.length > 0
-										? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
-										: 'PNG/JPG, up to 4 files'}
-								</span>
+									{c.content}
+								</div>
+							{/if}
+							{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
+								<div class="rounded bg-slate-900/60 p-3">
+									<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+										Resources
+									</p>
+									<ul class="space-y-1 text-sm">
+										{#each c.resource_links as link}
+											<li>
+												<a
+													href={link}
+													class="text-yellow-300 underline"
+													target="_blank"
+													rel="noopener noreferrer">{link}</a
+												>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+							<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
+								{#if viewingCurrentStep}
+									<button
+										class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
+										onclick={() => markBlockVideoDone(activeBlock)}
+										disabled={marking}
+									>
+										{marking ? 'Marking…' : 'I finished this reading'}
+									</button>
+									<span class="text-xs text-slate-400">
+										Marks this reading complete and unlocks the next block.
+									</span>
+									{#if videoActionMessage}
+										<p class="text-xs text-red-300">{videoActionMessage}</p>
+									{/if}
+								{:else}
+									<span class="text-xs text-slate-400">
+										Viewing a completed step. Return to the current step to continue progress.
+									</span>
+								{/if}
 							</div>
-							<input type="hidden" name="photo_data_urls_json" value={JSON.stringify(uploadPreviews)} />
-						</label>
-						{#if uploadPreviews.length}
-							<div class="grid grid-cols-2 gap-2 md:grid-cols-4">
-								{#each uploadPreviews as photo, idx}
-									<div class="relative">
-										<img
-											src={photo}
-											alt="Checkoff submission preview"
-											class="h-24 w-full rounded border border-slate-800 object-cover"
-										/>
-										<button
-											type="button"
-											onclick={() => removePhoto(idx)}
-											class="absolute right-1 top-1 rounded bg-slate-900/50 px-1.5 py-0.5 text-[11px] text-red-200"
-										>
-											Remove
-										</button>
-									</div>
-								{/each}
-							</div>
+						</div>
+					{:else}
+						{@const c = activeBlock.config}
+						{#if c.directions}
+							<p class="text-sm text-slate-300">{c.directions}</p>
 						{/if}
-						{#if checkoffMessage}
-							<p class="text-xs text-slate-300">{checkoffMessage}</p>
-						{/if}
-						<button
-							class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-60"
-							type="submit"
-							disabled={blockedByMentor}
-						>
-							{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
-						</button>
-					</form>
-					{#if data.review}
-						<div class="rounded border border-slate-800 bg-slate-900/40 p-3 text-sm">
-							<p class="font-semibold text-slate-200">Latest mentor feedback</p>
-							{#if data.reviewMentor}
-								<p class="mt-1 text-xs text-slate-400">
-									By {data.reviewMentor.full_name || data.reviewMentor.email}
+						{#if Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
+							<div class="rounded bg-slate-900/60 p-3">
+								<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+									Mentor checklist
 								</p>
-							{/if}
-							<p class="mt-1 text-slate-300">{data.review.mentor_notes || 'No notes yet.'}</p>
-							{#if data.review.status === 'needs_review'}
-								<p class="mt-2 text-xs text-amber-200">
-									Mentor requested updates. Your current submission stays saved; update notes/photos and save again.
-								</p>
-							{/if}
-							{#if data.review.status === 'blocked'}
-								<p class="mt-2 text-xs text-red-200">
-									Mentor has blocked this checkoff pending safety/compliance resolution.
-								</p>
-							{/if}
-							{#if (data.review.checklist_results ?? []).length > 0}
-								<ul class="mt-2 list-disc pl-5 text-xs text-slate-300">
-									{#each data.review.checklist_results as row}
-										<li>{row.item}: {row.passed ? 'passed' : 'needs work'}</li>
+								<ul class="list-disc space-y-1 pl-5 text-sm text-slate-200">
+									{#each c.mentor_checklist as item}
+										<li>{item}</li>
 									{/each}
 								</ul>
+							</div>
+						{/if}
+						{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
+							<div class="rounded bg-slate-900/60 p-3">
+								<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+									Resources
+								</p>
+								<ul class="space-y-1 text-sm">
+									{#each c.resource_links as link}
+										<li>
+											<a
+												href={link}
+												class="text-yellow-300 underline"
+												target="_blank"
+												rel="noopener noreferrer">{link}</a
+											>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+						<form
+							method="POST"
+							action="?/saveSubmission"
+							use:enhance={() => {
+								return async ({ result }) => {
+									if (result.type === 'success') {
+										checkoffMessage = 'Submission saved. A mentor will review soon.';
+										await invalidateAll();
+									}
+									if (result.type === 'failure') {
+										checkoffMessage =
+											(result.data?.error as string) ?? 'Could not save submission.';
+									}
+								};
+							}}
+							class="space-y-3 rounded border border-slate-800 bg-slate-900/60 p-3"
+						>
+							<input
+								type="hidden"
+								name="block_id"
+								value={activeBlock.legacy ? '' : activeBlock.id}
+							/>
+							{#if blockedByMentor}
+								<p class="rounded border border-red-700 bg-red-900/30 p-2 text-xs text-red-200">
+									This checkoff is blocked by a mentor. Resolve the feedback before further review.
+								</p>
 							{/if}
-						</div>
+							<label class="flex flex-col gap-1 text-sm">
+								<span class="text-slate-300">What did you complete?</span>
+								<textarea
+									name="notes"
+									rows="3"
+									class="rounded bg-slate-800 px-2 py-2"
+									placeholder="Describe what you built/demonstrated, tools used, and any issues."
+									disabled={blockedByMentor}>{data.submission?.notes ?? ''}</textarea
+								>
+							</label>
+							<label class="flex flex-col gap-1 text-sm">
+								<input
+									bind:this={photoInputEl}
+									type="file"
+									accept="image/*"
+									capture="environment"
+									multiple
+									onchange={onPhotoSelected}
+									disabled={blockedByMentor}
+									class="hidden"
+								/>
+								<div class="flex flex-wrap items-center gap-2">
+									<button
+										type="button"
+										onclick={openPhotoPicker}
+										disabled={blockedByMentor}
+										class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+									>
+										Upload Photo or File
+									</button>
+									<span class="text-xs text-slate-400">
+										{uploadPreviews.length > 0
+											? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
+											: 'PNG/JPG, up to 4 files'}
+									</span>
+								</div>
+								<input
+									type="hidden"
+									name="photo_data_urls_json"
+									value={JSON.stringify(uploadPreviews)}
+								/>
+							</label>
+							{#if uploadPreviews.length}
+								<div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+									{#each uploadPreviews as photo, idx}
+										<div class="relative">
+											<img
+												src={photo}
+												alt="Checkoff submission preview"
+												class="h-24 w-full rounded border border-slate-800 object-cover"
+											/>
+											<button
+												type="button"
+												onclick={() => removePhoto(idx)}
+												class="absolute top-1 right-1 rounded bg-slate-900/50 px-1.5 py-0.5 text-[11px] text-red-200"
+											>
+												Remove
+											</button>
+										</div>
+									{/each}
+								</div>
+							{/if}
+							{#if checkoffMessage}
+								<p class="text-xs text-slate-300">{checkoffMessage}</p>
+							{/if}
+							<button
+								class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-60"
+								type="submit"
+								disabled={blockedByMentor}
+							>
+								{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
+							</button>
+						</form>
+						{#if data.review}
+							<div class="rounded border border-slate-800 bg-slate-900/40 p-3 text-sm">
+								<p class="font-semibold text-slate-200">Latest mentor feedback</p>
+								{#if data.reviewMentor}
+									<p class="mt-1 text-xs text-slate-400">
+										By {data.reviewMentor.full_name || data.reviewMentor.email}
+									</p>
+								{/if}
+								<p class="mt-1 text-slate-300">{data.review.mentor_notes || 'No notes yet.'}</p>
+								{#if data.review.status === 'needs_review'}
+									<p class="mt-2 text-xs text-amber-200">
+										Mentor requested updates. Your current submission stays saved; update
+										notes/photos and save again.
+									</p>
+								{/if}
+								{#if data.review.status === 'blocked'}
+									<p class="mt-2 text-xs text-red-200">
+										Mentor has blocked this checkoff pending safety/compliance resolution.
+									</p>
+								{/if}
+								{#if (data.review.checklist_results ?? []).length > 0}
+									<ul class="mt-2 list-disc pl-5 text-xs text-slate-300">
+										{#each data.review.checklist_results as row}
+											<li>{row.item}: {row.passed ? 'passed' : 'needs work'}</li>
+										{/each}
+									</ul>
+								{/if}
+							</div>
+						{/if}
 					{/if}
-				{/if}
 				</div>
 			{/if}
 
-			<div class="fixed bottom-0 left-0 right-0 z-30 md:left-64">
-				<div class="overflow-x-auto border-t border-slate-700 bg-slate-900/95 px-3 py-2 backdrop-blur">
+			<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
+				<div
+					class="overflow-x-auto border-t border-slate-700 bg-slate-900/95 px-3 py-2 backdrop-blur"
+				>
 					<div class="flex min-w-max items-stretch gap-2">
 						{#each blocks as block, i (block.id)}
 							{@const done = isBlockCompleted(block)}
@@ -780,8 +853,12 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 								} ${accessible ? 'hover:border-slate-500' : 'cursor-not-allowed opacity-70'}`}
 							>
 								<p class="truncate font-semibold">{i + 1}. {blockSummary(block)}</p>
-								<p class="mt-1 text-[11px]">{done ? 'Completed' : active ? 'Current step' : 'Upcoming'}</p>
-								<span class={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${meta.chip}`}>{meta.label}</span>
+								<p class="mt-1 text-[11px]">
+									{done ? 'Completed' : active ? 'Current step' : 'Upcoming'}
+								</p>
+								<span class={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${meta.chip}`}
+									>{meta.label}</span
+								>
 							</button>
 						{/each}
 					</div>

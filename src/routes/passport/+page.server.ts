@@ -3,7 +3,8 @@ import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user) return { qrDataUrl: '', badges: [], progressSummary: 'No certifications yet', profile: null };
+	if (!user)
+		return { qrDataUrl: '', badges: [], progressSummary: 'No certifications yet', profile: null };
 
 	const [{ data: completedRows }, { data: subteams }] = await Promise.all([
 		locals.supabase
@@ -20,7 +21,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const subteamNameById = new Map((subteams ?? []).map((s: any) => [String(s.id), String(s.name)]));
 	const perTrack = new Map<string, number>();
 	for (const row of completed) {
-		const trackId = String(row?.nodes?.subteam_id ?? '');
+		const rawNodes = row?.nodes as
+			| { title?: string; subteam_id?: string }
+			| { title?: string; subteam_id?: string }[]
+			| null;
+		const node = Array.isArray(rawNodes) ? rawNodes[0] : rawNodes;
+		const trackId = String(node?.subteam_id ?? '');
 		if (!trackId) continue;
 		perTrack.set(trackId, (perTrack.get(trackId) ?? 0) + 1);
 	}

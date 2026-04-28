@@ -1,6 +1,10 @@
 <script lang="ts">
 	import CheckoffCard from '$lib/components/CheckoffCard.svelte';
-	import QRScanner from '$lib/components/QRScanner.svelte';
+	import MetricCard from '$lib/components/ui/MetricCard.svelte';
+	import PageHeader from '$lib/components/ui/PageHeader.svelte';
+	import SearchField from '$lib/components/ui/SearchField.svelte';
+	import SurfaceCard from '$lib/components/ui/SurfaceCard.svelte';
+	import StatusChip from '$lib/components/ui/StatusChip.svelte';
 	import { createBrowserClient } from '@supabase/ssr';
 	import { env as publicEnv } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
@@ -168,8 +172,7 @@
 </script>
 
 <section class="space-y-4">
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<h1 class="text-2xl font-semibold">Pending Checkoffs</h1>
+	<PageHeader title="Pending Checkoffs" description="Review submissions, evidence, and send actionable feedback.">
 		<div class="flex items-center gap-2">
 			<a
 				href="/scan"
@@ -182,7 +185,7 @@
 				>Manage courses →</a
 			>
 		</div>
-	</div>
+	</PageHeader>
 	{#if data.error || actionError}
 		<div class="rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-200">
 			{data.error || actionError}
@@ -214,26 +217,13 @@
 		{/if}
 	</div>
 	<div class="grid gap-2 md:grid-cols-3">
-		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
-			<p class="text-xs text-slate-400">Pending</p>
-			<p class="text-xl font-semibold">{summary.total}</p>
-		</div>
-		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
-			<p class="text-xs text-slate-400">With evidence</p>
-			<p class="text-xl font-semibold text-emerald-200">{summary.withEvidence}</p>
-		</div>
-		<div class="rounded border border-slate-800 bg-slate-900 p-3 text-sm">
-			<p class="text-xs text-slate-400">Missing required evidence</p>
-			<p class="text-xl font-semibold text-amber-200">{summary.needsEvidence}</p>
-		</div>
+		<MetricCard label="Pending" value={summary.total} tone="info" />
+		<MetricCard label="With evidence" value={summary.withEvidence} tone="success" />
+		<MetricCard label="Missing required evidence" value={summary.needsEvidence} tone="warning" />
 	</div>
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-3">
-		<input
-			bind:value={queueSearch}
-			placeholder="Search by student, course, or team..."
-			class="w-full rounded border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm"
-		/>
-	</div>
+	<SurfaceCard compact={true}>
+		<SearchField bind:value={queueSearch} placeholder="Search by student, course, or team..." />
+	</SurfaceCard>
 	{#if !filteredQueue.length}
 		<p class="text-slate-300">No students are waiting for checkoff.</p>
 	{:else}
@@ -256,7 +246,7 @@
 							<p class="truncate font-semibold">{item.profile?.full_name || item.profile?.email}</p>
 							<p class="truncate text-xs text-slate-400">{item.node?.title}</p>
 						</div>
-						<span class="rounded-full bg-sky-900/30 px-2 py-0.5 text-xs text-sky-200">Pending</span>
+						<StatusChip label="Pending" tone="info" />
 					</div>
 					{#if photosFor(item.submission).length}
 						<div class="grid grid-cols-3 gap-1">

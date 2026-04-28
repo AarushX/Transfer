@@ -23,7 +23,11 @@ export type Profile = {
 export type AssessmentQuestion = {
 	id: string;
 	prompt: string;
-	type: 'mc' | 'tf' | 'short';
+	type: 'mc' | 'ms' | 'tf' | 'short';
 	options?: string[];
-	correct: string;
+	correct: string | string[];
+	randomize_options?: boolean;
+	max_select?: number;
+	short_ignore_punctuation?: boolean;
+	short_ignore_case?: boolean;
 };

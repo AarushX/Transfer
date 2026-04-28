@@ -6,6 +6,23 @@ const clampInt = (value: unknown, fallback: number, min: number, max: number) =>
 	return Math.min(max, Math.max(min, Math.trunc(parsed)));
 };
 
+const normalizeShortAnswer = (
+	value: string,
+	{
+		ignoreCase,
+		ignorePunctuation
+	}: {
+		ignoreCase: boolean;
+		ignorePunctuation: boolean;
+	}
+) => {
+	let out = value.trim();
+	if (ignoreCase) out = out.toLowerCase();
+	if (ignorePunctuation) out = out.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'[\]\\|<>+]/g, '');
+	out = out.replace(/\s+/g, ' ').trim();
+	return out;
+};
+
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
@@ -59,6 +76,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	let activeSegment: any = null;
 	let activeBlock: any = null;
 	let maxAttempts: number | null = null;
+	let minSecondsBetweenAttempts = clampInt(assessment?.min_seconds_between_attempts, 15, 0, 3600);
+	let failWindowMinutes = clampInt(assessment?.fail_window_minutes, 10, 1, 1440);
+	let maxFailedInWindow = clampInt(assessment?.max_failed_in_window, 5, 1, 200);
+	let shortAnswerMinChars = clampInt(assessment?.short_answer_min_chars, 3, 0, 5000);
+	let shortAnswerMaxChars = clampInt(assessment?.short_answer_max_chars, 300, 1, 5000);
 
 	if (hasBlocks && blockId) {
 		activeBlock = blockRows.find((b: any) => b.id === blockId);
@@ -101,6 +123,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const cfg = activeBlock.config ?? {};
 		questions = Array.isArray(cfg.questions) ? cfg.questions : [];
 		passingScore = Number(cfg.passing_score ?? 80);
+		minSecondsBetweenAttempts = clampInt(
+			cfg.min_seconds_between_attempts,
+			minSecondsBetweenAttempts,
+			0,
+			3600
+		);
+		failWindowMinutes = clampInt(cfg.fail_window_minutes, failWindowMinutes, 1, 1440);
+		maxFailedInWindow = clampInt(cfg.max_failed_in_window, maxFailedInWindow, 1, 200);
+		shortAnswerMinChars = clampInt(cfg.short_answer_min_chars, shortAnswerMinChars, 0, 5000);
+		shortAnswerMaxChars = clampInt(cfg.short_answer_max_chars, shortAnswerMaxChars, 1, 5000);
 		const rawMaxAttempts = Number(cfg.max_attempts);
 		maxAttempts =
 			Number.isFinite(rawMaxAttempts) && rawMaxAttempts > 0
@@ -154,15 +186,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (cert.status === 'mentor_checkoff_pending')
 			return json({ error: 'Quiz already passed. Awaiting mentor checkoff.' }, { status: 409 });
 		if (cert.status !== 'quiz_pending') {
-			return json({ error: 'Quiz is not unlocked yet. Complete the video first.' }, { status: 400 });
+			return json(
+				{ error: 'Quiz is not unlocked yet. Complete the video first.' },
+				{ status: 400 }
+			);
 		}
 	}
-
-	const minSecondsBetweenAttempts = clampInt(assessment?.min_seconds_between_attempts, 15, 0, 3600);
-	const failWindowMinutes = clampInt(assessment?.fail_window_minutes, 10, 1, 1440);
-	const maxFailedInWindow = clampInt(assessment?.max_failed_in_window, 5, 1, 200);
-	const shortAnswerMinChars = clampInt(assessment?.short_answer_min_chars, 3, 0, 5000);
-	const shortAnswerMaxChars = clampInt(assessment?.short_answer_max_chars, 300, 1, 5000);
 
 	let recentAttemptsData: any[] | null = null;
 	if (blockId) {
@@ -206,7 +235,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		totalAttempts = count ?? totalAttempts;
 	}
 	if (maxAttempts != null && totalAttempts >= maxAttempts) {
-		return json({ error: `Maximum attempts reached (${maxAttempts}) for this quiz.` }, { status: 429 });
+		return json(
+			{ error: `Maximum attempts reached (${maxAttempts}) for this quiz.` },
+			{ status: 429 }
+		);
 	}
 	if (newest?.created_at) {
 		const secondsSince = Math.floor((now - new Date(newest.created_at).getTime()) / 1000);
@@ -232,25 +264,81 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		);
 	}
 
-	const answers: Record<string, string> = {};
+	const answers: Record<string, string | string[]> = {};
 	let correct = 0;
 	for (const question of questions) {
+		const questionType = String(question.type ?? 'mc');
 		const rawAnswer = String(formData.get(question.id) ?? '').trim();
-		const answer = rawAnswer.toLowerCase();
-		answers[question.id] = answer;
 
-		if (question.type === 'mc') {
+		if (questionType === 'mc') {
 			const normalizedOptions = (question.options ?? [])
-				.map((option: unknown) => String(option).trim().toLowerCase())
+				.map((option: unknown) => String(option).trim())
 				.filter(Boolean);
+			const answer = rawAnswer;
+			answers[question.id] = answer;
 			if (!normalizedOptions.includes(answer)) {
 				return json({ error: 'Invalid multiple-choice answer submitted.' }, { status: 400 });
 			}
+			const expected = String(question.correct ?? '').trim();
+			if (answer === expected) correct += 1;
+			continue;
 		}
-		if (question.type === 'tf' && !['true', 'false'].includes(answer)) {
+
+		if (questionType === 'ms') {
+			let selected: string[] = [];
+			try {
+				const parsed = JSON.parse(rawAnswer || '[]');
+				selected = Array.isArray(parsed)
+					? parsed.map((v) => String(v ?? '').trim()).filter(Boolean)
+					: [];
+			} catch {
+				return json({ error: 'Invalid multiple-select answer submitted.' }, { status: 400 });
+			}
+			const options = (question.options ?? [])
+				.map((option: unknown) => String(option).trim())
+				.filter(Boolean);
+			const optionSet = new Set(options);
+			if (selected.some((answer) => !optionSet.has(answer))) {
+				return json({ error: 'Invalid multiple-select answer submitted.' }, { status: 400 });
+			}
+			const uniqueSelected = Array.from(new Set(selected));
+			const rawMaxSelect = Number(question.max_select);
+			const maxSelect =
+				Number.isFinite(rawMaxSelect) && rawMaxSelect > 0
+					? clampInt(rawMaxSelect, 1, 1, options.length || 1)
+					: null;
+			if (maxSelect != null && uniqueSelected.length > maxSelect) {
+				return json(
+					{
+						error: `Too many selections submitted. This question allows up to ${maxSelect} selections.`
+					},
+					{ status: 400 }
+				);
+			}
+			answers[question.id] = uniqueSelected;
+			const expectedRaw = Array.isArray(question.correct)
+				? question.correct
+				: typeof question.correct === 'string'
+					? [question.correct]
+					: [];
+			const expected = Array.from(
+				new Set(expectedRaw.map((v: unknown) => String(v ?? '').trim()).filter(Boolean))
+			);
+			const selectedSet = new Set(uniqueSelected);
+			const expectedSet = new Set(expected);
+			const sameLength = selectedSet.size === expectedSet.size;
+			const expectedStrings = expected as string[];
+			const sameMembers = expectedStrings.every((value) => selectedSet.has(value));
+			if (sameLength && sameMembers) correct += 1;
+			continue;
+		}
+
+		const answer = rawAnswer.toLowerCase();
+		answers[question.id] = answer;
+		if (questionType === 'tf' && !['true', 'false'].includes(answer)) {
 			return json({ error: 'Invalid true/false answer submitted.' }, { status: 400 });
 		}
-		if (question.type === 'short') {
+		if (questionType === 'short') {
 			if (rawAnswer.length < shortAnswerMinChars) {
 				return json(
 					{ error: `Short answers must be at least ${shortAnswerMinChars} characters.` },
@@ -263,9 +351,28 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					{ status: 400 }
 				);
 			}
+			const ignoreCase =
+				question.short_ignore_case == null ? true : Boolean(question.short_ignore_case);
+			const ignorePunctuation = Boolean(question.short_ignore_punctuation);
+			const normalizedAnswer = normalizeShortAnswer(rawAnswer, {
+				ignoreCase,
+				ignorePunctuation
+			});
+			const normalizedExpected = normalizeShortAnswer(String(question.correct ?? ''), {
+				ignoreCase,
+				ignorePunctuation
+			});
+			if (normalizedAnswer === normalizedExpected) correct += 1;
+			continue;
 		}
 
-		if (answer === String(question.correct ?? '').trim().toLowerCase()) correct += 1;
+		if (
+			answer ===
+			String(question.correct ?? '')
+				.trim()
+				.toLowerCase()
+		)
+			correct += 1;
 	}
 	const score = questions.length ? Math.round((correct / questions.length) * 100) : 0;
 	const passed = score >= passingScore;

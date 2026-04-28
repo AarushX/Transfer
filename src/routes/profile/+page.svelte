@@ -190,6 +190,14 @@
 			<p class="mt-2 text-slate-300">{data.profile?.full_name || data.profile?.email}</p>
 			<p class="mt-2 rounded bg-slate-800 px-2 py-1 text-sm">{data.progressSummary}</p>
 			<p class="mt-2 text-sm text-yellow-300">Overall rank: {data.overallRank}</p>
+			{#if data.rankSummary?.rank}
+				<p class="mt-1 text-xs text-slate-300">
+					{data.rankSummary.rank.medal_label} · {data.rankSummary.totalPoints} pts
+				</p>
+				<p class="text-xs text-slate-400">
+					Courses {data.rankSummary.coursePoints} + Attendance {data.rankSummary.attendancePoints}
+				</p>
+			{/if}
 			{#if specialTitles.length > 0}
 				<p class="mt-1 text-xs text-emerald-200">Special: {specialTitles.join(' · ')}</p>
 			{/if}

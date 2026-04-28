@@ -1,4 +1,8 @@
 <script lang="ts">
+	import type { CoursesDashboardModel } from '$lib/courseload-types';
+	import SearchField from '$lib/components/ui/SearchField.svelte';
+	import StatusChip from '$lib/components/ui/StatusChip.svelte';
+
 type Node = { id: string; title: string; slug: string; subteam_id: string; video_url?: string | null };
 	type Status = { node_id: string; computed_status: string };
 	type Subteam = { id: string; name: string; slug: string };
@@ -6,14 +10,42 @@ type Node = { id: string; title: string; slug: string; subteam_id: string; video
 	type PrereqEdge = { node_id: string; prerequisite_node_id: string };
 type NodeBlockRow = { node_id: string; id: string };
 type BlockProgressRow = { node_id: string; block_id: string; completed_at: string | null };
-type NodeOnlyRow = { node_id: string };
+type Survey = {
+	id: string;
+	title: string;
+	slug: string;
+	description?: string;
+	is_active: boolean;
+	show_when_inactive: boolean;
+	visible_from: string | null;
+	visible_until: string | null;
+	max_submissions?: number;
+};
+type SurveyPrereqEdge = { survey_id: string; node_id: string };
+type TrainingCategory = {
+	id: string;
+	name: string;
+	slug: string;
+	parent_id: string | null;
+	kind: string;
+	color_token: string;
+	sort_order: number;
+};
+type NodeCategory = { node_id: string; category_id: string };
 
 	let { data } = $props();
+
+	const coursesDashboard = $derived((data.coursesDashboard ?? null) as CoursesDashboardModel | null);
+	const submissionSummaryBySurvey = $derived(
+		(data.submissionSummaryBySurvey ?? {}) as Record<string, { count: number; latestAt: string | null }>
+	);
 
 	const statusMap = $derived(new Map((data.statuses as Status[]).map((s) => [s.node_id, s.computed_status])));
 	const checkoffReviewMap = $derived(
 		new Map((data.checkoffReviews as CheckoffReview[]).map((r) => [r.node_id, r]))
 	);
+	const surveys = $derived((data.surveys as Survey[]) ?? []);
+	const surveyPrerequisites = $derived((data.surveyPrerequisites as SurveyPrereqEdge[]) ?? []);
 
 	const effectiveStatusFor = (nodeId: string): string => {
 		const base = statusMap.get(nodeId) ?? 'locked';
@@ -131,6 +163,11 @@ const primaryTeamName = $derived.by(() => {
 		(data.nodes as Node[]).filter((n) => effectiveStatusFor(n.id) === 'mentor_checkoff_pending')
 	);
 	const recommendedNext = $derived.by(() => {
+		const pathNext = coursesDashboard?.nextCourse;
+		if (pathNext?.slug) {
+			const node = (data.nodes as Node[]).find((n) => n.slug === pathNext.slug);
+			if (node) return node;
+		}
 		const preferredTeam = data.profile?.subteam_id;
 		const candidates = availableNow.slice().sort((a, b) => {
 			const ap = preferredTeam && a.subteam_id === preferredTeam ? 0 : 1;
@@ -140,27 +177,6 @@ const primaryTeamName = $derived.by(() => {
 		});
 		return candidates[0] ?? null;
 	});
-
-	const statusPillClass = (status: string) => {
-		switch (status) {
-			case 'completed':
-				return 'bg-emerald-900/30 text-emerald-200';
-			case 'mentor_checkoff_pending':
-				return 'bg-sky-900/30 text-sky-200';
-			case 'checkoff_needs_review':
-				return 'bg-amber-900/30 text-amber-200';
-			case 'checkoff_blocked':
-				return 'bg-red-900/30 text-red-200';
-			case 'quiz_pending':
-				return 'bg-yellow-900/40 text-yellow-200';
-			case 'video_pending':
-				return 'bg-slate-700 text-slate-100';
-			case 'available':
-				return 'bg-slate-800 text-slate-100';
-			default:
-				return 'bg-slate-800 text-slate-400';
-		}
-	};
 
 	const statusLabel = (status: string) =>
 		({
@@ -173,6 +189,13 @@ const primaryTeamName = $derived.by(() => {
 			checkoff_blocked: 'Blocked',
 			completed: 'Completed'
 		})[status] ?? status;
+	const statusTone = (status: string): 'neutral' | 'success' | 'warning' | 'danger' | 'info' => {
+		if (status === 'completed') return 'success';
+		if (status === 'mentor_checkoff_pending') return 'info';
+		if (status === 'checkoff_needs_review' || status === 'quiz_pending') return 'warning';
+		if (status === 'checkoff_blocked') return 'danger';
+		return 'neutral';
+	};
 
 const courseRowClass = (status: string) => {
 	const base =
@@ -199,20 +222,7 @@ const blockTotalsByNode = $derived.by(() => {
 	}
 	return out;
 });
-const assessmentNodeSet = $derived(new Set((data.assessmentRows as NodeOnlyRow[]).map((r) => r.node_id)));
-const checkoffNodeSet = $derived(new Set((data.checkoffRows as NodeOnlyRow[]).map((r) => r.node_id)));
-const nodeById = $derived(new Map((data.nodes as Node[]).map((n) => [n.id, n])));
-const totalModulesForNode = (nodeId: string) => {
-	const explicit = blockTotalsByNode[nodeId] ?? 0;
-	if (explicit > 0) return explicit;
-	const n = nodeById.get(nodeId);
-	if (!n) return 0;
-	let total = 0;
-	if ((n.video_url ?? '').trim()) total += 1;
-	if (assessmentNodeSet.has(nodeId)) total += 1;
-	if (checkoffNodeSet.has(nodeId)) total += 1;
-	return total;
-};
+const totalModulesForNode = (nodeId: string) => blockTotalsByNode[nodeId] ?? 0;
 const blockDoneByNode = $derived.by(() => {
 	const out: Record<string, number> = {};
 	for (const row of data.blockProgress as BlockProgressRow[]) {
@@ -227,15 +237,181 @@ const progressLabelFor = (nodeId: string) => {
 	const done = Math.min(blockDoneByNode[nodeId] ?? 0, total);
 	return `${done} / ${total} modules`;
 };
+const visibleSurveys = $derived.by(() => {
+	const now = Date.now();
+	const statusByNode = new Map(
+		(data.statuses as Status[]).map((row) => [String(row.node_id), String(row.computed_status)])
+	);
+	const prereqBySurvey = new Map<string, string[]>();
+	for (const edge of surveyPrerequisites) {
+		const list = prereqBySurvey.get(edge.survey_id) ?? [];
+		list.push(edge.node_id);
+		prereqBySurvey.set(edge.survey_id, list);
+	}
+	return surveys
+		.map((survey) => {
+			const from = survey.visible_from ? new Date(survey.visible_from).getTime() : null;
+			const until = survey.visible_until ? new Date(survey.visible_until).getTime() : null;
+			const inWindow = (from == null || now >= from) && (until == null || now <= until);
+			const visible = (survey.is_active && inWindow) || survey.show_when_inactive;
+			const prereqs = prereqBySurvey.get(survey.id) ?? [];
+			const missing = prereqs.filter((nodeId) => statusByNode.get(nodeId) !== 'completed');
+			const maxSubmissions = Number(survey.max_submissions ?? 1);
+			const sum = submissionSummaryBySurvey[survey.id];
+			const submissionCount = sum?.count ?? 0;
+			const submissionCapReached = submissionCount >= maxSubmissions;
+			return {
+				...survey,
+				visible,
+				missingCount: missing.length,
+				canOpen: visible && missing.length === 0 && !submissionCapReached,
+				submittedAt: sum?.latestAt ?? null,
+				submissionCount,
+				submissionCapReached,
+				maxSubmissions: maxSubmissions
+			};
+		})
+		.filter((survey) => survey.visible || survey.show_when_inactive);
+});
+
+const trainingCategories = $derived((data.trainingCategories as TrainingCategory[]) ?? []);
+const nodeCategories = $derived((data.nodeCategories as NodeCategory[]) ?? []);
+const categoryById = $derived(new Map(trainingCategories.map((c) => [c.id, c])));
+const categoryBySlug = $derived(new Map(trainingCategories.map((c) => [c.slug, c])));
+const categoryChildren = $derived.by(() => {
+	const map = new Map<string, TrainingCategory[]>();
+	for (const category of trainingCategories) {
+		const key = String(category.parent_id ?? '');
+		const list = map.get(key) ?? [];
+		list.push(category);
+		map.set(key, list);
+	}
+	for (const list of map.values()) {
+		list.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+	}
+	return map;
+});
+const categoryIdsByNode = $derived.by(() => {
+	const map = new Map<string, Set<string>>();
+	for (const row of nodeCategories) {
+		const set = map.get(row.node_id) ?? new Set<string>();
+		set.add(row.category_id);
+		map.set(row.node_id, set);
+	}
+	return map;
+});
+const nodesByTopCategory = $derived.by(() => {
+	const top = new Map<string, Node[]>();
+	const topCategories = trainingCategories.filter((c) => c.parent_id == null);
+	for (const category of topCategories) top.set(category.slug, []);
+	for (const node of data.nodes as Node[]) {
+		const catIds = categoryIdsByNode.get(node.id) ?? new Set<string>();
+		for (const catId of catIds) {
+			let current = categoryById.get(catId);
+			while (current && current.parent_id) current = categoryById.get(current.parent_id);
+			if (current && top.has(current.slug)) {
+				top.get(current.slug)?.push(node);
+			}
+		}
+	}
+	return top;
+});
+const categoryTone = (slug: string) => {
+	if (slug === 'technical') return 'border-sky-700/60 bg-sky-900/25 text-sky-100';
+	if (slug === 'business') return 'border-amber-700/60 bg-amber-900/25 text-amber-100';
+	if (slug === 'frc') return 'border-blue-700/60 bg-blue-900/25 text-blue-100';
+	if (slug === 'ftc') return 'border-indigo-700/60 bg-indigo-900/25 text-indigo-100';
+	return 'border-slate-700 bg-slate-900/40 text-slate-200';
+};
 
 </script>
 
 <section class="space-y-6">
+	{#if coursesDashboard}
+		<div class="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6 shadow-xl shadow-black/40">
+			<div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(56,189,248,0.12),transparent_50%),radial-gradient(ellipse_at_bottom_left,rgba(251,191,36,0.08),transparent_45%)]"></div>
+			<div class="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+				<div class="max-w-xl space-y-3">
+					<p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300/90">Learning hub</p>
+					<h2 class="text-2xl font-semibold tracking-tight text-white">Your teams & courseloads</h2>
+					<p class="text-sm leading-relaxed text-slate-300">
+						Teams are your program, technical, and club-wide business assignments. Courseloads bundle courses; each course
+						contains modules (video, quiz, checkoff) inside Learn.
+					</p>
+					{#if coursesDashboard.teams.length === 0}
+						<div class="rounded-lg border border-amber-500/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+							<p class="font-medium">Complete team placement</p>
+							<p class="mt-1 text-xs text-amber-200/90">
+								Start the <a class="font-semibold underline" href="/surveys/team-path-selection">Team placement</a> survey to assign teams and unlock courseloads.
+							</p>
+						</div>
+					{:else}
+						<div class="flex flex-wrap gap-2">
+							{#each coursesDashboard.teams as t (t.groupSlug + t.teamSlug)}
+								<span
+									class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-100 backdrop-blur-sm"
+								>
+									<span class="text-slate-400">{t.groupName}</span>
+									<span class="font-medium text-white">{t.teamName}</span>
+								</span>
+							{/each}
+						</div>
+					{/if}
+					<div class="flex flex-wrap gap-2 pt-1">
+						<a
+							href="/surveys/team-path-selection"
+							class="inline-flex items-center justify-center rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-900/30 transition hover:bg-sky-400"
+						>
+							Team placement survey
+						</a>
+						<a
+							href="/courseloads"
+							class="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/10"
+						>
+							Browse courseloads
+						</a>
+					</div>
+				</div>
+				<div class="w-full min-w-[280px] max-w-md flex-1 space-y-3 rounded-xl border border-white/10 bg-black/20 p-4 backdrop-blur-md">
+					<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Assigned tracks</p>
+					{#each coursesDashboard.courseloads as cl (cl.id)}
+						<a
+							href={`/courseloads/${cl.slug}`}
+							class="block rounded-lg border border-white/5 bg-white/[0.03] p-3 transition hover:border-sky-500/40 hover:bg-white/[0.06]"
+						>
+							<div class="flex items-start justify-between gap-2">
+								<div>
+									<p class="font-medium text-white">{cl.title}</p>
+									<p class="mt-0.5 line-clamp-2 text-xs text-slate-400">{cl.description}</p>
+								</div>
+								<span class="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+									{cl.progressPct}%
+								</span>
+							</div>
+							<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+								<div
+									class="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all"
+									style={`width: ${cl.progressPct}%`}
+								></div>
+							</div>
+							<p class="mt-2 text-[11px] text-slate-500">
+								{cl.completedCount} / {cl.totalCount} courses complete
+							</p>
+						</a>
+					{:else}
+						<p class="text-sm text-slate-500">No courseloads yet — finish team placement.</p>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	{#if !primaryTeamId}
-		<div class="rounded-xl border border-amber-700/60 bg-amber-900/30 p-4">
-			<p class="text-xs font-semibold uppercase tracking-wide text-amber-300">TODO</p>
-			<p class="mt-1 text-sm text-amber-200">
-				Select your team in <a class="underline" href="/teams">Teams</a> to enable a focused dashboard and priority course ordering.
+		<div class="rounded-xl border border-slate-700/80 bg-slate-900/40 p-4">
+			<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Roster subteam</p>
+			<p class="mt-1 text-sm text-slate-300">
+				Optional: pick a roster subteam in <a class="font-medium text-sky-300 underline" href="/teams">Teams</a>. Training tracks use your
+				<strong class="text-white">Team placement</strong> survey assignments.
 			</p>
 		</div>
 	{/if}
@@ -291,26 +467,69 @@ const progressLabelFor = (nodeId: string) => {
 		</div>
 	</div>
 
+	<div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Training categories</p>
+		<div class="mt-3 grid gap-3 md:grid-cols-2">
+			{#each trainingCategories.filter((c) => c.parent_id == null) as topCat (topCat.id)}
+				<div class={`rounded-lg border p-3 ${categoryTone(topCat.slug)}`}>
+					<p class="text-sm font-semibold">{topCat.name}</p>
+					<p class="mt-1 text-xs opacity-80">
+						{nodesByTopCategory.get(topCat.slug)?.length ?? 0} mapped course{(nodesByTopCategory.get(topCat.slug)?.length ?? 0) === 1 ? '' : 's'}
+					</p>
+					<div class="mt-2 flex flex-wrap gap-1">
+						{#each categoryChildren.get(topCat.id) ?? [] as child (child.id)}
+							<span class={`rounded px-2 py-0.5 text-[11px] ${categoryTone(child.slug)}`}>{child.name}</span>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+		{#if categoryBySlug.get('technical') && categoryBySlug.get('ftc')}
+			<p class="mt-3 text-xs text-slate-400">
+				Use the Team path survey on the dashboard to unlock FTC vs FRC basics, then your technical and business modules,
+				and finally Leadership.
+			</p>
+		{/if}
+	</div>
+
 	<div class="space-y-3">
+		<div class="rounded border border-slate-800 bg-slate-900/30 p-3">
+			<p class="mb-2 text-sm font-semibold text-slate-200">Surveys</p>
+			<div class="grid gap-2">
+				{#each visibleSurveys as survey (survey.id)}
+					<a
+						href={`/surveys/${survey.slug}`}
+						class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm hover:border-slate-500"
+					>
+						<div class="min-w-0">
+							<p class="truncate font-medium">{survey.title}</p>
+							{#if survey.description}
+								<p class="truncate text-xs text-slate-400">{survey.description}</p>
+							{/if}
+						</div>
+						<div class="text-right text-xs">
+							{#if survey.submittedAt}
+								<p class="text-emerald-300">Submitted</p>
+							{:else if survey.canOpen}
+								<p class="text-yellow-300">Open</p>
+							{:else}
+								<p class="text-slate-400">
+									Locked ({survey.missingCount} prereq{survey.missingCount === 1 ? '' : 's'})
+								</p>
+							{/if}
+						</div>
+					</a>
+				{:else}
+					<p class="text-sm text-slate-400">No surveys available right now.</p>
+				{/each}
+			</div>
+		</div>
+
 		<div class="flex flex-wrap items-center gap-3">
 			<h2 class="mr-auto text-lg font-semibold">{primaryTeamName ? `${primaryTeamName} Training` : 'My Team Training'}</h2>
-			<label class="w-full md:w-72">
-				<span class="sr-only">Search courses</span>
-				<div class="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2">
-					<svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-500" aria-hidden="true">
-						<path
-							fill-rule="evenodd"
-							d="M9 3.75a5.25 5.25 0 1 0 3.3 9.334l3.808 3.808a.75.75 0 0 0 1.06-1.06l-3.807-3.808A5.25 5.25 0 0 0 9 3.75Zm-3.75 5.25a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0Z"
-							clip-rule="evenodd"
-						/>
-					</svg>
-					<input
-						bind:value={filter}
-						placeholder="Search courses..."
-						class="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
-					/>
-				</div>
-			</label>
+			<div class="w-full md:w-72">
+				<SearchField bind:value={filter} placeholder="Search courses..." />
+			</div>
 		</div>
 
 		{#if filtered.length === 0}
@@ -328,9 +547,7 @@ const progressLabelFor = (nodeId: string) => {
 								class={courseRowClass(status)}
 							>
 								<span class="font-medium">{node.title}</span>
-								<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-									{statusLabel(status)}
-								</span>
+								<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 							</a>
 						{/each}
 					</div>
@@ -356,9 +573,7 @@ const progressLabelFor = (nodeId: string) => {
 									{/if}
 								</div>
 								<div class="flex items-center gap-2">
-									<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-										{statusLabel(status)}
-									</span>
+									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 								</div>
 							</a>
 						{:else}
@@ -377,9 +592,7 @@ const progressLabelFor = (nodeId: string) => {
 								class={courseRowClass(status)}
 							>
 								<span class="font-medium">{node.title}</span>
-								<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-									{statusLabel(status)}
-								</span>
+								<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 							</a>
 						{:else}
 							<p class="text-sm text-slate-400">No locked team courses.</p>
@@ -407,9 +620,7 @@ const progressLabelFor = (nodeId: string) => {
 									class={courseRowClass(status)}
 								>
 									<span class="font-medium">{node.title}</span>
-									<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-										{statusLabel(status)}
-									</span>
+									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 								</a>
 							{:else}
 								<p class="text-sm text-slate-400">No completed team courses yet.</p>
@@ -442,9 +653,7 @@ const progressLabelFor = (nodeId: string) => {
 										class={courseRowClass(status)}
 									>
 										<span class="font-medium">{node.title}</span>
-										<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-											{statusLabel(status)}
-										</span>
+										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 									</a>
 								{:else}
 									<p class="text-sm text-slate-400">No takeable outside-team courses.</p>
@@ -463,9 +672,7 @@ const progressLabelFor = (nodeId: string) => {
 										class={courseRowClass(status)}
 									>
 										<span class="font-medium">{node.title}</span>
-										<span class={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(status)}`}>
-											{statusLabel(status)}
-										</span>
+										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 									</a>
 								{:else}
 									<p class="text-sm text-slate-400">No additional courses.</p>

@@ -1,9 +1,14 @@
 <script lang="ts">
+	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+	import EvidenceGallery from '$lib/components/ui/EvidenceGallery.svelte';
+	import StatusChip from '$lib/components/ui/StatusChip.svelte';
+
 	let { item, onApprove, onReview, onOpen, onImageOpen } = $props();
 
 	let busy = $state<'' | 'approve' | 'review'>('');
 	let notes = $state('');
 	let checklistStates = $state<Record<string, boolean>>({});
+	let showResetConfirm = $state(false);
 
 	const photosFor = (submission: any): string[] => {
 		if (Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0) {
@@ -41,33 +46,15 @@
 
 	async function review() {
 		if (busy) return;
-		const ok = confirm(
-			`Reset quiz and send ${item.profile?.full_name || item.profile?.email} to try again?`
-		);
-		if (!ok) return;
 		busy = 'review';
 		try {
 			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
 			await onReview(item, notes.trim(), checklist_results);
 		} finally {
 			busy = '';
+			showResetConfirm = false;
 		}
 	}
-
-	const statusToneClass = $derived.by(() => {
-		switch (item.derivedCheckoffStatus) {
-			case 'approved':
-				return 'bg-emerald-900/30 text-emerald-200';
-			case 'blocked':
-				return 'bg-red-900/30 text-red-200';
-			case 'needs_review':
-				return 'bg-amber-900/30 text-amber-200';
-			case 'submitted':
-				return 'bg-sky-900/30 text-sky-200';
-			default:
-				return 'bg-slate-800 text-slate-300';
-		}
-	});
 
 	const statusLabel = $derived.by(() => {
 		switch (item.derivedCheckoffStatus) {
@@ -102,7 +89,17 @@
 			<p class="font-semibold">{item.profile?.full_name || item.profile?.email}</p>
 			<p class="text-xs text-slate-400">{item.profile?.email}</p>
 		</div>
-		<span class={`rounded-full px-2 py-0.5 text-xs ${statusToneClass}`}>{statusLabel}</span>
+		<StatusChip label={statusLabel} tone={
+			item.derivedCheckoffStatus === 'approved'
+				? 'success'
+				: item.derivedCheckoffStatus === 'needs_review'
+					? 'warning'
+					: item.derivedCheckoffStatus === 'blocked'
+						? 'danger'
+						: item.derivedCheckoffStatus === 'submitted'
+							? 'info'
+							: 'neutral'
+		} />
 	</div>
 	<div>
 		<p class="text-sm font-medium text-slate-200">{item.node?.title}</p>
@@ -142,12 +139,8 @@
 					{item.submission.notes || 'No notes submitted.'}
 				</p>
 				{#if photosFor(item.submission).length}
-					<div class="mt-2 grid grid-cols-3 gap-2">
-						{#each photosFor(item.submission) as photo}
-							<button type="button" onclick={(event) => { event.stopPropagation(); onImageOpen?.(photo); }}>
-								<img src={photo} alt="Student evidence" class="h-16 w-full rounded object-cover" />
-							</button>
-						{/each}
+					<div class="mt-2">
+						<EvidenceGallery images={photosFor(item.submission)} maxPreview={6} onOpen={onImageOpen} />
 					</div>
 				{/if}
 			</div>
@@ -187,7 +180,7 @@
 			class="rounded bg-amber-600 px-3 py-1 text-sm font-semibold hover:bg-amber-500 disabled:opacity-60"
 			onclick={(event) => {
 				event.stopPropagation();
-				review();
+				showResetConfirm = true;
 			}}
 			disabled={!!busy}
 		>
@@ -195,3 +188,14 @@
 		</button>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={showResetConfirm}
+	title="Reset student quiz?"
+	message={`Reset quiz and send ${item.profile?.full_name || item.profile?.email} to try again?`}
+	confirmLabel={busy === 'review' ? 'Resetting...' : 'Yes, reset'}
+	cancelLabel="Cancel"
+	danger={true}
+	onCancel={() => (showResetConfirm = false)}
+	onConfirm={() => review()}
+/>

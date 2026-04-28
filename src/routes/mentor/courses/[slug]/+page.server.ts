@@ -14,6 +14,7 @@ type BlockDraft = {
 	type: BlockType;
 	config: Record<string, unknown>;
 };
+type QuizQuestionType = 'mc' | 'ms' | 'tf' | 'short';
 
 const clampInt = (value: unknown, fallback: number, min: number, max: number) => {
 	const n = Number(value);
@@ -31,6 +32,99 @@ function normalizeVideoConfig(raw: any) {
 }
 
 function normalizeQuizConfig(raw: any) {
+	const normalizeQuestions = (input: unknown) => {
+		const list = Array.isArray(input) ? input : [];
+		const out: Array<{
+			id: string;
+			prompt: string;
+			type: QuizQuestionType;
+			options?: string[];
+			correct: string | string[];
+			randomize_options?: boolean;
+			max_select?: number;
+			short_ignore_punctuation?: boolean;
+			short_ignore_case?: boolean;
+		}> = [];
+		for (let i = 0; i < list.length; i += 1) {
+			const rawQuestion = (list[i] ?? {}) as Record<string, unknown>;
+			const type = String(rawQuestion.type ?? 'mc') as QuizQuestionType;
+			const safeType: QuizQuestionType = ['mc', 'ms', 'tf', 'short'].includes(type) ? type : 'mc';
+			const prompt = String(rawQuestion.prompt ?? '').trim();
+			const id = String(rawQuestion.id ?? `q${i + 1}`).trim() || `q${i + 1}`;
+			const randomizeOptions = Boolean(rawQuestion.randomize_options);
+			const shortIgnorePunctuation =
+				rawQuestion.short_ignore_punctuation == null
+					? false
+					: Boolean(rawQuestion.short_ignore_punctuation);
+			const shortIgnoreCase =
+				rawQuestion.short_ignore_case == null ? true : Boolean(rawQuestion.short_ignore_case);
+
+			if (safeType === 'mc' || safeType === 'ms') {
+				const options = (Array.isArray(rawQuestion.options) ? rawQuestion.options : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const uniqueOptions = Array.from(new Set(options));
+				if (safeType === 'mc') {
+					const correctRaw = String(rawQuestion.correct ?? '').trim();
+					const correct = uniqueOptions.includes(correctRaw) ? correctRaw : '';
+					out.push({
+						id,
+						prompt,
+						type: safeType,
+						options: uniqueOptions,
+						correct,
+						randomize_options: randomizeOptions
+					});
+				} else {
+					const correctList = Array.isArray(rawQuestion.correct)
+						? rawQuestion.correct
+						: typeof rawQuestion.correct === 'string'
+							? [rawQuestion.correct]
+							: [];
+					const normalizedCorrect = Array.from(
+						new Set(
+							correctList
+								.map((v) => String(v ?? '').trim())
+								.filter((v) => uniqueOptions.includes(v))
+						)
+					);
+					const rawMaxSelect = Number(rawQuestion.max_select);
+					const maxSelect =
+						Number.isFinite(rawMaxSelect) && rawMaxSelect > 0
+							? clampInt(rawMaxSelect, 1, 1, uniqueOptions.length || 1)
+							: null;
+					out.push({
+						id,
+						prompt,
+						type: safeType,
+						options: uniqueOptions,
+						correct: normalizedCorrect,
+						max_select: maxSelect ?? undefined,
+						randomize_options: randomizeOptions
+					});
+				}
+				continue;
+			}
+
+			if (safeType === 'tf') {
+				const rawCorrect = String(rawQuestion.correct ?? '').trim().toLowerCase();
+				const correct = rawCorrect === 'false' ? 'false' : 'true';
+				out.push({ id, prompt, type: safeType, correct });
+				continue;
+			}
+
+			out.push({
+				id,
+				prompt,
+				type: 'short',
+				correct: String(rawQuestion.correct ?? '').trim(),
+				short_ignore_punctuation: shortIgnorePunctuation,
+				short_ignore_case: shortIgnoreCase
+			});
+		}
+		return out;
+	};
+
 	const title = String(raw?.title ?? '').trim();
 	const passing_score = clampInt(raw?.passing_score, 80, 1, 100);
 	const min_seconds_between_attempts = clampInt(raw?.min_seconds_between_attempts, 15, 0, 3600);
@@ -43,7 +137,7 @@ function normalizeQuizConfig(raw: any) {
 	const max_failed_in_window = clampInt(raw?.max_failed_in_window, 5, 1, 200);
 	const short_answer_min_chars = clampInt(raw?.short_answer_min_chars, 3, 0, 5000);
 	const short_answer_max_chars = clampInt(raw?.short_answer_max_chars, 300, 1, 5000);
-	const questions = Array.isArray(raw?.questions) ? raw.questions : [];
+	const questions = normalizeQuestions(raw?.questions);
 	return {
 		title,
 		passing_score,
@@ -92,7 +186,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.single();
 	if (nodeErr || !node) throw error(404, 'Course not found');
 
-	const [subteamsResp, prereqsResp, allNodesResp, blocksResp] = await Promise.all([
+	const [subteamsResp, prereqsResp, allNodesResp, blocksResp, trainingCategoriesResp, nodeCategoriesResp] =
+		await Promise.all([
 		locals.supabase.from('subteams').select('id,name').order('name'),
 		locals.supabase.from('node_prerequisites').select('prerequisite_node_id').eq('node_id', node.id),
 		locals.supabase
@@ -105,6 +200,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.select('id,position,type,config')
 			.eq('node_id', node.id)
 			.order('position')
+			,
+		locals.supabase
+			.from('training_categories')
+			.select('id,name,slug,parent_id,kind,sort_order')
+			.eq('is_active', true)
+			.order('sort_order', { ascending: true }),
+		locals.supabase.from('node_categories').select('category_id').eq('node_id', node.id)
 	]);
 
 	return {
@@ -114,7 +216,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			p.prerequisite_node_id
 		),
 		allNodes: allNodesResp.data ?? [],
-		blocks: blocksResp.data ?? []
+		blocks: blocksResp.data ?? [],
+		trainingCategories: trainingCategoriesResp.data ?? [],
+		nodeCategoryIds: (nodeCategoriesResp.data ?? []).map((row: any) => String(row.category_id))
 	};
 };
 
@@ -127,6 +231,10 @@ export const actions: Actions = {
 		const subteamId = String(form.get('subteam_id') ?? '');
 		const videoUrl = String(form.get('video_url') ?? '').trim();
 		const description = String(form.get('description') ?? '');
+		const categoryIds = form
+			.getAll('category_ids')
+			.map((v) => String(v))
+			.filter(Boolean);
 
 		if (!title || !slug || !subteamId) {
 			return fail(400, { error: 'Title, slug, and subteam are required.', section: 'details' });
@@ -144,6 +252,19 @@ export const actions: Actions = {
 			.eq('slug', params.slug);
 
 		if (err) return fail(400, { error: err.message, section: 'details' });
+
+		const { data: currentNode } = await locals.supabase.from('nodes').select('id').eq('slug', slug).single();
+		if (currentNode?.id) {
+			await locals.supabase.from('node_categories').delete().eq('node_id', currentNode.id);
+			if (categoryIds.length > 0) {
+				await locals.supabase.from('node_categories').insert(
+					categoryIds.map((categoryId) => ({
+						node_id: currentNode.id,
+						category_id: categoryId
+					}))
+				);
+			}
+		}
 
 		if (slug !== params.slug) throw redirect(303, `/mentor/courses/${slug}`);
 		return { ok: true, section: 'details' };
@@ -210,6 +331,71 @@ export const actions: Actions = {
 					blockErrors[i] = `Quiz block #${i + 1} needs at least one question.`;
 					continue;
 				}
+				const invalidQuestion = q.questions.find((question) => {
+					if (!String(question.prompt ?? '').trim()) return true;
+					if (question.type === 'mc') {
+						return !Array.isArray(question.options) || question.options.length < 2 || !question.correct;
+					}
+					if (question.type === 'ms') {
+						const maxSelectRaw = Number((question as any).max_select);
+						const maxSelect =
+							Number.isFinite(maxSelectRaw) && maxSelectRaw > 0
+								? Math.trunc(maxSelectRaw)
+								: null;
+						return (
+							!Array.isArray(question.options) ||
+							question.options.length < 2 ||
+							!Array.isArray(question.correct) ||
+							question.correct.length === 0 ||
+							(maxSelect != null && question.correct.length > maxSelect)
+						);
+					}
+					if (question.type === 'short') return !String(question.correct ?? '').trim();
+					return false;
+				});
+				if (invalidQuestion) {
+					const questionNumber = q.questions.indexOf(invalidQuestion) + 1;
+					const prompt = String(invalidQuestion.prompt ?? '').trim();
+					if (!prompt) {
+						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: question prompt is required.`;
+						continue;
+					}
+					if (invalidQuestion.type === 'mc') {
+						if (!Array.isArray(invalidQuestion.options) || invalidQuestion.options.length < 2) {
+							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: multiple choice needs at least 2 options.`;
+							continue;
+						}
+						if (!invalidQuestion.correct) {
+							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: select the correct multiple-choice answer.`;
+							continue;
+						}
+					}
+					if (invalidQuestion.type === 'ms') {
+						if (!Array.isArray(invalidQuestion.options) || invalidQuestion.options.length < 2) {
+							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: multiple select needs at least 2 options.`;
+							continue;
+						}
+						if (!Array.isArray(invalidQuestion.correct) || invalidQuestion.correct.length === 0) {
+							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: choose at least one correct multiple-select answer.`;
+							continue;
+						}
+						const maxSelectRaw = Number((invalidQuestion as any).max_select);
+						if (
+							Number.isFinite(maxSelectRaw) &&
+							maxSelectRaw > 0 &&
+							invalidQuestion.correct.length > Math.trunc(maxSelectRaw)
+						) {
+							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: correct answers exceed max selections.`;
+							continue;
+						}
+					}
+					if (invalidQuestion.type === 'short' && !String(invalidQuestion.correct ?? '').trim()) {
+						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: expected short-answer text is required.`;
+						continue;
+					}
+					blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: invalid question setup.`;
+					continue;
+				}
 				config = q;
 			} else if (type === 'checkoff') {
 				config = normalizeCheckoffConfig(block.config);
@@ -235,7 +421,7 @@ export const actions: Actions = {
 
 		const { data: existingBlocks, error: existingErr } = await locals.supabase
 			.from('node_blocks')
-			.select('id')
+			.select('id,position')
 			.eq('node_id', nodeRow.id);
 		if (existingErr) {
 			return fail(400, {
@@ -246,17 +432,32 @@ export const actions: Actions = {
 		}
 		const existingIds = new Set((existingBlocks ?? []).map((b: any) => String(b.id)));
 
-		// Move current rows out of the way to prevent unique(node_id, position) collisions during reorder.
-		const { error: shiftErr } = await locals.supabase
-			.from('node_blocks')
-			.update({ position: 1000000 })
-			.eq('node_id', nodeRow.id);
-		if (shiftErr) {
-			return fail(400, {
-				error: shiftErr.message,
-				section: 'blocks',
-				blocks_json: rawBlocksJson
-			});
+		const deleteIds = [...existingIds].filter(
+			(id) => !rows.some((r) => r.id && String(r.id) === id)
+		);
+		if (deleteIds.length > 0) {
+			const { error: deleteErr } = await locals.supabase
+				.from('node_blocks')
+				.delete()
+				.eq('node_id', nodeRow.id)
+				.in('id', deleteIds);
+			if (deleteErr) {
+				return fail(400, { error: deleteErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+			}
+		}
+
+		const survivingBlocks = (existingBlocks ?? [])
+			.filter((b: any) => !deleteIds.includes(String(b.id)))
+			.sort((a: any, b: any) => Number(b.position) - Number(a.position));
+		for (let i = 0; i < survivingBlocks.length; i++) {
+			const { error: shiftErr } = await locals.supabase
+				.from('node_blocks')
+				.update({ position: 1000000 + i })
+				.eq('id', String(survivingBlocks[i].id))
+				.eq('node_id', nodeRow.id);
+			if (shiftErr) {
+				return fail(400, { error: shiftErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+			}
 		}
 
 		const keepIds: string[] = [];
@@ -265,74 +466,35 @@ export const actions: Actions = {
 			if (persistedId && existingIds.has(persistedId)) {
 				const { data: updated, error: updateErr } = await locals.supabase
 					.from('node_blocks')
-					.update({
-						position: row.position,
-						type: row.type,
-						config: row.config
-					})
+					.update({ position: row.position, type: row.type, config: row.config })
 					.eq('id', persistedId)
 					.eq('node_id', nodeRow.id)
 					.select('id')
 					.single();
 				if (updateErr) {
-					return fail(400, {
-						error: updateErr.message,
-						section: 'blocks',
-						blocks_json: rawBlocksJson
-					});
+					return fail(400, { error: updateErr.message, section: 'blocks', blocks_json: rawBlocksJson });
 				}
 				if (updated?.id) keepIds.push(String(updated.id));
 			} else {
 				const { data: inserted, error: insertErr } = await locals.supabase
 					.from('node_blocks')
-					.insert({
-						node_id: row.node_id,
-						position: row.position,
-						type: row.type,
-						config: row.config
-					})
+					.insert({ node_id: row.node_id, position: row.position, type: row.type, config: row.config })
 					.select('id')
 					.single();
 				if (insertErr) {
-					return fail(400, {
-						error: insertErr.message,
-						section: 'blocks',
-						blocks_json: rawBlocksJson
-					});
+					return fail(400, { error: insertErr.message, section: 'blocks', blocks_json: rawBlocksJson });
 				}
 				if (inserted?.id) keepIds.push(String(inserted.id));
 			}
 		}
 
-		if (keepIds.length > 0) {
-			const deleteIds = (existingBlocks ?? [])
-				.map((b: any) => String(b.id))
-				.filter((id: string) => !keepIds.includes(id));
-			if (deleteIds.length > 0) {
-				const { error: deleteMissingErr } = await locals.supabase
-					.from('node_blocks')
-					.delete()
-					.eq('node_id', nodeRow.id)
-					.in('id', deleteIds);
-				if (deleteMissingErr) {
-					return fail(400, {
-						error: deleteMissingErr.message,
-						section: 'blocks',
-						blocks_json: rawBlocksJson
-					});
-				}
-			}
-		} else {
+		if (rows.length === 0) {
 			const { error: clearErr } = await locals.supabase
 				.from('node_blocks')
 				.delete()
 				.eq('node_id', nodeRow.id);
 			if (clearErr) {
-				return fail(400, {
-					error: clearErr.message,
-					section: 'blocks',
-					blocks_json: rawBlocksJson
-				});
+				return fail(400, { error: clearErr.message, section: 'blocks', blocks_json: rawBlocksJson });
 			}
 		}
 

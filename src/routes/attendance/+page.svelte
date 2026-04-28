@@ -1,4 +1,6 @@
 <script lang="ts">
+	import PageHeader from '$lib/components/ui/PageHeader.svelte';
+	import StatusChip from '$lib/components/ui/StatusChip.svelte';
 	import { createBrowserClient } from '@supabase/ssr';
 	import { env as publicEnv } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
@@ -87,6 +89,14 @@
 </script>
 
 <section class="fixed inset-0 flex flex-col bg-slate-950 px-6 py-0">
+	<div class="pt-5">
+		<PageHeader
+			title="Attendance Kiosk"
+			description="Live rotating QR display for student and mentor attendance scans."
+		>
+			<StatusChip label={isActive ? 'Active' : 'Activation required'} tone={isActive ? 'success' : 'warning'} />
+		</PageHeader>
+	</div>
 	<div class="flex flex-1 items-center justify-center">
 		<div class="w-full max-w-6xl text-center">
 			{#key `${isActive}-${currentBucket}`}

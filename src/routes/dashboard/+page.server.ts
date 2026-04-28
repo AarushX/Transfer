@@ -1,5 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { loadTrainingCategories } from '$lib/server/training-categories';
+import { loadStudentCoursesDashboard } from '$lib/server/courseload-dashboard';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -12,9 +14,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prereqResp,
 		reviewResp,
 		blockRowsResp,
-		assessmentRowsResp,
-		checkoffRowsResp,
-		blockProgressResp
+		blockProgressResp,
+		trainingData,
+		surveysResp,
+		surveyPrereqResp,
+		surveySubmissionResp,
+		coursesDashboard
 	] = await Promise.all([
 		locals.supabase
 			.from('nodes')
@@ -32,13 +37,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.eq('user_id', user.id)
 			.in('status', ['needs_review', 'blocked']),
 		locals.supabase.from('node_blocks').select('node_id,id'),
-		locals.supabase.from('assessments').select('node_id'),
-		locals.supabase.from('node_checkoff_requirements').select('node_id'),
 		locals.supabase
 			.from('user_node_block_progress')
 			.select('node_id,block_id,completed_at')
-			.eq('user_id', user.id)
+			.eq('user_id', user.id),
+		loadTrainingCategories(locals.supabase),
+		locals.supabase
+			.from('surveys')
+			.select(
+				'id,title,slug,description,is_active,show_when_inactive,visible_from,visible_until,updated_at,max_submissions'
+			)
+			.or('is_active.eq.true,slug.eq.team-path-selection')
+			.order('updated_at', { ascending: false }),
+		locals.supabase.from('survey_prerequisites').select('survey_id,node_id'),
+		locals.supabase.from('survey_submissions').select('survey_id,submitted_at').eq('user_id', user.id),
+		loadStudentCoursesDashboard(locals.supabase, user.id)
 	]);
+
+	const surveys = surveysResp.data ?? [];
+	const surveySubmissions = surveySubmissionResp.data ?? [];
+
+	const submissionSummaryBySurvey = new Map<string, { count: number; latestAt: string | null }>();
+	for (const row of surveySubmissions as { survey_id: string; submitted_at: string }[]) {
+		const sid = String(row.survey_id);
+		const prev = submissionSummaryBySurvey.get(sid) ?? { count: 0, latestAt: null };
+		prev.count += 1;
+		if (!prev.latestAt || row.submitted_at > prev.latestAt) prev.latestAt = row.submitted_at;
+		submissionSummaryBySurvey.set(sid, prev);
+	}
 
 	return {
 		profile,
@@ -48,8 +74,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prerequisites: prereqResp.data ?? [],
 		checkoffReviews: reviewResp.data ?? [],
 		blockRows: blockRowsResp.data ?? [],
-		assessmentRows: assessmentRowsResp.data ?? [],
-		checkoffRows: checkoffRowsResp.data ?? [],
-		blockProgress: blockProgressResp.data ?? []
+		blockProgress: blockProgressResp.data ?? [],
+		trainingCategories: trainingData.categories,
+		nodeCategories: trainingData.nodeCategories,
+		surveys,
+		surveyPrerequisites: surveyPrereqResp.data ?? [],
+		surveySubmissions,
+		submissionSummaryBySurvey: Object.fromEntries(submissionSummaryBySurvey.entries()),
+		coursesDashboard
 	};
 };
