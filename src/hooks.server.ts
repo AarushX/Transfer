@@ -1,7 +1,7 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import type { Session, User } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '$lib/server/supabase';
-import { isAdmin, isMentor } from '$lib/roles';
+import { isAdmin, isMentor, isParentGuardian } from '$lib/roles';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
@@ -34,7 +34,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			const { data: profile } = await event.locals.supabase
 				.from('profiles')
-				.select('id,email,full_name,role,base_role,is_mentor,is_lead,subteam_id,bio,avatar_url')
+				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url')
 				.eq('id', user.id)
 				.single();
 
@@ -61,6 +61,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 	if (path.startsWith('/admin') && profile && !isAdmin(profile)) {
 		throw redirect(303, '/dashboard');
+	}
+
+	if (profile && isParentGuardian(profile)) {
+		const parentBlockedPrefixes = [
+			'/mentor',
+			'/roster',
+			'/admin',
+			'/ranked',
+			'/calendar',
+			'/surveys',
+			'/scan',
+			'/onboarding',
+			'/teams',
+			'/machines',
+			'/passport',
+			'/profile',
+			'/parent'
+		];
+		if (parentBlockedPrefixes.some((prefix) => path.startsWith(prefix))) {
+			throw redirect(303, '/dashboard');
+		}
 	}
 
 	return resolve(event, {

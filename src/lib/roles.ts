@@ -3,6 +3,7 @@ type RoleLike = {
 	base_role?: string | null;
 	is_mentor?: boolean | null;
 	is_lead?: boolean | null;
+	is_parent_guardian?: boolean | null;
 };
 
 export const isAdmin = (profile: RoleLike | null | undefined) =>
@@ -14,6 +15,9 @@ export const isMentor = (profile: RoleLike | null | undefined) =>
 export const isLead = (profile: RoleLike | null | undefined) =>
 	!!profile && (!!profile.is_lead || profile.role === 'student_lead');
 
+export const isParentGuardian = (profile: RoleLike | null | undefined) =>
+	!!profile && !!profile.is_parent_guardian;
+
 export const roleBadgeParts = (profile: RoleLike | null | undefined) => {
 	if (!profile) return [];
 	const base =
@@ -23,5 +27,6 @@ export const roleBadgeParts = (profile: RoleLike | null | undefined) => {
 	const extras: string[] = [];
 	if (isMentor(profile)) extras.push('mentor');
 	if (isLead(profile)) extras.push('lead');
+	if (isParentGuardian(profile)) extras.push('parent');
 	return [base, ...extras];
 };

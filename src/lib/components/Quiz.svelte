@@ -4,8 +4,12 @@
 	type Question = {
 		id: string;
 		prompt: string;
-		type: 'mc' | 'ms' | 'tf' | 'short';
+		type: 'mc' | 'ms' | 'tf' | 'short' | 'matrix' | 'matrix_ms' | 'short_grid';
 		options?: string[];
+		rows?: string[];
+		columns?: string[];
+		correct_map?: Record<string, string>;
+		correct_map_multi?: Record<string, string[]>;
 		correct?: string | string[];
 		randomize_options?: boolean;
 		max_select?: number;
@@ -31,7 +35,12 @@
 		lockedMessage?: string;
 	} = $props();
 
-	let answers = $state<Record<string, string | string[]>>({});
+	let answers = $state<
+		Record<
+			string,
+			string | string[] | Record<string, string> | Record<string, string[]> | Record<string, Record<string, string>>
+		>
+	>({});
 	let submitting = $state(false);
 	let result = $state<null | { passed: boolean; score: number }>(null);
 	let errorMsg = $state('');
@@ -96,6 +105,31 @@
 				const selected = answers[q.id];
 				return !Array.isArray(selected) || selected.length === 0;
 			}
+			if (q.type === 'matrix') {
+				const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+				const value = answers[q.id];
+				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
+				const map = value as Record<string, string>;
+				return rows.some((row) => !String(map[row] ?? '').trim());
+			}
+			if (q.type === 'matrix_ms') {
+				const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+				const value = answers[q.id];
+				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
+				const map = value as Record<string, string[]>;
+				return rows.some((row) => !Array.isArray(map[row]) || map[row].length === 0);
+			}
+			if (q.type === 'short_grid') {
+				const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+				const columns = Array.isArray(q.columns) ? q.columns.map((c) => String(c).trim()).filter(Boolean) : [];
+				const value = answers[q.id];
+				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
+				const map = value as Record<string, Record<string, string>>;
+				return rows.some((row) => {
+					const rowMap = map[row] ?? {};
+					return columns.some((col) => !String(rowMap[col] ?? '').trim());
+				});
+			}
 			return !String(answers[q.id] ?? '').trim();
 		}).length
 	);
@@ -113,6 +147,24 @@
 			if (q.type === 'ms') {
 				const selected = Array.isArray(answers[q.id]) ? (answers[q.id] as string[]) : [];
 				fd.set(q.id, JSON.stringify(selected));
+			} else if (q.type === 'matrix') {
+				const current =
+					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
+						? (answers[q.id] as Record<string, string>)
+						: {};
+				fd.set(q.id, JSON.stringify(current));
+			} else if (q.type === 'matrix_ms') {
+				const current =
+					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
+						? (answers[q.id] as Record<string, string[]>)
+						: {};
+				fd.set(q.id, JSON.stringify(current));
+			} else if (q.type === 'short_grid') {
+				const current =
+					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
+						? (answers[q.id] as Record<string, Record<string, string>>)
+						: {};
+				fd.set(q.id, JSON.stringify(current));
 			} else {
 				fd.set(q.id, String(answers[q.id] ?? ''));
 			}
@@ -253,11 +305,223 @@
 							</label>
 						{/each}
 					</div>
+				{:else if question.type === 'matrix' || question.type === 'matrix_ms' || question.type === 'short_grid'}
+					{@const rows = Array.isArray(question.rows) ? question.rows.map((r) => String(r).trim()).filter(Boolean) : []}
+					{@const cols = Array.isArray(question.columns) ? question.columns.map((c) => String(c).trim()).filter(Boolean) : []}
+					<div class="space-y-3">
+						<div class="space-y-2 md:hidden">
+							{#each rows as row, ri (ri)}
+								<div class="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3">
+									<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">{row}</p>
+									<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+										{#each cols as col, ci (ci)}
+											<label class="flex items-center justify-between gap-2 rounded border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-xs text-slate-200">
+												<span class="truncate">{col}</span>
+												{#if question.type === 'matrix'}
+													<input
+														type="radio"
+														name={`${question.id}-${ri}`}
+														value={col}
+														checked={Boolean(
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															(answers[question.id] as Record<string, string>)[row] === col
+														)}
+														onchange={() => {
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, string>) }
+																	: {};
+															current[row] = col;
+															answers[question.id] = current;
+														}}
+														disabled={submitting || !allowSubmit}
+														class="h-4 w-4 accent-yellow-400"
+													/>
+												{:else if question.type === 'matrix_ms'}
+													<input
+														type="checkbox"
+														name={`${question.id}-${ri}-${ci}`}
+														value={col}
+														checked={Boolean(
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															Array.isArray((answers[question.id] as Record<string, string[]>)[row]) &&
+															(answers[question.id] as Record<string, string[]>)[row].includes(col)
+														)}
+														onchange={(event) => {
+															const checked = (event.currentTarget as HTMLInputElement).checked;
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, string[]>) }
+																	: {};
+															const rowSelections = Array.isArray(current[row]) ? [...current[row]] : [];
+															current[row] = checked
+																? Array.from(new Set([...rowSelections, col]))
+																: rowSelections.filter((value) => value !== col);
+															answers[question.id] = current;
+														}}
+														disabled={submitting || !allowSubmit}
+														class="h-4 w-4 accent-yellow-400"
+													/>
+												{:else}
+													<input
+														type="text"
+														name={`${question.id}-${ri}-${ci}`}
+														value={
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															(answers[question.id] as Record<string, Record<string, string>>)[row]
+																? ((answers[question.id] as Record<string, Record<string, string>>)[row][col] ?? '')
+																: ''
+														}
+														oninput={(event) => {
+															const text = (event.currentTarget as HTMLInputElement).value;
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, Record<string, string>>) }
+																	: {};
+															const rowMap = { ...(current[row] ?? {}) };
+															rowMap[col] = text;
+															current[row] = rowMap;
+															answers[question.id] = current;
+														}}
+														class="w-28 rounded-md border border-slate-700 bg-slate-800/90 px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:border-yellow-400 focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+														placeholder="Enter"
+														disabled={submitting || !allowSubmit}
+													/>
+												{/if}
+											</label>
+										{/each}
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<div class="hidden overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/40 shadow-[0_10px_30px_rgba(0,0,0,0.25)] md:block">
+							<div class="overflow-x-auto">
+								<table class="min-w-full border-separate border-spacing-0 text-sm">
+							<thead>
+								<tr>
+									<th class="sticky left-0 z-10 border-b border-r border-slate-700 bg-slate-900 px-3 py-2 text-left text-xs font-semibold text-slate-400"></th>
+									{#each cols as col}
+										<th class="border-b border-slate-700 bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-slate-200">{col}</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody>
+								{#each rows as row, ri (ri)}
+									<tr class="odd:bg-slate-900/20 even:bg-slate-900/40">
+										<td class="sticky left-0 z-10 border-r border-t border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200">{row}</td>
+										{#each cols as col, ci (ci)}
+											<td class="border-t border-slate-700 px-3 py-2 text-center">
+												{#if question.type === 'matrix'}
+													<input
+														type="radio"
+														name={`${question.id}-${ri}`}
+														value={col}
+														checked={Boolean(
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															(answers[question.id] as Record<string, string>)[row] === col
+														)}
+														onchange={() => {
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, string>) }
+																	: {};
+															current[row] = col;
+															answers[question.id] = current;
+														}}
+														disabled={submitting || !allowSubmit}
+														class="h-4 w-4 accent-yellow-400"
+													/>
+												{:else if question.type === 'matrix_ms'}
+													<input
+														type="checkbox"
+														name={`${question.id}-${ri}-${ci}`}
+														value={col}
+														checked={Boolean(
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															Array.isArray((answers[question.id] as Record<string, string[]>)[row]) &&
+															(answers[question.id] as Record<string, string[]>)[row].includes(col)
+														)}
+														onchange={(event) => {
+															const checked = (event.currentTarget as HTMLInputElement).checked;
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, string[]>) }
+																	: {};
+															const rowSelections = Array.isArray(current[row]) ? [...current[row]] : [];
+															current[row] = checked
+																? Array.from(new Set([...rowSelections, col]))
+																: rowSelections.filter((value) => value !== col);
+															answers[question.id] = current;
+														}}
+														disabled={submitting || !allowSubmit}
+														class="h-4 w-4 accent-yellow-400"
+													/>
+												{:else}
+													<input
+														type="text"
+														name={`${question.id}-${ri}-${ci}`}
+														value={
+															answers[question.id] &&
+															typeof answers[question.id] === 'object' &&
+															!Array.isArray(answers[question.id]) &&
+															(answers[question.id] as Record<string, Record<string, string>>)[row]
+																? ((answers[question.id] as Record<string, Record<string, string>>)[row][col] ?? '')
+																: ''
+														}
+														oninput={(event) => {
+															const text = (event.currentTarget as HTMLInputElement).value;
+															const current =
+																answers[question.id] &&
+																typeof answers[question.id] === 'object' &&
+																!Array.isArray(answers[question.id])
+																	? { ...(answers[question.id] as Record<string, Record<string, string>>) }
+																	: {};
+															const rowMap = { ...(current[row] ?? {}) };
+															rowMap[col] = text;
+															current[row] = rowMap;
+															answers[question.id] = current;
+														}}
+														class="w-full min-w-28 rounded-md border border-slate-700 bg-slate-800/90 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-yellow-400 focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+														placeholder="Enter text"
+														disabled={submitting || !allowSubmit}
+													/>
+												{/if}
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
 				{:else}
 					<input
 						class="w-full rounded bg-slate-800 px-2 py-2"
 						name={question.id}
-						bind:value={answers[question.id]}
+						value={typeof answers[question.id] === 'string' ? answers[question.id] : ''}
+						oninput={(event) => (answers[question.id] = (event.currentTarget as HTMLInputElement).value)}
 						placeholder="Your answer"
 						required
 						disabled={submitting || !allowSubmit}

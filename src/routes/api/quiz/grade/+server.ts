@@ -264,7 +264,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		);
 	}
 
-	const answers: Record<string, string | string[]> = {};
+	const answers: Record<
+		string,
+		| string
+		| string[]
+		| Record<string, string>
+		| Record<string, string[]>
+		| Record<string, Record<string, string>>
+	> = {};
 	let correct = 0;
 	for (const question of questions) {
 		const questionType = String(question.type ?? 'mc');
@@ -330,6 +337,180 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const expectedStrings = expected as string[];
 			const sameMembers = expectedStrings.every((value) => selectedSet.has(value));
 			if (sameLength && sameMembers) correct += 1;
+			continue;
+		}
+
+		if (questionType === 'matrix') {
+			let answerMap: Record<string, string> = {};
+			try {
+				const parsed = JSON.parse(rawAnswer || '{}');
+				answerMap =
+					parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+						? (Object.fromEntries(
+								Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [
+									String(k),
+									String(v ?? '').trim()
+								])
+							) as Record<string, string>)
+						: {};
+			} catch {
+				return json({ error: 'Invalid matrix answer submitted.' }, { status: 400 });
+			}
+			const rows = Array.isArray(question.rows)
+				? question.rows.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			const columns = Array.isArray(question.columns)
+				? question.columns.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			if (rows.length === 0 || columns.length === 0) {
+				return json({ error: 'Matrix question is not configured correctly.' }, { status: 400 });
+			}
+			const columnSet = new Set(columns);
+			for (const row of rows) {
+				const selected = String(answerMap[row] ?? '').trim();
+				if (!selected || !columnSet.has(selected)) {
+					return json({ error: 'Please answer all matrix rows.' }, { status: 400 });
+				}
+			}
+			answers[question.id] = answerMap;
+			const key =
+				question.correct_map && typeof question.correct_map === 'object'
+					? (question.correct_map as Record<string, unknown>)
+					: {};
+			const expectedRows = rows.filter((row: string) => String(key[row] ?? '').trim().length > 0);
+			if (expectedRows.length === 0) {
+				correct += 1;
+			} else {
+				const allMatch = expectedRows.every(
+					(row: string) => String(answerMap[row] ?? '').trim() === String(key[row] ?? '').trim()
+				);
+				if (allMatch) correct += 1;
+			}
+			continue;
+		}
+		if (questionType === 'matrix_ms') {
+			let answerMap: Record<string, string[]> = {};
+			try {
+				const parsed = JSON.parse(rawAnswer || '{}');
+				if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+					return json({ error: 'Invalid matrix multi-select answer submitted.' }, { status: 400 });
+				}
+				answerMap = Object.fromEntries(
+					Object.entries(parsed as Record<string, unknown>).map(([row, val]) => {
+						const list = Array.isArray(val)
+							? val.map((v) => String(v ?? '').trim()).filter(Boolean)
+							: [];
+						return [String(row), Array.from(new Set(list))];
+					})
+				) as Record<string, string[]>;
+			} catch {
+				return json({ error: 'Invalid matrix multi-select answer submitted.' }, { status: 400 });
+			}
+			const rows = Array.isArray(question.rows)
+				? question.rows.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			const columns = Array.isArray(question.columns)
+				? question.columns.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			if (rows.length === 0 || columns.length === 0) {
+				return json({ error: 'Matrix multi-select question is not configured correctly.' }, { status: 400 });
+			}
+			const colSet = new Set(columns);
+			for (const row of rows) {
+				const selected = Array.isArray(answerMap[row]) ? answerMap[row] : [];
+				if (selected.length === 0 || selected.some((item) => !colSet.has(item))) {
+					return json({ error: 'Please answer all matrix multi-select rows.' }, { status: 400 });
+				}
+			}
+			answers[question.id] = answerMap;
+			const keyRaw =
+				question.correct_map_multi && typeof question.correct_map_multi === 'object'
+					? (question.correct_map_multi as Record<string, unknown>)
+					: {};
+			const keyedRows = rows.filter((row: string) => {
+				const list = Array.isArray(keyRaw[row]) ? keyRaw[row] : [];
+				return list.length > 0;
+			});
+			if (keyedRows.length === 0) {
+				correct += 1;
+			} else {
+				const allMatch = keyedRows.every((row: string) => {
+					const expected = Array.isArray(keyRaw[row])
+						? Array.from(
+								new Set(
+									(keyRaw[row] as unknown[])
+										.map((v) => String(v ?? '').trim())
+										.filter((v) => colSet.has(v))
+								)
+							)
+						: [];
+					const got = Array.isArray(answerMap[row])
+						? Array.from(new Set(answerMap[row].map((v) => String(v).trim())))
+						: [];
+					if (expected.length !== got.length) return false;
+					const gotSet = new Set(got);
+					return expected.every((item) => gotSet.has(item));
+				});
+				if (allMatch) correct += 1;
+			}
+			continue;
+		}
+		if (questionType === 'short_grid') {
+			let answerMap: Record<string, Record<string, string>> = {};
+			try {
+				const parsed = JSON.parse(rawAnswer || '{}');
+				if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+					return json({ error: 'Invalid short grid answer submitted.' }, { status: 400 });
+				}
+				answerMap = Object.fromEntries(
+					Object.entries(parsed as Record<string, unknown>).map(([row, rowVals]) => {
+						const rowMap =
+							rowVals && typeof rowVals === 'object' && !Array.isArray(rowVals)
+								? (Object.fromEntries(
+										Object.entries(rowVals as Record<string, unknown>).map(([col, val]) => [
+											String(col),
+											String(val ?? '').trim()
+										])
+									) as Record<string, string>)
+								: {};
+						return [String(row), rowMap];
+					})
+				) as Record<string, Record<string, string>>;
+			} catch {
+				return json({ error: 'Invalid short grid answer submitted.' }, { status: 400 });
+			}
+			const rows = Array.isArray(question.rows)
+				? question.rows.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			const columns = Array.isArray(question.columns)
+				? question.columns.map((v: unknown) => String(v).trim()).filter(Boolean)
+				: [];
+			if (rows.length === 0 || columns.length === 0) {
+				return json({ error: 'Short grid question is not configured correctly.' }, { status: 400 });
+			}
+			for (const row of rows) {
+				const rowMap = answerMap[row] ?? {};
+				for (const col of columns) {
+					const value = String(rowMap[col] ?? '').trim();
+					if (!value) {
+						return json({ error: 'Please fill out all short grid cells.' }, { status: 400 });
+					}
+					if (value.length < shortAnswerMinChars) {
+						return json(
+							{ error: `Short grid cells must be at least ${shortAnswerMinChars} characters.` },
+							{ status: 400 }
+						);
+					}
+					if (value.length > shortAnswerMaxChars) {
+						return json(
+							{ error: `Short grid cells must be at most ${shortAnswerMaxChars} characters.` },
+							{ status: 400 }
+						);
+					}
+				}
+			}
+			answers[question.id] = answerMap;
+			correct += 1;
 			continue;
 		}
 

@@ -22,9 +22,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	);
 	const requiredDesignators = (requiredResp.data ?? []).map((row: any) => String(row.slug));
 	const needsOnboarding =
-		currentTeams.length === 0 ||
-		!String(primaryResp.data?.team_group_id ?? '') ||
-		requiredDesignators.some((slug) => !selectedDesignators.has(slug));
+		!profile?.is_parent_guardian &&
+		(currentTeams.length === 0 ||
+			!String(primaryResp.data?.team_group_id ?? '') ||
+			requiredDesignators.some((slug) => !selectedDesignators.has(slug)));
 	if (needsOnboarding) throw redirect(303, '/onboarding');
 	const previewRequested = url.searchParams.get('preview') === '1';
 	const previewBypass = previewRequested && !!profile && ['mentor', 'admin'].includes(profile.role);

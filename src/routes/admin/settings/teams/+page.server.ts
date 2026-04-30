@@ -66,14 +66,18 @@ export const actions: Actions = {
 		const slug = slugify(slugInput || name);
 		const colorHex = String(form.get('team_color_hex') ?? '#475569').trim();
 		if (!name || !slug) return fail(400, { error: 'Team name is required.' });
-		const { error } = await locals.supabase.from('team_groups').insert({
-			name,
-			slug,
-			color_hex: colorOr(colorHex, '#475569'),
-			sort_order: numberFrom(form.get('team_sort_order'))
-		});
+		const { data: created, error } = await locals.supabase
+			.from('team_groups')
+			.insert({
+				name,
+				slug,
+				color_hex: colorOr(colorHex, '#475569'),
+				sort_order: numberFrom(form.get('team_sort_order'))
+			})
+			.select('id')
+			.single();
 		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'team', selectedTeamId: String(teamGroupId) };
+		return { ok: true, section: 'team', selectedTeamId: String(created.id) };
 	},
 	createSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();

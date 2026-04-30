@@ -1,19 +1,17 @@
 <script lang="ts">
 	import Avatar from '$lib/components/Avatar.svelte';
 	import PassportQR from '$lib/components/PassportQR.svelte';
-	import { isMentor, roleBadgeParts } from '$lib/roles';
+import { roleBadgeParts } from '$lib/roles';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
-	const canMentor = $derived(isMentor(data.profile));
 	const roleLabel = $derived(roleBadgeParts(data.profile).join(' · '));
 	const specialTitles = $derived((data.specialTitles ?? []) as string[]);
 	const trackRanks = $derived((data.trackRanks ?? []) as any[]);
 	const successText = $derived.by(() => {
 		if (!form?.ok) return '';
 		if (form?.section === 'primary') return 'Primary team updated.';
-		if (form?.section === 'mentor') return 'Mentor checkoff teams updated.';
 		return 'Profile updated.';
 	});
 
@@ -123,65 +121,61 @@
 	</div>
 
 	<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
-		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Teams</p>
+		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Organization Structure</p>
 		<form method="POST" action="?/setPrimaryTeam" use:enhance={refreshOnSuccess} class="mt-3">
-			<p class="mb-2 text-sm font-medium">Primary team</p>
+			<p class="mb-2 text-sm font-medium">Primary main team</p>
+			<p class="mb-3 text-xs text-slate-400">Used as your default context for dashboard/courses.</p>
 			<div class="grid gap-2 md:grid-cols-2">
-				{#each data.subteams as team}
+				{#each data.teamGroups as group}
 					<label class="flex cursor-pointer items-center gap-2 rounded border border-slate-700 p-3 hover:bg-slate-800/60">
 						<input
 							type="radio"
-							name="subteam_id"
-							value={team.id}
-							checked={data.profile?.subteam_id === team.id}
+							name="team_group_id"
+							value={group.id}
+							checked={data.primaryTeamGroupId === group.id}
 							class="accent-yellow-400"
 						/>
 						<div>
-							<p class="font-medium">{team.name}</p>
-							<p class="text-xs text-slate-500">{team.slug}</p>
+							<p class="font-medium">{group.name}</p>
+							<p class="text-xs text-slate-500">{group.slug}</p>
 						</div>
 					</label>
+				{:else}
+					<p class="text-sm text-slate-500 md:col-span-2">No team group memberships found yet.</p>
 				{/each}
 			</div>
 			<div class="mt-3 flex gap-2">
 				<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900" type="submit">
-					Save primary team
+					Save primary main team
 				</button>
-				<button class="rounded border border-slate-700 px-4 py-2 text-sm" type="submit" name="subteam_id" value="">
+				<button class="rounded border border-slate-700 px-4 py-2 text-sm" type="submit" name="team_group_id" value="">
 					Clear
 				</button>
 			</div>
 		</form>
-		{#if canMentor}
-			<form
-				method="POST"
-				action="?/saveMentorTeams"
-				use:enhance={refreshOnSuccess}
-				class="mt-5 border-t border-slate-700 pt-4"
-			>
-				<p class="mb-2 text-sm font-medium">Mentor checkoff teams</p>
-				<div class="grid gap-2 md:grid-cols-2">
-					{#each data.subteams as team}
-						<label class="flex cursor-pointer items-center gap-2 rounded border border-slate-700 p-3 hover:bg-slate-800/60">
-							<input
-								type="checkbox"
-								name="mentor_team_ids"
-								value={team.id}
-								checked={data.mentorTeamIds.includes(team.id)}
-								class="accent-yellow-400"
-							/>
-							<div>
-								<p class="font-medium">{team.name}</p>
-								<p class="text-xs text-slate-500">{team.slug}</p>
-							</div>
-						</label>
-					{/each}
-				</div>
-				<button class="mt-3 rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900" type="submit">
-					Save mentor teams
-				</button>
-			</form>
-		{/if}
+		<div class="mt-5 border-t border-slate-700 pt-4">
+			<p class="mb-2 text-sm font-medium">Current team memberships</p>
+			<div class="space-y-2">
+				{#each data.teamMemberships as membership}
+					<div class="rounded border border-slate-700 bg-slate-950/40 p-3">
+						<p class="text-sm font-medium text-slate-100">
+							{membership.teamName}
+							{#if data.primaryTeamGroupId === membership.teamGroupId}
+								<span class="ml-2 rounded bg-yellow-400 px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">Primary group</span>
+							{/if}
+						</p>
+						<p class="text-xs text-slate-400">
+							Main team: {membership.teamGroupName || membership.teamGroupSlug}
+							{#if membership.categorySlug}
+								· Category: {membership.categorySlug}
+							{/if}
+						</p>
+					</div>
+				{:else}
+					<p class="text-sm text-slate-500">No memberships assigned yet.</p>
+				{/each}
+			</div>
+		</div>
 	</div>
 
 	<div class="grid gap-4 md:grid-cols-2">
@@ -221,6 +215,38 @@
 		<div class="rounded-xl border border-slate-700 bg-slate-900 p-4">
 			<h2 class="mb-3 text-lg font-semibold">QR Identity</h2>
 			<PassportQR qrDataUrl={data.qrDataUrl} />
+		</div>
+	</div>
+
+	<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
+		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Parent Access</p>
+		<p class="mt-2 text-sm text-slate-300">Generate a temporary code so a parent can link to this account in the Parent Portal.</p>
+		<form method="POST" action="?/generateParentLinkCode" use:enhance={refreshOnSuccess} class="mt-3">
+			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">Generate parent link code</button>
+		</form>
+		{#if data.activeParentLinkCode}
+			<div class="mt-3 rounded border border-slate-700 bg-slate-950/50 p-3">
+				<p class="text-xs text-slate-400">Active code (expires soon)</p>
+				<p class="mt-1 text-xl font-bold tracking-widest">{data.activeParentLinkCode.code}</p>
+				<p class="text-xs text-slate-500">Expires {new Date(data.activeParentLinkCode.expires_at).toLocaleString()}</p>
+			</div>
+		{/if}
+		<div class="mt-4 space-y-2">
+			<p class="text-xs uppercase tracking-wide text-slate-500">Linked parents</p>
+			{#each data.parentLinks as link}
+				<div class="flex items-center justify-between rounded border border-slate-700 bg-slate-950/50 p-2 text-sm">
+					<div>
+						<p>{link.parent?.full_name || link.parent?.email || 'Parent'}</p>
+						<p class="text-xs text-slate-500">{link.parent?.email}</p>
+					</div>
+					<form method="POST" action="?/revokeParentLink" use:enhance={refreshOnSuccess}>
+						<input type="hidden" name="link_id" value={link.id} />
+						<button class="rounded border border-red-600 px-2 py-1 text-xs text-red-200">Revoke</button>
+					</form>
+				</div>
+			{:else}
+				<p class="text-sm text-slate-500">No parent accounts linked yet.</p>
+			{/each}
 		</div>
 	</div>
 </section>

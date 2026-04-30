@@ -15,7 +15,7 @@ type BlockDraft = {
 	type: BlockType;
 	config: Record<string, unknown>;
 };
-type QuizQuestionType = 'mc' | 'ms' | 'tf' | 'short';
+type QuizQuestionType = 'mc' | 'ms' | 'tf' | 'short' | 'matrix' | 'matrix_ms' | 'short_grid';
 
 const clampInt = (value: unknown, fallback: number, min: number, max: number) => {
 	const n = Number(value);
@@ -49,7 +49,17 @@ function normalizeQuizConfig(raw: any) {
 		for (let i = 0; i < list.length; i += 1) {
 			const rawQuestion = (list[i] ?? {}) as Record<string, unknown>;
 			const type = String(rawQuestion.type ?? 'mc') as QuizQuestionType;
-			const safeType: QuizQuestionType = ['mc', 'ms', 'tf', 'short'].includes(type) ? type : 'mc';
+			const safeType: QuizQuestionType = [
+				'mc',
+				'ms',
+				'tf',
+				'short',
+				'matrix',
+				'matrix_ms',
+				'short_grid'
+			].includes(type)
+				? type
+				: 'mc';
 			const prompt = String(rawQuestion.prompt ?? '').trim();
 			const id = String(rawQuestion.id ?? `q${i + 1}`).trim() || `q${i + 1}`;
 			const randomizeOptions = Boolean(rawQuestion.randomize_options);
@@ -111,6 +121,82 @@ function normalizeQuizConfig(raw: any) {
 				const rawCorrect = String(rawQuestion.correct ?? '').trim().toLowerCase();
 				const correct = rawCorrect === 'false' ? 'false' : 'true';
 				out.push({ id, prompt, type: safeType, correct });
+				continue;
+			}
+
+			if (safeType === 'matrix') {
+				const rows = (Array.isArray(rawQuestion.rows) ? rawQuestion.rows : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const columns = (Array.isArray(rawQuestion.columns) ? rawQuestion.columns : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const rawMap =
+					rawQuestion.correct_map && typeof rawQuestion.correct_map === 'object'
+						? (rawQuestion.correct_map as Record<string, unknown>)
+						: {};
+				const correct_map: Record<string, string> = {};
+				for (const row of rows) {
+					const candidate = String(rawMap[row] ?? '').trim();
+					if (candidate && columns.includes(candidate)) correct_map[row] = candidate;
+				}
+				out.push({
+					id,
+					prompt,
+					type: 'matrix',
+					correct: '',
+					rows,
+					columns,
+					correct_map
+				} as any);
+				continue;
+			}
+			if (safeType === 'matrix_ms') {
+				const rows = (Array.isArray(rawQuestion.rows) ? rawQuestion.rows : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const columns = (Array.isArray(rawQuestion.columns) ? rawQuestion.columns : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const rawMap =
+					rawQuestion.correct_map_multi && typeof rawQuestion.correct_map_multi === 'object'
+						? (rawQuestion.correct_map_multi as Record<string, unknown>)
+						: {};
+				const correct_map_multi: Record<string, string[]> = {};
+				for (const row of rows) {
+					const candidate = Array.isArray(rawMap[row])
+						? (rawMap[row] as unknown[])
+								.map((v) => String(v ?? '').trim())
+								.filter((v) => columns.includes(v))
+						: [];
+					correct_map_multi[row] = Array.from(new Set(candidate));
+				}
+				out.push({
+					id,
+					prompt,
+					type: 'matrix_ms',
+					correct: '',
+					rows,
+					columns,
+					correct_map_multi
+				} as any);
+				continue;
+			}
+			if (safeType === 'short_grid') {
+				const rows = (Array.isArray(rawQuestion.rows) ? rawQuestion.rows : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				const columns = (Array.isArray(rawQuestion.columns) ? rawQuestion.columns : [])
+					.map((v) => String(v ?? '').trim())
+					.filter(Boolean);
+				out.push({
+					id,
+					prompt,
+					type: 'short_grid',
+					correct: '',
+					rows,
+					columns
+				} as any);
 				continue;
 			}
 
@@ -477,6 +563,22 @@ export const actions: Actions = {
 						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: expected short-answer text is required.`;
 						continue;
 					}
+				if (
+					invalidQuestion.type === 'matrix' ||
+					invalidQuestion.type === 'matrix_ms' ||
+					invalidQuestion.type === 'short_grid'
+				) {
+					const rows = Array.isArray((invalidQuestion as any).rows)
+						? ((invalidQuestion as any).rows as string[]).map((v) => String(v).trim()).filter(Boolean)
+						: [];
+					const columns = Array.isArray((invalidQuestion as any).columns)
+						? ((invalidQuestion as any).columns as string[]).map((v) => String(v).trim()).filter(Boolean)
+						: [];
+					if (rows.length === 0 || columns.length < 2) {
+						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: grid needs at least 1 row and 2 columns.`;
+						continue;
+					}
+				}
 					blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: invalid question setup.`;
 					continue;
 				}

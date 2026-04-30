@@ -2,8 +2,12 @@
 	type Question = {
 		id: string;
 		prompt: string;
-		type: 'mc' | 'ms' | 'tf' | 'short';
+		type: 'mc' | 'ms' | 'tf' | 'short' | 'matrix' | 'matrix_ms' | 'short_grid';
 		options?: string[];
+		rows?: string[];
+		columns?: string[];
+		correct_map?: Record<string, string>;
+		correct_map_multi?: Record<string, string[]>;
 		correct: string | string[];
 		randomize_options?: boolean;
 		max_select?: number;
@@ -308,6 +312,48 @@ const teamsByGroup = $derived.by(() => {
 			if (current !== 'true' && current !== 'false') q.correct = 'true';
 			else q.correct = current;
 		} else {
+			if (q.type === 'matrix') {
+				q.options = undefined;
+				if (!Array.isArray(q.rows) || q.rows.length === 0) q.rows = [''];
+				if (!Array.isArray(q.columns) || q.columns.length < 2) q.columns = ['', ''];
+				const currentMap =
+					q.correct_map && typeof q.correct_map === 'object' ? { ...q.correct_map } : {};
+				const nextMap: Record<string, string> = {};
+				for (const row of q.rows) {
+					const key = String(row ?? '').trim();
+					if (!key) continue;
+					const pick = String(currentMap[key] ?? '').trim();
+					if (pick && q.columns.includes(pick)) nextMap[key] = pick;
+				}
+				q.correct_map = nextMap;
+				return;
+			}
+			if (q.type === 'matrix_ms') {
+				q.options = undefined;
+				if (!Array.isArray(q.rows) || q.rows.length === 0) q.rows = [''];
+				if (!Array.isArray(q.columns) || q.columns.length < 2) q.columns = ['', ''];
+				const raw =
+					q.correct_map_multi && typeof q.correct_map_multi === 'object'
+						? { ...q.correct_map_multi }
+						: {};
+				const next: Record<string, string[]> = {};
+				for (const row of q.rows) {
+					const key = String(row ?? '').trim();
+					if (!key) continue;
+					const list = Array.isArray(raw[key])
+						? raw[key].map((v) => String(v ?? '').trim()).filter((v) => q.columns?.includes(v))
+						: [];
+					next[key] = Array.from(new Set(list));
+				}
+				q.correct_map_multi = next;
+				return;
+			}
+			if (q.type === 'short_grid') {
+				q.options = undefined;
+				if (!Array.isArray(q.rows) || q.rows.length === 0) q.rows = [''];
+				if (!Array.isArray(q.columns) || q.columns.length < 2) q.columns = ['', ''];
+				return;
+			}
 			q.options = undefined;
 			if (Array.isArray(q.correct)) q.correct = q.correct[0] ?? '';
 			if (q.short_ignore_punctuation == null) q.short_ignore_punctuation = false;
@@ -697,6 +743,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 													<option value="ms">Multiple select</option>
 													<option value="tf">True / False</option>
 													<option value="short">Short answer</option>
+													<option value="matrix">Matrix (table)</option>
+													<option value="matrix_ms">Matrix (multi-select table)</option>
+													<option value="short_grid">Short Answer Grid</option>
 												</select>
 											</div>
 											{#if q.type === 'mc'}
@@ -771,6 +820,101 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 												<div class="inline-flex overflow-hidden rounded border border-slate-800">
 													<button type="button" class={`px-4 py-1 text-sm ${q.correct === 'true' ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-200'}`} onclick={() => (q.correct = 'true')}>True</button>
 													<button type="button" class={`px-4 py-1 text-sm ${q.correct === 'false' ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-200'}`} onclick={() => (q.correct = 'false')}>False</button>
+												</div>
+											{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
+												<div class="space-y-2">
+													<div class="grid gap-2 md:grid-cols-2">
+														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+															<div class="mb-1 flex items-center justify-between">
+																<p class="text-xs font-semibold text-slate-300">Rows</p>
+																<button
+																	type="button"
+																	class="rounded border border-slate-800 px-2 py-0.5 text-xs"
+																	onclick={() => (q.rows = [...(q.rows ?? []), ''])}
+																>
+																	+ Row
+																</button>
+															</div>
+															{#each q.rows ?? [] as _row, ri (ri)}
+																<div class="mb-1 flex items-center gap-1">
+																	<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
+																	<button type="button" class="px-2 text-xs text-red-300" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>×</button>
+																</div>
+															{/each}
+														</div>
+														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+															<div class="mb-1 flex items-center justify-between">
+																<p class="text-xs font-semibold text-slate-300">Columns</p>
+																<button
+																	type="button"
+																	class="rounded border border-slate-800 px-2 py-0.5 text-xs"
+																	onclick={() => (q.columns = [...(q.columns ?? []), ''])}
+																>
+																	+ Column
+																</button>
+															</div>
+															{#each q.columns ?? [] as _col, ci (ci)}
+																<div class="mb-1 flex items-center gap-1">
+																	<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
+																	<button type="button" class="px-2 text-xs text-red-300" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>×</button>
+																</div>
+															{/each}
+														</div>
+													</div>
+													{#if q.type !== 'short_grid'}
+														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+															<p class="mb-1 text-xs font-semibold text-slate-300">Optional answer key per row</p>
+															{#each (q.rows ?? []).filter((row) => String(row).trim().length > 0) as row}
+																{#if q.type === 'matrix'}
+																	<div class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]">
+																		<span>{row}</span>
+																		<select
+																			class="rounded bg-slate-800 px-2 py-1 text-xs"
+																			value={q.correct_map?.[row] ?? ''}
+																			onchange={(e) => {
+																				const value = (e.currentTarget as HTMLSelectElement).value;
+																				const next = { ...(q.correct_map ?? {}) };
+																				if (value) next[row] = value;
+																				else delete next[row];
+																				q.correct_map = next;
+																			}}
+																		>
+																			<option value="">No key (completion-only)</option>
+																			{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
+																				<option value={col}>{col}</option>
+																			{/each}
+																		</select>
+																	</div>
+																{:else}
+																	<div class="mb-2 rounded border border-slate-800 bg-slate-900/50 p-2 text-xs">
+																		<p class="mb-1">{row}</p>
+																		<div class="grid gap-1 md:grid-cols-2">
+																			{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
+																				<label class="inline-flex items-center gap-1">
+																					<input
+																						type="checkbox"
+																						checked={Array.isArray(q.correct_map_multi?.[row]) && q.correct_map_multi![row].includes(col)}
+																						onchange={(e) => {
+																							const checked = (e.currentTarget as HTMLInputElement).checked;
+																							const next = { ...(q.correct_map_multi ?? {}) };
+																							const current = Array.isArray(next[row]) ? [...next[row]] : [];
+																							next[row] = checked
+																								? Array.from(new Set([...current, col]))
+																								: current.filter((v) => v !== col);
+																							q.correct_map_multi = next;
+																						}}
+																					/>
+																					{col}
+																				</label>
+																			{/each}
+																		</div>
+																	</div>
+																{/if}
+															{/each}
+														</div>
+													{:else}
+														<p class="text-xs text-slate-400">Each row/column cell will render as a short answer input.</p>
+													{/if}
 												</div>
 											{:else}
 												<input

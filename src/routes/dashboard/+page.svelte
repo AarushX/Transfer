@@ -90,6 +90,7 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 		)
 	);
 	const needsOnboarding = $derived.by(() => {
+		if ((data.profile as { is_parent_guardian?: boolean } | null)?.is_parent_guardian) return false;
 		if (userTeamIds.size === 0 || userTeamGroupIds.size === 0) return true;
 		if (!String((data as any).primaryTeamGroupId ?? '')) return true;
 		for (const required of onboardingRequiredDesignators) {

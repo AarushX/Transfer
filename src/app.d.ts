@@ -15,6 +15,7 @@ declare global {
 					base_role: 'member' | 'admin';
 					is_mentor: boolean;
 					is_lead: boolean;
+					is_parent_guardian: boolean;
 					subteam_id: string | null;
 					bio: string;
 					avatar_url: string;
@@ -32,6 +33,7 @@ declare global {
 				base_role: 'member' | 'admin';
 				is_mentor: boolean;
 				is_lead: boolean;
+				is_parent_guardian: boolean;
 				subteam_id: string | null;
 				bio: string;
 				avatar_url: string;

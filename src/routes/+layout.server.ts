@@ -85,10 +85,14 @@ export const load = async ({ locals }) => {
 				currentTeams.map((row: any) => String(row.category_slug ?? '')).filter(Boolean)
 			);
 			const required = (requiredResp.data ?? []).map((row: any) => String(row.slug));
-			needsOnboarding =
-				currentTeams.length === 0 ||
-				!String(primaryResp.data?.team_group_id ?? '') ||
-				required.some((slug) => !selectedDesignators.has(slug));
+			if (profile?.is_parent_guardian) {
+				needsOnboarding = false;
+			} else {
+				needsOnboarding =
+					currentTeams.length === 0 ||
+					!String(primaryResp.data?.team_group_id ?? '') ||
+					required.some((slug) => !selectedDesignators.has(slug));
+			}
 		} else {
 			const orgResp = await orgPromise;
 			org = orgResp.data;

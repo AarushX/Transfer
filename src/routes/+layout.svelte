@@ -3,7 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { isAdmin, isMentor, roleBadgeParts } from '$lib/roles';
+	import { isAdmin, isMentor, isParentGuardian, roleBadgeParts } from '$lib/roles';
 	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 
 	injectSpeedInsights();
@@ -11,6 +11,7 @@
 	let { children, data } = $props();
 	const canMentor = $derived(isMentor(data.profile));
 	const canAdmin = $derived(isAdmin(data.profile));
+	const canParent = $derived(isParentGuardian(data.profile));
 	const roleLabel = $derived(roleBadgeParts(data.profile).join(' · '));
 
 	let mobileOpen = $state(false);
@@ -19,7 +20,7 @@
 
 	type NavItem = { href: string; label: string; match?: (p: string) => boolean };
 
-	const primary: NavItem[] = [
+	const memberPrimary: NavItem[] = [
 		...(data.needsOnboarding
 			? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }]
 			: []),
@@ -31,6 +32,12 @@
 		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
+	const parentPrimary: NavItem[] = [
+		{ href: '/dashboard', label: 'Dashboard' },
+		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },
+		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') }
+	];
+	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;
 
 	const mentorNav: NavItem[] = [
 		{ href: '/mentor', label: 'Checkoffs queue', match: (p) => p === '/mentor' },
@@ -66,6 +73,7 @@
 		{ href: '/admin/settings', label: 'Workspace' },
 		{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
 		{ href: '/admin/content', label: 'Content' },
+		{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
 		{ href: '/admin/attendance', label: 'Attendance' },
 		{ href: '/admin/audit', label: 'Audit log' }
 	];
@@ -264,28 +272,49 @@
 
 			{#if data.user && data.profile}
 				<div class="border-t border-slate-700 p-3">
-					<a
-						href="/profile"
-						onclick={() => (mobileOpen = false)}
-						class="flex touch-manipulation items-center gap-3 rounded-md p-2 hover:bg-slate-800"
-					>
-						<Avatar
-							name={data.profile.full_name}
-							email={data.profile.email}
-							url={data.profile.avatar_url}
-							size="md"
-							ring={isMentor(data.profile)}
-							ringClass="ring-sky-400"
-						/>
-						<div class="min-w-0 flex-1 leading-tight">
-							<p class="truncate text-sm font-medium text-slate-100">
-								{data.profile.full_name || data.profile.email}
-							</p>
-							<p class="truncate text-[11px] tracking-wider text-slate-500 uppercase">
-								{roleLabel}
-							</p>
+					{#if canParent}
+						<div class="flex items-center gap-3 rounded-md p-2">
+							<Avatar
+								name={data.profile.full_name}
+								email={data.profile.email}
+								url={data.profile.avatar_url}
+								size="md"
+								ring={isMentor(data.profile)}
+								ringClass="ring-sky-400"
+							/>
+							<div class="min-w-0 flex-1 leading-tight">
+								<p class="truncate text-sm font-medium text-slate-100">
+									{data.profile.full_name || data.profile.email}
+								</p>
+								<p class="truncate text-[11px] tracking-wider text-slate-500 uppercase">
+									{roleLabel}
+								</p>
+							</div>
 						</div>
-					</a>
+					{:else}
+						<a
+							href="/profile"
+							onclick={() => (mobileOpen = false)}
+							class="flex touch-manipulation items-center gap-3 rounded-md p-2 hover:bg-slate-800"
+						>
+							<Avatar
+								name={data.profile.full_name}
+								email={data.profile.email}
+								url={data.profile.avatar_url}
+								size="md"
+								ring={isMentor(data.profile)}
+								ringClass="ring-sky-400"
+							/>
+							<div class="min-w-0 flex-1 leading-tight">
+								<p class="truncate text-sm font-medium text-slate-100">
+									{data.profile.full_name || data.profile.email}
+								</p>
+								<p class="truncate text-[11px] tracking-wider text-slate-500 uppercase">
+									{roleLabel}
+								</p>
+							</div>
+						</a>
+					{/if}
 					<form method="POST" action="/auth/signout" class="mt-2">
 						<button
 							type="submit"
@@ -331,7 +360,7 @@
 					Transfer · {data.orgName}
 				</p>
 				{#if data.profile}
-					<a href="/profile" class="shrink-0 touch-manipulation rounded p-0.5">
+					<a href={canParent ? '/dashboard' : '/profile'} class="shrink-0 touch-manipulation rounded p-0.5">
 						<Avatar
 							name={data.profile.full_name}
 							email={data.profile.email}
