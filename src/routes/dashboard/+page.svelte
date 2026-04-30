@@ -44,6 +44,7 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 
 	let filter = $state('');
 	let showCompletedCourses = $state(false);
+	let activeCourseScope = $state('all');
 
 	const filtered = $derived.by(() => {
 		const needle = filter.trim().toLowerCase();
@@ -182,16 +183,81 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 	};
 
 	const primaryNodes = $derived(filtered.filter(inPrimaryTeam));
+	const scopeCards = $derived.by(() => {
+		const cards: Array<{
+			key: string;
+			label: string;
+			courseCount: number;
+			completedCount: number;
+			progressPct: number;
+			leftCount: number;
+			teamId?: string;
+			teamGroupId?: string;
+			color?: string;
+		}> = [];
+		const allTotal = primaryNodes.length;
+		const allCompleted = primaryNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
+		cards.push({
+			key: 'all',
+			label: 'All courses',
+			courseCount: allTotal,
+			completedCount: allCompleted,
+			progressPct: allTotal ? Math.round((allCompleted / allTotal) * 100) : 0,
+			leftCount: Math.max(0, allTotal - allCompleted)
+		});
+
+		const seen = new Set<string>();
+		for (const row of (data.profileTeams as ProfileTeam[]) ?? []) {
+			const teamId = String(row.team_id);
+			if (!teamId || seen.has(teamId)) continue;
+			seen.add(teamId);
+			const teamName = String(teamById.get(teamId)?.name ?? 'Team');
+			const teamGroupId = String(row.team_group_id ?? '');
+			const teamNodes = primaryNodes.filter((node) => {
+				const teamTargets = targetTeamIdsByNode.get(String(node.id));
+				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
+				if (teamTargets?.has(teamId)) return true;
+				if (teamGroupId && groupTargets?.has(teamGroupId)) return true;
+				return !teamTargets?.size && !groupTargets?.size;
+			});
+			const completed = teamNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
+			const total = teamNodes.length;
+			cards.push({
+				key: `team:${teamId}`,
+				label: teamName,
+				courseCount: total,
+				completedCount: completed,
+				progressPct: total ? Math.round((completed / total) * 100) : 0,
+				leftCount: Math.max(0, total - completed),
+				teamId,
+				teamGroupId: teamGroupId || undefined,
+				color: accentColorForNode(teamNodes[0]?.id ?? '') || teamColorById.get(teamId) || ''
+			});
+		}
+		return cards;
+	});
+	const scopedNodes = $derived.by(() => {
+		if (activeCourseScope === 'all') return primaryNodes;
+		const selected = scopeCards.find((card) => card.key === activeCourseScope);
+		if (!selected?.teamId) return primaryNodes;
+		return primaryNodes.filter((node) => {
+			const teamTargets = targetTeamIdsByNode.get(String(node.id));
+			const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
+			if (teamTargets?.has(selected.teamId!)) return true;
+			if (selected.teamGroupId && groupTargets?.has(selected.teamGroupId)) return true;
+			return !teamTargets?.size && !groupTargets?.size;
+		});
+	});
 	const takeableStatuses = ['available', 'video_pending', 'quiz_pending'];
 
 	const takeablePrimary = $derived(
-		primaryNodes
+		scopedNodes
 		.filter((n) => takeableStatuses.includes(effectiveStatusFor(n.id)) && !hasPartialProgress(n.id))
 			.slice()
 			.sort(byPriority)
 	);
 	const inProgressPrimary = $derived(
-		primaryNodes
+		scopedNodes
 			.filter((n) =>
 			['mentor_checkoff_pending', 'checkoff_needs_review', 'checkoff_blocked'].includes(
 				effectiveStatusFor(n.id)
@@ -202,13 +268,14 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 			.sort(byPriority)
 	);
 	const lockedPrimary = $derived(
-		primaryNodes
+		scopedNodes
 			.filter((n) => effectiveStatusFor(n.id) === 'locked')
 			.slice()
 			.sort(byPriority)
 	);
+const normalPrimary = $derived([...takeablePrimary, ...lockedPrimary]);
 	const completedPrimary = $derived(
-		primaryNodes
+		scopedNodes
 			.filter((n) => effectiveStatusFor(n.id) === 'completed')
 			.slice()
 			.sort(byPriority)
@@ -321,10 +388,10 @@ const hasPartialProgress = (nodeId: string) => {
 };
 </script>
 
-<section class="space-y-6">
-	<div class="space-y-3">
+<section class="-mx-6 space-y-0 md:-mx-10">
+	<div class="space-y-0 divide-y divide-slate-800/80">
 		{#if needsOnboarding}
-			<div class="rounded-xl border border-amber-700/50 bg-amber-950/30 p-4">
+			<div class="bg-amber-950/20 px-6 py-5 md:px-10">
 				<p class="text-sm font-semibold text-amber-100">Finish onboarding</p>
 				<p class="mt-1 text-xs text-amber-200/90">
 					Choose your team and subteam to unlock the right course path.
@@ -337,134 +404,174 @@ const hasPartialProgress = (nodeId: string) => {
 				</a>
 			</div>
 		{/if}
-		<div class="flex flex-wrap items-center gap-3">
-			<h2 class="mr-auto text-lg font-semibold">My Courses</h2>
-			<div class="flex flex-wrap gap-2 text-xs">
-				<span class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">Main team: {selectedMainTeamLabel}</span>
-				<span class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
-					Subteams: {selectedSubteamLabels.length > 0 ? selectedSubteamLabels.join(', ') : 'Unset'}
-				</span>
+		<div class="bg-slate-950/40 px-6 py-5 md:px-10">
+			<div class="flex flex-wrap items-center gap-3">
+				<div class="mr-auto flex items-center gap-2">
+					<h2 class="text-lg font-semibold">My Courses</h2>
+					<button
+						type="button"
+						onclick={() => {
+							activeCourseScope = 'all';
+							showCompletedCourses = false;
+						}}
+						class={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${
+							activeCourseScope === 'all'
+								? 'border-sky-500/60 bg-sky-950/30 text-sky-100'
+								: 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:text-slate-100'
+						}`}
+					>
+						All courses
+					</button>
+				</div>
+				<div class="w-full md:w-80">
+					<SearchField
+						bind:value={filter}
+						placeholder="Search courses..."
+						fieldClass="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5"
+					/>
+				</div>
 			</div>
-			<div class="w-full md:w-72">
-				<SearchField bind:value={filter} placeholder="Search courses..." />
+		</div>
+		<div class="bg-slate-950/10 px-6 py-5 md:px-10">
+			<div class="flex gap-3 overflow-x-auto pb-1">
+				{#each scopeCards.filter((card) => card.key !== 'all') as card (card.key)}
+					<button
+						type="button"
+						onclick={() => {
+							activeCourseScope = card.key;
+							showCompletedCourses = false;
+						}}
+						class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition ${
+							activeCourseScope === card.key
+								? 'border-slate-500 bg-slate-900'
+								: 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/80'
+						}`}
+					>
+						<div class="flex items-start justify-between gap-2">
+							<div class="min-w-0">
+								<p class="truncate text-sm font-semibold">{card.label}</p>
+							</div>
+							<span
+								class="rounded-full px-2 py-0.5 text-[11px]"
+								style={card.color
+									? `background: color-mix(in srgb, ${card.color} 22%, transparent); color: color-mix(in srgb, ${card.color} 35%, #f8fafc);`
+									: 'background:#1e293b;color:#cbd5e1;'}
+							>
+								{card.leftCount} left
+							</span>
+						</div>
+						<p class="mt-1 text-xs text-slate-400">
+							{card.completedCount}/{card.courseCount} complete
+						</p>
+						<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+							<div
+								class="h-full rounded-full transition-all duration-300"
+								style={`width:${card.progressPct}%; background:${card.color || '#64748b'};`}
+							></div>
+						</div>
+					</button>
+				{/each}
 			</div>
 		</div>
 
 		{#if filtered.length === 0}
-			<p class="text-sm text-slate-400">No courses match your filter.</p>
+			<p class="px-6 py-6 text-sm text-slate-400 md:px-10">No courses match your filter.</p>
 		{/if}
 
-		<div class="space-y-6">
-			<div class="space-y-3">
-				{#if inProgressPrimary.length > 0}
-					<div class="flex items-center justify-between">
-						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">In Progress</h3>
-						<span class="text-xs text-slate-500">{inProgressPrimary.length}</span>
-					</div>
-					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-						{#each inProgressPrimary as node (node.id)}
-							{@const status = effectiveStatusFor(node.id)}
-							<a
-								href={`/learn/${node.slug}`}
-								class={courseCardClass(status)}
-							>
-								<div class="flex items-start justify-between gap-3">
-									<div class="min-w-0 flex-1">
-										<p class="truncate text-base font-semibold">{node.title}</p>
+		<div class="flex flex-col">
+			<div
+				class={`flex flex-col gap-4 px-6 py-5 md:px-10 ${completedPrimary.length === 0 ? 'pb-8' : 'pb-20'}`}
+			>
+				<div class="space-y-4">
+					{#if inProgressPrimary.length > 0}
+						<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+							{#each inProgressPrimary as node (node.id)}
+								{@const status = effectiveStatusFor(node.id)}
+								<a
+									href={`/learn/${node.slug}`}
+									class={courseCardClass(status)}
+								>
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0 flex-1">
+											<p class="truncate text-base font-semibold">{node.title}</p>
+										</div>
+										<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+											{linkedTeamLabelForNode(node.id)}
+										</span>
 									</div>
-									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
-										{linkedTeamLabelForNode(node.id)}
-									</span>
-								</div>
-								<div class="mt-3 flex items-center justify-between text-xs">
-									{#if status !== 'available'}
-										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-									{/if}
-								</div>
-								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-									<div
-										class="h-full rounded-full transition-all duration-300"
-										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-									></div>
-								</div>
-							</a>
-						{/each}
-					</div>
-				{/if}
-			</div>
+									<div class="mt-3 flex items-center justify-between text-xs">
+										{#if status !== 'available'}
+											<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+										{/if}
+									</div>
+									<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+										<div
+											class="h-full rounded-full transition-all duration-300"
+											style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+										></div>
+									</div>
+								</a>
+							{/each}
+						</div>
+					{/if}
 
-			<div class="space-y-3">
-				{#if takeablePrimary.length > 0}
-					<div class="flex items-center justify-between">
-						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Startable</h3>
-						<span class="text-xs text-slate-500">{takeablePrimary.length}</span>
-					</div>
-					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-						{#each takeablePrimary as node (node.id)}
-							{@const status = effectiveStatusFor(node.id)}
-							<a
-								href={`/learn/${node.slug}`}
-								class={courseCardClass(status)}
-							>
-								<div class="flex items-start justify-between gap-3">
-									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
-									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
-										{linkedTeamLabelForNode(node.id)}
-									</span>
-								</div>
-								<div class="mt-3 flex items-center justify-between text-xs">
-									{#if status !== 'available'}
-										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-									{/if}
-								</div>
-								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-									<div
-										class="h-full rounded-full transition-all duration-300"
-										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-									></div>
-								</div>
-							</a>
-						{/each}
-					</div>
-				{/if}
-			</div>
-
-			<div class="space-y-3">
-				{#if lockedPrimary.length > 0}
-					<div class="flex items-center justify-between">
-						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Locked</h3>
-						<span class="text-xs text-slate-500">{lockedPrimary.length}</span>
-					</div>
-					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-						{#each lockedPrimary as node (node.id)}
-							{@const status = effectiveStatusFor(node.id)}
-							<a
-								href={`/learn/${node.slug}`}
-								class={courseCardClass(status)}
-							>
-								<div class="flex items-start justify-between gap-3">
-									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
-									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
-										{linkedTeamLabelForNode(node.id)}
-									</span>
-								</div>
-								<div class="mt-3 flex items-center justify-between text-xs">
-									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-								</div>
-								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-									<div
-										class="h-full rounded-full transition-all duration-300"
-										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-									></div>
-								</div>
-							</a>
-						{/each}
-					</div>
-				{/if}
+					{#if normalPrimary.length > 0}
+						<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+							{#each normalPrimary as node (node.id)}
+								{@const status = effectiveStatusFor(node.id)}
+								<a
+									href={`/learn/${node.slug}`}
+									class={courseCardClass(status)}
+								>
+									<div class="flex items-start justify-between gap-3">
+										<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+										<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+											{linkedTeamLabelForNode(node.id)}
+										</span>
+									</div>
+									<div class="mt-3 flex items-center justify-between text-xs">
+										{#if status !== 'available'}
+											<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+										{/if}
+									</div>
+									<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+										<div
+											class="h-full rounded-full transition-all duration-300"
+											style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+										></div>
+									</div>
+								</a>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 
 			{#if completedPrimary.length > 0}
-				<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+				<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
+					<div class="mx-auto w-full max-w-screen-2xl border-t border-slate-800/80 bg-slate-950/95 px-6 py-4 backdrop-blur md:px-10">
+					{#if showCompletedCourses}
+						<div class="absolute inset-x-0 bottom-full mb-2 px-6 md:px-10">
+							<div class="max-h-[45vh] overflow-y-auto rounded-t-xl border border-slate-800/80 border-b-0 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
+								<div class="grid gap-2">
+									{#each completedPrimary as node (node.id)}
+										{@const status = effectiveStatusFor(node.id)}
+										<a
+											href={`/learn/${node.slug}`}
+											class="group block rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-slate-200 transition duration-150 hover:border-slate-700 hover:bg-slate-900/70"
+										>
+											<div class="flex items-start justify-between gap-3">
+												<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
+												<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+													{linkedTeamLabelForNode(node.id)}
+												</span>
+											</div>
+										</a>
+									{/each}
+								</div>
+							</div>
+						</div>
+					{/if}
 					<button
 						type="button"
 						class="flex w-full items-center justify-between text-left"
@@ -475,33 +582,7 @@ const hasPartialProgress = (nodeId: string) => {
 						</span>
 						<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
 					</button>
-					{#if showCompletedCourses}
-						<div class="mt-3 grid gap-2">
-							{#each completedPrimary as node (node.id)}
-							{@const status = effectiveStatusFor(node.id)}
-							<a
-								href={`/learn/${node.slug}`}
-								class={courseCardClass(status)}
-							>
-								<div class="flex items-start justify-between gap-3">
-									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
-									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
-										{linkedTeamLabelForNode(node.id)}
-									</span>
-								</div>
-								<div class="mt-3 flex items-center justify-between text-xs">
-									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-								</div>
-								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-									<div
-										class="h-full rounded-full transition-all duration-300"
-										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-									></div>
-								</div>
-							</a>
-							{/each}
-						</div>
-					{/if}
+					</div>
 				</div>
 			{/if}
 

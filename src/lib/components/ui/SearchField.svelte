@@ -1,16 +1,18 @@
 <script lang="ts">
 	let {
 		value = $bindable(''),
-		placeholder = 'Search...'
+		placeholder = 'Search...',
+		fieldClass = 'rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2'
 	}: {
 		value?: string;
 		placeholder?: string;
+		fieldClass?: string;
 	} = $props();
 </script>
 
 <label class="block w-full">
 	<span class="sr-only">{placeholder}</span>
-	<div class="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2">
+	<div class={`flex items-center gap-2 ${fieldClass}`}>
 		<svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-500" aria-hidden="true">
 			<path
 				fill-rule="evenodd"
