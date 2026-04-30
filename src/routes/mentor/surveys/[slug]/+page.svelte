@@ -11,9 +11,83 @@
 		short_ignore_case?: boolean;
 		short_ignore_punctuation?: boolean;
 	};
+	type OutcomeRuleRow = {
+		question_id: string;
+		match_value: string;
+		target_type: 'team_slug' | 'tag_slug' | 'target_role';
+		target_value: string;
+	};
 
 	const survey = data.survey;
 	const outcomeRulesJson = String((data as { outcomeRulesJson?: string }).outcomeRulesJson ?? '[]');
+	let outcomeRules = $state<OutcomeRuleRow[]>([]);
+	$effect(() => {
+		try {
+			const parsed = JSON.parse(outcomeRulesJson);
+			if (!Array.isArray(parsed)) {
+				outcomeRules = [];
+				return;
+			}
+			outcomeRules = parsed
+				.map((row: any) => {
+					const question_id = String(row.question_id ?? '').trim();
+					const match_value = String(row.match_value ?? '').trim();
+					if (!question_id || !match_value) return null;
+					if (row.team_slug)
+						return {
+							question_id,
+							match_value,
+							target_type: 'team_slug' as const,
+							target_value: String(row.team_slug)
+						};
+					if (row.tag_slug)
+						return {
+							question_id,
+							match_value,
+							target_type: 'tag_slug' as const,
+							target_value: String(row.tag_slug)
+						};
+					if (row.target_role)
+						return {
+							question_id,
+							match_value,
+							target_type: 'target_role' as const,
+							target_value: String(row.target_role)
+						};
+					return null;
+				})
+				.filter(Boolean) as OutcomeRuleRow[];
+		} catch {
+			outcomeRules = [];
+		}
+	});
+	const outcomeRulesJsonForSubmit = $derived.by(() =>
+		JSON.stringify(
+			outcomeRules
+				.filter((row) => row.question_id.trim() && row.match_value.trim() && row.target_value.trim())
+				.map((row) => {
+					if (row.target_type === 'team_slug') {
+						return {
+							question_id: row.question_id.trim(),
+							match_value: row.match_value.trim(),
+							team_slug: row.target_value.trim()
+						};
+					}
+					if (row.target_type === 'tag_slug') {
+						return {
+							question_id: row.question_id.trim(),
+							match_value: row.match_value.trim(),
+							tag_slug: row.target_value.trim()
+						};
+					}
+					return {
+						question_id: row.question_id.trim(),
+						match_value: row.match_value.trim(),
+						target_role: row.target_value.trim()
+					};
+				})
+		)
+	);
 	const selectedPrereqs = new Set(data.prereqIds as string[]);
 	let questions = $state<SurveyQuestion[]>(
 		Array.isArray(survey.questions) ? (survey.questions as SurveyQuestion[]) : []
@@ -97,6 +171,7 @@
 	const selectedQuestion = $derived(
 		responseQuestions.find((q) => q.id === selectedQuestionId) ?? null
 	);
+	const teams = $derived((data.teams as any[]) ?? []);
 	const selectedSubmission = $derived(
 		submissions.length > 0
 			? submissions[Math.max(0, Math.min(selectedResponseIndex, submissions.length - 1))]
@@ -188,14 +263,80 @@
 			<input type="checkbox" name="allow_role_mapping" checked={survey.allow_role_mapping === true} />
 			Allow mapping answers to profile roles (use only with trusted surveys)
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span>Outcome rules (JSON)</span>
-			<p class="text-xs text-slate-500">
-				Array of rules: each sets exactly one of <code class="text-slate-300">team_slug</code>,
-				<code class="text-slate-300">tag_slug</code>, or <code class="text-slate-300">target_role</code>.
-			</p>
-			<textarea class="font-mono rounded bg-slate-800 px-2 py-2 text-xs" rows="12" name="outcome_rules_json">{outcomeRulesJson}</textarea>
-		</label>
+		<div class="space-y-2 rounded border border-slate-800 bg-slate-950/50 p-3">
+			<div class="flex items-center justify-between">
+				<p class="text-sm font-semibold">Outcome rules</p>
+				<button
+					type="button"
+					class="rounded border border-slate-700 px-2 py-1 text-xs"
+					onclick={() =>
+						(outcomeRules = [
+							...outcomeRules,
+							{
+								question_id: responseQuestions[0]?.id ?? '',
+								match_value: '',
+								target_type: 'team_slug',
+								target_value: ''
+							}
+						])}
+				>
+					+ Rule
+				</button>
+			</div>
+			<div class="space-y-2">
+				{#each outcomeRules as rule, idx (idx)}
+					<div class="grid gap-2 rounded border border-slate-800 bg-slate-900/70 p-2 md:grid-cols-4">
+						<select class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={rule.question_id}>
+							{#each responseQuestions as q (q.id)}
+								<option value={q.id}>{q.prompt || q.id}</option>
+							{/each}
+						</select>
+						<input
+							class="rounded bg-slate-800 px-2 py-2 text-sm"
+							placeholder="Answer value to match"
+							bind:value={rule.match_value}
+						/>
+						<select class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={rule.target_type}>
+							<option value="team_slug">Assign team</option>
+							<option value="tag_slug">Assign tag</option>
+							<option value="target_role">Assign role</option>
+						</select>
+						<div class="flex items-center gap-2">
+							{#if rule.target_type === 'team_slug'}
+								<select class="w-full rounded bg-slate-800 px-2 py-2 text-sm" bind:value={rule.target_value}>
+									<option value="">Select team</option>
+									{#each teams as team (team.id)}
+										<option value={team.slug}>{team.name}</option>
+									{/each}
+								</select>
+							{:else if rule.target_type === 'target_role'}
+								<select class="w-full rounded bg-slate-800 px-2 py-2 text-sm" bind:value={rule.target_value}>
+									<option value="">Select role</option>
+									<option value="student">student</option>
+									<option value="mentor">mentor</option>
+									<option value="admin">admin</option>
+								</select>
+							{:else}
+								<input
+									class="w-full rounded bg-slate-800 px-2 py-2 text-sm"
+									placeholder="tag-slug"
+									bind:value={rule.target_value}
+								/>
+							{/if}
+							<button
+								type="button"
+								class="rounded border border-red-700 px-2 py-1 text-xs text-red-200"
+								onclick={() => (outcomeRules = outcomeRules.filter((_, i) => i !== idx))}
+							>
+								Remove
+							</button>
+						</div>
+					</div>
+				{:else}
+					<p class="text-xs text-slate-500">No outcome rules configured.</p>
+				{/each}
+			</div>
+		</div>
 		<div class="grid gap-2 md:grid-cols-2">
 			<label class="flex flex-col gap-1 text-sm">
 				<span>Visible from (optional)</span>
@@ -309,6 +450,7 @@
 			{/each}
 		</div>
 		<input type="hidden" name="questions_json" value={questionsJson} />
+		<input type="hidden" name="outcome_rules_json" value={outcomeRulesJsonForSubmit} />
 		<div class="flex gap-2">
 			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">Save survey</button>
 			<button formmethod="POST" formaction="?/deleteSurvey" class="rounded border border-red-700 px-4 py-2 text-sm text-red-200">Delete</button>

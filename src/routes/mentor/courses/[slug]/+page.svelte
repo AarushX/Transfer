@@ -56,6 +56,18 @@ const selectableCategories = $derived(
 	((data.trainingCategories as Array<any>) ?? []).filter((category) => category.parent_id != null)
 );
 const selectedNodeCategoryIds = $derived(new Set((data.nodeCategoryIds as string[]) ?? []));
+const selectedNodeTeamIds = $derived(new Set((data.nodeTeamIds as string[]) ?? []));
+const teamsByGroup = $derived.by(() => {
+	const groups = new Map<string, { name: string; teams: Array<any> }>();
+	for (const team of (data.teams as any[]) ?? []) {
+		const groupSlug = String(team.team_groups?.slug ?? 'other');
+		const groupName = String(team.team_groups?.name ?? 'Other');
+		const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
+		bucket.teams.push(team);
+		groups.set(groupSlug, bucket);
+	}
+	return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
+});
 	const postedBlocks = $derived.by<Block[] | null>(() => {
 		if (form?.section !== 'blocks' || !form?.blocks_json) return null;
 		try {
@@ -188,7 +200,7 @@ const selectedNodeCategoryIds = $derived(new Set((data.nodeCategoryIds as string
 				type: 'video',
 				config: {
 					title: '',
-					video_url: data.node.video_url ?? '',
+					video_url: '',
 					start_seconds: 0,
 					end_seconds: null
 				}
@@ -428,18 +440,29 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 			<span class="text-slate-300">Slug</span>
 			<input class="rounded bg-slate-800 px-2 py-2" name="slug" value={data.node.slug} required />
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Subteam</span>
-			<select class="rounded bg-slate-800 px-2 py-2" name="subteam_id" required>
-				{#each data.subteams as team}
-					<option value={team.id} selected={team.id === data.node.subteam_id}>{team.name}</option>
+		<div class="space-y-2 text-sm md:col-span-2">
+			<p class="text-slate-300">Team mapping (FTC/FRC + divisions)</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each teamsByGroup as group (group.slug)}
+					<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+						<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
+						<div class="space-y-1">
+							{#each group.teams as team (team.id)}
+								<label class="inline-flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										name="team_ids"
+										value={team.id}
+										checked={selectedNodeTeamIds.has(team.id)}
+									/>
+									{team.name}
+								</label>
+							{/each}
+						</div>
+					</div>
 				{/each}
-			</select>
-		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Fallback video URL (used if no video blocks yet)</span>
-			<input class="rounded bg-slate-800 px-2 py-2" name="video_url" value={data.node.video_url ?? ''} />
-		</label>
+			</div>
+		</div>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Description</span>
 			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"

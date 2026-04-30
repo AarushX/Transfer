@@ -1,5 +1,16 @@
 <script lang="ts">
 	let { data } = $props();
+	const teamsByGroup = $derived.by(() => {
+		const groups = new Map<string, { name: string; teams: Array<any> }>();
+		for (const team of data.teams as any[]) {
+			const groupSlug = String(team.team_groups?.slug ?? 'other');
+			const groupName = String(team.team_groups?.name ?? 'Other');
+			const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
+			bucket.teams.push(team);
+			groups.set(groupSlug, bucket);
+		}
+		return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
+	});
 </script>
 
 <section class="space-y-4">
@@ -11,17 +22,24 @@
 	>
 		<input class="rounded bg-slate-800 px-2 py-2" name="title" placeholder="Title" required />
 		<input class="rounded bg-slate-800 px-2 py-2" name="slug" placeholder="slug-value" required />
-		<input
-			class="rounded bg-slate-800 px-2 py-2"
-			name="video_url"
-			placeholder="YouTube URL"
-			required
-		/>
-		<select class="rounded bg-slate-800 px-2 py-2" name="subteam_id" required>
-			{#each data.subteams as team}
-				<option value={team.id}>{team.name}</option>
-			{/each}
-		</select>
+		<div class="space-y-2 md:col-span-2">
+			<p class="text-sm text-slate-300">Team mapping</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each teamsByGroup as group (group.slug)}
+					<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+						<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
+						<div class="space-y-1">
+							{#each group.teams as team (team.id)}
+								<label class="inline-flex items-center gap-2 text-sm">
+									<input type="checkbox" name="team_ids" value={team.id} />
+									{team.name}
+								</label>
+							{/each}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 		<textarea
 			class="rounded bg-slate-800 px-2 py-2 md:col-span-2"
 			name="description"

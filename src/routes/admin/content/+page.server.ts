@@ -1,12 +1,15 @@
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { data: subteams } = await locals.supabase.from('subteams').select('id,name').order('name');
+	const { data: teams } = await locals.supabase
+		.from('teams')
+		.select('id,name,team_groups(name,slug)')
+		.order('name');
 	const { data: nodes } = await locals.supabase
 		.from('nodes')
-		.select('id,title,slug,subteam_id')
+		.select('id,title,slug')
 		.order('title');
-	return { subteams: subteams ?? [], nodes: nodes ?? [] };
+	return { teams: teams ?? [], nodes: nodes ?? [] };
 };
 
 export const actions: Actions = {
@@ -14,20 +17,30 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '');
 		const slug = String(form.get('slug') ?? '');
-		const videoUrl = String(form.get('video_url') ?? '');
-		const subteamId = String(form.get('subteam_id') ?? '');
+		const teamIds = form
+			.getAll('team_ids')
+			.map((v) => String(v))
+			.filter(Boolean);
 		const { data: node } = await locals.supabase
 			.from('nodes')
 			.insert({
 				title,
 				slug,
-				video_url: videoUrl,
-				subteam_id: subteamId,
+				video_url: '',
+				subteam_id: null,
 				description: String(form.get('description') ?? '')
 			})
 			.select('id')
 			.single();
 		if (node?.id) {
+			if (teamIds.length > 0) {
+				await locals.supabase.from('node_team_targets').insert(
+					teamIds.map((teamId) => ({
+						node_id: node.id,
+						team_id: teamId
+					}))
+				);
+			}
 			await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: node.id,

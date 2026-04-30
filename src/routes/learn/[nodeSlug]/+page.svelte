@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import PageHeader from '$lib/components/ui/PageHeader.svelte';
-	import ProgressRail from '$lib/components/ui/ProgressRail.svelte';
 	import StatusChip from '$lib/components/ui/StatusChip.svelte';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
@@ -13,7 +12,6 @@
 		type: BlockType;
 		position: number;
 		config: Record<string, any>;
-		legacy: boolean;
 	};
 
 	let { data } = $props();
@@ -59,65 +57,12 @@
 
 	const blocks = $derived.by<LearnBlock[]>(() => {
 		const real = Array.isArray(data.blocks) ? (data.blocks as any[]) : [];
-		if (real.length > 0) {
-			return real.map((b) => ({
-				id: String(b.id),
-				type: b.type as BlockType,
-				position: Number(b.position),
-				config: (b.config ?? {}) as Record<string, any>,
-				legacy: false
-			}));
-		}
-		const synthesized: LearnBlock[] = [];
-		const hasVideoUrl = Boolean((data.node.video_url ?? '').trim());
-		const legacyQuestions = Array.isArray(data.questions) ? data.questions : [];
-		const hasQuiz = legacyQuestions.length > 0;
-		const c = data.checkoff ?? {};
-		const hasMeaningfulCheckoff = Boolean(
-			(c.directions ?? '').trim() ||
-			(Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0) ||
-			(Array.isArray(c.resource_links) && c.resource_links.length > 0) ||
-			c.evidence_mode === 'photo_optional' ||
-			c.evidence_mode === 'photo_required'
-		);
-		let pos = 1;
-		if (hasVideoUrl) {
-			synthesized.push({
-				id: `legacy-video-${data.node.id}`,
-				type: 'video',
-				position: pos++,
-				config: {
-					video_url: data.node.video_url,
-					start_seconds: 0,
-					end_seconds: null,
-					title: data.node.title
-				},
-				legacy: true
-			});
-		}
-		if (hasQuiz) {
-			synthesized.push({
-				id: `legacy-quiz-${data.node.id}`,
-				type: 'quiz',
-				position: pos++,
-				config: {
-					questions: legacyQuestions,
-					passing_score: data.passingScore ?? 80,
-					title: 'Quiz'
-				},
-				legacy: true
-			});
-		}
-		if (hasMeaningfulCheckoff) {
-			synthesized.push({
-				id: `legacy-checkoff-${data.node.id}`,
-				type: 'checkoff',
-				position: pos++,
-				config: c,
-				legacy: true
-			});
-		}
-		return synthesized;
+	return real.map((b) => ({
+		id: String(b.id),
+		type: b.type as BlockType,
+		position: Number(b.position),
+		config: (b.config ?? {}) as Record<string, any>
+	}));
 	});
 
 	const progressByBlockId = $derived.by(() => {
@@ -131,22 +76,7 @@
 		return map;
 	});
 
-	function legacyBlockCompleted(block: LearnBlock): boolean {
-		if (block.type === 'video') {
-			return (
-				certStatus === 'quiz_pending' ||
-				certStatus === 'mentor_checkoff_pending' ||
-				certStatus === 'completed'
-			);
-		}
-		if (block.type === 'quiz') {
-			return certStatus === 'mentor_checkoff_pending' || certStatus === 'completed';
-		}
-		return certStatus === 'completed';
-	}
-
 	function isBlockCompleted(block: LearnBlock): boolean {
-		if (block.legacy) return legacyBlockCompleted(block);
 		return Boolean(progressByBlockId.get(block.id)?.completed_at);
 	}
 
@@ -190,28 +120,8 @@
 			: null
 	);
 
-	let marking = $state(false);
-	let videoActionMessage = $state('');
-	async function markLegacyVideoDone() {
-		if (marking) return;
-		marking = true;
-		try {
-			const res = await fetch('/api/nodes/video-complete', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ nodeId: data.node.id })
-			});
-			const body = await res.json().catch(() => null);
-			if (!res.ok) {
-				videoActionMessage = body?.error ?? 'Could not mark video complete.';
-				return;
-			}
-			videoActionMessage = '';
-			await invalidateAll();
-		} finally {
-			marking = false;
-		}
-	}
+let marking = $state(false);
+let videoActionMessage = $state('');
 
 	async function markBlockVideoDone(block: LearnBlock) {
 		if (marking) return;
@@ -368,20 +278,12 @@
 		}
 		return String(cfg.title ?? 'Skills Check');
 	}
-	const blockSteps = $derived.by(() =>
-		blocks.map((block, i) => ({
-			label: `${i + 1}. ${blockSummary(block)}`,
-			done: isBlockCompleted(block),
-			current: !isBlockCompleted(block) && i === activeBlockIndex
-		}))
-	);
 </script>
 
 <section class="space-y-4">
-	<div class="rounded-xl border border-slate-800/80 bg-slate-900/35 p-4">
+	<div class="rounded-2xl border border-slate-800 bg-slate-900/55 p-5">
 		<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
 			<a href="/dashboard" class="hover:text-slate-200">← Dashboard</a>
-			<a href="/courseloads" class="hover:text-slate-200">Courseloads</a>
 		</div>
 		<div class="mt-2">
 			<PageHeader title={data.node.title} description={data.node.description ?? ''} />
@@ -397,17 +299,17 @@
 	</div>
 
 	{#if awaitingMentor && !completed}
-		<div class="rounded-xl border border-sky-700 bg-sky-900/30 p-4">
+		<div class="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
 			<h2 class="mb-1 text-lg font-semibold">Awaiting mentor checkoff</h2>
-			<p class="text-sm text-sky-200">Your checkoff submission is ready for mentor review.</p>
+			<p class="text-sm text-slate-300">Your checkoff submission is ready for mentor review.</p>
 			{#if data.reviewMentor}
-				<p class="mt-1 text-xs text-sky-200">
+				<p class="mt-1 text-xs text-slate-400">
 					Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
 				</p>
 			{/if}
 			{#if data.checkoffQrDataUrl}
-				<div class="mt-3 rounded border border-sky-700/60 bg-sky-900/20 p-3">
-					<p class="text-xs text-sky-100">
+				<div class="mt-3 rounded border border-slate-700 bg-slate-800/60 p-3">
+					<p class="text-xs text-slate-300">
 						Show this QR to a mentor. Scanning it approves this submitted checkoff directly.
 					</p>
 					<img
@@ -420,15 +322,15 @@
 		</div>
 	{/if}
 	{#if completed || allBlocksComplete}
-		<div class="rounded-xl border border-emerald-700 bg-emerald-900/30 p-4">
-			<h2 class="mb-1 text-lg font-semibold text-emerald-200">Completed</h2>
-			<p class="text-sm text-emerald-200">
+		<div class="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
+			<h2 class="mb-1 text-lg font-semibold text-slate-100">Completed</h2>
+			<p class="text-sm text-slate-300">
 				You've finished this module{data.cert?.approved_at
 					? ` on ${new Date(data.cert.approved_at).toLocaleDateString()}`
 					: ''}.
 			</p>
 			{#if data.certMentor}
-				<p class="mt-1 text-xs text-emerald-200">
+				<p class="mt-1 text-xs text-slate-400">
 					Approved by {data.certMentor.full_name || data.certMentor.email}.
 				</p>
 			{/if}
@@ -444,22 +346,22 @@
 				<a class="text-yellow-300 underline" href="/dashboard">dashboard</a> first.
 			</p>
 			{#if prereqPlan.length > 0}
-				<div class="rounded border border-emerald-700/40 bg-emerald-900/20 p-3">
-					<p class="mb-1 text-[11px] font-semibold tracking-wide text-emerald-300 uppercase">
+				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
 						Doable prerequisites
 					</p>
 					<div class="grid gap-1.5">
 						{#each doablePrereqs as row (row.id)}
 							<a
 								href={`/learn/${row.slug}`}
-								class="flex items-center justify-between rounded border border-emerald-700/40 bg-emerald-900/20 px-2.5 py-2 text-xs hover:border-emerald-600/60 hover:bg-emerald-900/30"
+								class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/70 px-2.5 py-2 text-xs hover:border-slate-600 hover:bg-slate-800"
 							>
 								<span class="truncate">
 									{row.title}
 									<span class="ml-1 text-[10px] text-slate-400">({row.complexity} prereq)</span>
 								</span>
 								<span
-									class="rounded-full bg-emerald-900/40 px-1.5 py-0.5 text-[10px] text-emerald-200"
+									class="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300"
 								>
 									Doable now
 								</span>
@@ -494,21 +396,21 @@
 					</div>
 				</div>
 
-				<div class="rounded border border-sky-700/40 bg-sky-900/20 p-3">
-					<p class="mb-1 text-[11px] font-semibold tracking-wide text-sky-300 uppercase">
+				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
 						Completed prerequisites
 					</p>
 					<div class="grid gap-1.5">
 						{#each completedPrereqs as row (row.id)}
 							<a
 								href={`/learn/${row.slug}`}
-								class="flex items-center justify-between rounded border border-sky-700/40 bg-sky-900/20 px-2.5 py-2 text-xs hover:border-sky-600/60 hover:bg-sky-900/30"
+								class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/70 px-2.5 py-2 text-xs hover:border-slate-600 hover:bg-slate-800"
 							>
 								<span class="truncate">
 									{row.title}
 									<span class="ml-1 text-[10px] text-slate-400">({row.complexity} prereq)</span>
 								</span>
-								<span class="rounded-full bg-sky-900/40 px-1.5 py-0.5 text-[10px] text-sky-200">
+								<span class="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
 									Completed
 								</span>
 							</a>
@@ -525,13 +427,9 @@
 		</div>
 	{:else}
 		<div class="space-y-4 pb-24">
-			<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-				<p class="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Module progress</p>
-				<ProgressRail steps={blockSteps} />
-			</div>
 			{#if activeBlock}
 				{@const meta = blockTypeMeta(activeBlock.type)}
-				<div class={`space-y-4 rounded-xl border bg-slate-900 p-4 ${meta.border}`}>
+				<div class={`space-y-4 rounded-xl border border-slate-700 bg-slate-900/75 p-5`}>
 					<div class="flex flex-wrap items-center gap-2">
 						<span class={`rounded-full px-2 py-0.5 text-xs ${meta.chip}`}>
 							{selectedBlockIndex + 1}. {meta.label}
@@ -549,8 +447,7 @@
 								activeBlock.config.end_seconds === ''
 									? null
 									: Number(activeBlock.config.end_seconds)}
-								onCompleted={() =>
-									activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
+								onCompleted={() => markBlockVideoDone(activeBlock)}
 							/>
 						{:else if activeBlock.config.video_url}
 							<div class="space-y-2">
@@ -573,8 +470,7 @@
 							{#if viewingCurrentStep}
 								<button
 									class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
-									onclick={() =>
-										activeBlock.legacy ? markLegacyVideoDone() : markBlockVideoDone(activeBlock)}
+									onclick={() => markBlockVideoDone(activeBlock)}
 									disabled={marking}
 								>
 									{marking ? 'Marking…' : 'I finished this video'}
@@ -600,7 +496,7 @@
 							<Quiz
 								questions={activeBlock.config.questions}
 								nodeId={data.node.id}
-								blockId={activeBlock.legacy ? null : activeBlock.id}
+								blockId={activeBlock.id}
 								passingScore={activeBlock.config.passing_score ?? 80}
 								allowSubmit={true}
 								lockedMessage=""
@@ -713,7 +609,7 @@
 							<input
 								type="hidden"
 								name="block_id"
-								value={activeBlock.legacy ? '' : activeBlock.id}
+								value={activeBlock.id}
 							/>
 							{#if blockedByMentor}
 								<p class="rounded border border-red-700 bg-red-900/30 p-2 text-xs text-red-200">

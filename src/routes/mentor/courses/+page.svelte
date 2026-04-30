@@ -1,7 +1,18 @@
 <script lang="ts">
 	let { data } = $props();
-	const subteamName = (id: string) =>
-		data.subteams.find((s: { id: string; name: string }) => s.id === id)?.name ?? '—';
+	const teamsById = $derived(
+		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
+	);
+	const teamNamesForNode = (nodeId: string) => {
+		const teamIds = (data.nodeTargets as Array<{ node_id: string; team_id: string }>)
+			.filter((row) => String(row.node_id) === String(nodeId))
+			.map((row) => String(row.team_id));
+		const labels = teamIds
+			.map((teamId) => teamsById.get(teamId))
+			.filter(Boolean)
+			.map((team: any) => String(team.name));
+		return labels.length > 0 ? labels : ['All teams'];
+	};
 </script>
 
 <section class="space-y-6">
@@ -35,18 +46,20 @@
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-xs text-slate-400">
-			<span>Subteam</span>
-			<select name="subteam" class="rounded bg-slate-800 px-2 py-2 text-sm text-slate-100">
-				<option value="">All subteams</option>
-				{#each data.subteams as team}
-					<option value={team.id} selected={team.id === data.filter.subteam}>{team.name}</option>
+			<span>Team</span>
+			<select name="team" class="rounded bg-slate-800 px-2 py-2 text-sm text-slate-100">
+				<option value="">All teams</option>
+				{#each data.teams as team}
+					<option value={team.id} selected={team.id === data.filter.team}>
+						{team.team_groups?.name ? `${team.team_groups.name}: ` : ''}{team.name}
+					</option>
 				{/each}
 			</select>
 		</label>
 		<button class="rounded bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600" type="submit"
 			>Apply</button
 		>
-		{#if data.filter.q || data.filter.subteam}
+		{#if data.filter.q || data.filter.team}
 			<a href="/mentor/courses" class="rounded border border-slate-800 px-3 py-2 text-sm">Reset</a>
 		{/if}
 	</form>
@@ -57,7 +70,7 @@
 				<tr>
 					<th class="px-3 py-2">Title</th>
 					<th class="px-3 py-2">Slug</th>
-					<th class="px-3 py-2">Subteam</th>
+					<th class="px-3 py-2">Teams</th>
 					<th class="px-3 py-2 text-right">Actions</th>
 				</tr>
 			</thead>
@@ -66,7 +79,13 @@
 					<tr class="border-t border-slate-800 hover:bg-slate-800">
 						<td class="px-3 py-2 font-medium">{node.title}</td>
 						<td class="px-3 py-2 text-slate-400">{node.slug}</td>
-						<td class="px-3 py-2">{subteamName(node.subteam_id)}</td>
+						<td class="px-3 py-2">
+							<div class="flex flex-wrap gap-1">
+								{#each teamNamesForNode(node.id) as label}
+									<span class="rounded bg-slate-800 px-2 py-0.5 text-xs">{label}</span>
+								{/each}
+							</div>
+						</td>
 						<td class="px-3 py-2 text-right">
 							<a
 								href={`/learn/${node.slug}?preview=1`}

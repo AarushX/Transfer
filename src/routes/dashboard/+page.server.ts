@@ -11,6 +11,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		nodesResp,
 		statusesResp,
 		subteamsResp,
+		profileTeamsResp,
+		profileTeamGroupsResp,
+		nodeTeamTargetsResp,
+		nodeTeamGroupTargetsResp,
 		prereqResp,
 		reviewResp,
 		blockRowsResp,
@@ -30,6 +34,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.select('node_id,computed_status')
 			.eq('user_id', user.id),
 		locals.supabase.from('subteams').select('id,name,slug').order('name'),
+		locals.supabase.from('profile_teams').select('team_id').eq('user_id', user.id),
+		locals.supabase.from('profile_teams').select('team_group_id').eq('user_id', user.id),
+		locals.supabase.from('node_team_targets').select('node_id,team_id'),
+		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
 		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id'),
 		locals.supabase
 			.from('checkoff_reviews')
@@ -71,6 +79,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		nodes: nodesResp.data ?? [],
 		statuses: statusesResp.data ?? [],
 		subteams: subteamsResp.data ?? [],
+		profileTeams: profileTeamsResp.data ?? [],
+		profileTeamGroups: profileTeamGroupsResp.data ?? [],
+		nodeTeamTargets: nodeTeamTargetsResp.data ?? [],
+		nodeTeamGroupTargets: nodeTeamGroupTargetsResp.data ?? [],
 		prerequisites: prereqResp.data ?? [],
 		checkoffReviews: reviewResp.data ?? [],
 		blockRows: blockRowsResp.data ?? [],

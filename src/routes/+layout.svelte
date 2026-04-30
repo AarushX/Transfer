@@ -21,11 +21,6 @@
 
 	const primary: NavItem[] = [
 		{ href: '/dashboard', label: 'Dashboard' },
-		{
-			href: '/courseloads',
-			label: 'Courseloads',
-			match: (p) => p.startsWith('/courseloads')
-		},
 		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
@@ -58,6 +53,7 @@
 
 	const adminNav: NavItem[] = [
 		{ href: '/admin/settings', label: 'Workspace' },
+		{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
 		{ href: '/admin/users', label: 'Users' },
 		{ href: '/admin/content', label: 'Content' },
 		{ href: '/admin/attendance', label: 'Attendance' },

@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const { data: node } = await locals.supabase
 		.from('nodes')
-		.select('id,title,description,video_url,subteam_id')
+		.select('id,title,description,video_url')
 		.eq('slug', params.nodeSlug)
 		.single();
 

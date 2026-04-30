@@ -9,6 +9,38 @@
 		<p class="text-sm text-slate-400">Upload and manage your submitted forms.</p>
 	</div>
 
+	<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+		<h2 class="mb-2 text-lg font-semibold">Surveys</h2>
+		<div class="space-y-2">
+			{#each data.surveys as survey (survey.id)}
+				<a
+					href={`/surveys/${survey.slug}`}
+					class="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2.5 text-sm hover:border-slate-500"
+				>
+					<div class="min-w-0">
+						<p class="truncate font-medium">{survey.title}</p>
+						{#if survey.description}
+							<p class="truncate text-xs text-slate-400">{survey.description}</p>
+						{/if}
+					</div>
+					<div class="text-right text-xs">
+						{#if survey.submittedAt}
+							<p class="text-emerald-300">Submitted</p>
+						{:else if survey.canOpen}
+							<p class="text-yellow-300">Open</p>
+						{:else}
+							<p class="text-slate-400">
+								Locked ({survey.missingCount} prereq{survey.missingCount === 1 ? '' : 's'})
+							</p>
+						{/if}
+					</div>
+				</a>
+			{:else}
+				<p class="text-sm text-slate-400">No surveys available right now.</p>
+			{/each}
+		</div>
+	</div>
+
 	{#if form?.error}
 		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
 	{:else if form?.ok}

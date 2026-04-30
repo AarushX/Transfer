@@ -181,18 +181,25 @@ function normalizeReadingConfig(raw: any) {
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { data: node, error: nodeErr } = await locals.supabase
 		.from('nodes')
-		.select('id,title,slug,description,video_url,subteam_id')
+		.select('id,title,slug,description')
 		.eq('slug', params.slug)
 		.single();
 	if (nodeErr || !node) throw error(404, 'Course not found');
 
-	const [subteamsResp, prereqsResp, allNodesResp, blocksResp, trainingCategoriesResp, nodeCategoriesResp] =
+	const [
+		prereqsResp,
+		allNodesResp,
+		blocksResp,
+		trainingCategoriesResp,
+		nodeCategoriesResp,
+		teamsResp,
+		nodeTeamTargetsResp
+	] =
 		await Promise.all([
-		locals.supabase.from('subteams').select('id,name').order('name'),
 		locals.supabase.from('node_prerequisites').select('prerequisite_node_id').eq('node_id', node.id),
 		locals.supabase
 			.from('nodes')
-			.select('id,title,slug,subteam_id')
+			.select('id,title,slug')
 			.neq('id', node.id)
 			.order('title'),
 		locals.supabase
@@ -206,19 +213,25 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.select('id,name,slug,parent_id,kind,sort_order')
 			.eq('is_active', true)
 			.order('sort_order', { ascending: true }),
-		locals.supabase.from('node_categories').select('category_id').eq('node_id', node.id)
+		locals.supabase.from('node_categories').select('category_id').eq('node_id', node.id),
+		locals.supabase
+			.from('teams')
+			.select('id,name,slug,team_group_id,team_groups(name,slug,sort_order)')
+			.order('name'),
+		locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id)
 	]);
 
 	return {
 		node,
-		subteams: subteamsResp.data ?? [],
 		prereqIds: (prereqsResp.data ?? []).map((p: { prerequisite_node_id: string }) =>
 			p.prerequisite_node_id
 		),
 		allNodes: allNodesResp.data ?? [],
 		blocks: blocksResp.data ?? [],
 		trainingCategories: trainingCategoriesResp.data ?? [],
-		nodeCategoryIds: (nodeCategoriesResp.data ?? []).map((row: any) => String(row.category_id))
+		nodeCategoryIds: (nodeCategoriesResp.data ?? []).map((row: any) => String(row.category_id)),
+		teams: teamsResp.data ?? [],
+		nodeTeamIds: (nodeTeamTargetsResp.data ?? []).map((row: any) => String(row.team_id))
 	};
 };
 
@@ -228,16 +241,18 @@ export const actions: Actions = {
 		const title = String(form.get('title') ?? '').trim();
 		const rawSlug = String(form.get('slug') ?? '').trim();
 		const slug = rawSlug ? slugify(rawSlug) : slugify(title);
-		const subteamId = String(form.get('subteam_id') ?? '');
-		const videoUrl = String(form.get('video_url') ?? '').trim();
+		const teamIds = form
+			.getAll('team_ids')
+			.map((v) => String(v))
+			.filter(Boolean);
 		const description = String(form.get('description') ?? '');
 		const categoryIds = form
 			.getAll('category_ids')
 			.map((v) => String(v))
 			.filter(Boolean);
 
-		if (!title || !slug || !subteamId) {
-			return fail(400, { error: 'Title, slug, and subteam are required.', section: 'details' });
+		if (!title || !slug) {
+			return fail(400, { error: 'Title and slug are required.', section: 'details' });
 		}
 
 		const { error: err } = await locals.supabase
@@ -245,8 +260,7 @@ export const actions: Actions = {
 			.update({
 				title,
 				slug,
-				subteam_id: subteamId,
-				video_url: videoUrl,
+				subteam_id: null,
 				description
 			})
 			.eq('slug', params.slug);
@@ -255,6 +269,15 @@ export const actions: Actions = {
 
 		const { data: currentNode } = await locals.supabase.from('nodes').select('id').eq('slug', slug).single();
 		if (currentNode?.id) {
+			await locals.supabase.from('node_team_targets').delete().eq('node_id', currentNode.id);
+			if (teamIds.length > 0) {
+				await locals.supabase.from('node_team_targets').insert(
+					teamIds.map((teamId) => ({
+						node_id: currentNode.id,
+						team_id: teamId
+					}))
+				);
+			}
 			await locals.supabase.from('node_categories').delete().eq('node_id', currentNode.id);
 			if (categoryIds.length > 0) {
 				await locals.supabase.from('node_categories').insert(

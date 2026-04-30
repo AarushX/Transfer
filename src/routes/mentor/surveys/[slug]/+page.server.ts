@@ -68,9 +68,13 @@ const normalizeQuestions = (input: unknown) => {
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	const [{ data: survey }, { data: nodes }] = await Promise.all([
+	const [{ data: survey }, { data: nodes }, { data: teams }] = await Promise.all([
 		locals.supabase.from('surveys').select('*').eq('slug', params.slug).maybeSingle(),
-		locals.supabase.from('nodes').select('id,title').order('title')
+		locals.supabase.from('nodes').select('id,title').order('title'),
+		locals.supabase
+			.from('teams')
+			.select('id,slug,name,team_groups(name,slug)')
+			.order('name')
 	]);
 	if (!survey) throw error(404, 'Survey not found');
 	const { data: outcomeRuleRows } = await locals.supabase
@@ -96,6 +100,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		survey,
 		outcomeRulesJson,
 		nodes: nodes ?? [],
+		teams: teams ?? [],
 		prereqIds: (prereqs ?? []).map((row: any) => String(row.node_id)),
 		submissions: (submissions ?? []).map((row: any) => ({
 			...row,
