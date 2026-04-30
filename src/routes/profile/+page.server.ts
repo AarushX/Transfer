@@ -68,12 +68,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 					}
 				])
 		).values()
-	).sort((a, b) => a.name.localeCompare(b.name));
+	).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 	const primaryTeamGroupId = String(primaryTeamRow?.team_group_id ?? '');
 	const rankSummary = rankMap.get(user.id);
 	const courseCompletions = rankSummary?.courseCompletions ?? 0;
 	const progressSummary = `${courseCompletions} module${courseCompletions === 1 ? '' : 's'} completed`;
-	const subteamNameById = new Map((subteams ?? []).map((s: any) => [String(s.id), String(s.name)]));
+	const subteamNameById = new Map(
+		normalizedMemberships
+			.filter((row) => row.teamId && row.teamName)
+			.map((row) => [String(row.teamId), String(row.teamName)] as const)
+	);
 	const perTrack = new Map<string, number>();
 	const { data: completedRows } = await locals.supabase
 		.from('certifications')
@@ -181,9 +185,14 @@ export const actions: Actions = {
 				section: 'primary'
 			});
 		}
+		const { error: clearError } = await locals.supabase
+			.from('profile_primary_teams')
+			.delete()
+			.eq('user_id', user.id);
+		if (clearError) return fail(400, { error: clearError.message, section: 'primary' });
 		const { error } = await locals.supabase
 			.from('profile_primary_teams')
-			upsert({ user_id: user.id, team_group_id: teamGroupId }, { onConflict: 'user_id' });
+			.insert({ user_id: user.id, team_group_id: teamGroupId });
 		if (error) return fail(400, { error: error.message, section: 'primary' });
 		return { ok: true, section: 'primary' };
 	},

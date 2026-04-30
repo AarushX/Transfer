@@ -8,7 +8,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const { data: profiles } = await locals.supabase
 		.from('profiles')
-		.select('id,full_name,avatar_url')
+		.select('id,full_name,avatar_url,is_parent_guardian')
+		.neq('is_parent_guardian', true)
 		.order('full_name', { ascending: true });
 
 	const users = (profiles ?? []).map((row: any) => ({
