@@ -15,6 +15,7 @@
 		max_select?: number;
 		short_ignore_punctuation?: boolean;
 		short_ignore_case?: boolean;
+		short_required?: boolean;
 	};
 
 	let {
@@ -130,6 +131,7 @@
 					return columns.some((col) => !String(rowMap[col] ?? '').trim());
 				});
 			}
+			if (q.type === 'short' && q.short_required === false) return false;
 			return !String(answers[q.id] ?? '').trim();
 		}).length
 	);
@@ -523,7 +525,7 @@
 						value={typeof answers[question.id] === 'string' ? answers[question.id] : ''}
 						oninput={(event) => (answers[question.id] = (event.currentTarget as HTMLInputElement).value)}
 						placeholder="Your answer"
-						required
+						required={question.short_required !== false}
 						disabled={submitting || !allowSubmit}
 					/>
 				{/if}

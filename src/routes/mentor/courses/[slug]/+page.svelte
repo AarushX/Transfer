@@ -13,6 +13,7 @@
 		max_select?: number;
 		short_ignore_punctuation?: boolean;
 		short_ignore_case?: boolean;
+		short_required?: boolean;
 	};
 
 	type VideoConfig = {
@@ -358,6 +359,7 @@ const teamsByGroup = $derived.by(() => {
 			if (Array.isArray(q.correct)) q.correct = q.correct[0] ?? '';
 			if (q.short_ignore_punctuation == null) q.short_ignore_punctuation = false;
 			if (q.short_ignore_case == null) q.short_ignore_case = true;
+			if (q.short_required == null) q.short_required = true;
 		}
 	}
 
@@ -927,6 +929,14 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 													<label class="inline-flex items-center gap-2">
 														<input
 															type="checkbox"
+															checked={q.short_required ?? true}
+															onchange={(e) => (q.short_required = (e.currentTarget as HTMLInputElement).checked)}
+														/>
+														Required response
+													</label>
+													<label class="inline-flex items-center gap-2">
+														<input
+															type="checkbox"
 															checked={q.short_ignore_case ?? true}
 															onchange={(e) => (q.short_ignore_case = (e.currentTarget as HTMLInputElement).checked)}
 														/>
@@ -942,6 +952,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 														Ignore periods/punctuation
 													</label>
 												</div>
+												<p class="text-xs text-slate-500">
+													Set expected answer to <code>acknowledged</code> to give credit for any non-empty response.
+												</p>
 											{/if}
 										</div>
 									{:else}

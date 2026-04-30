@@ -20,9 +20,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			? { data: [] as any[] }
 			: await locals.supabase
 					.from('certifications')
-					.select('user_id,status,quiz_score,updated_at,nodes!inner(slug,title)')
+					.select('user_id,status,quiz_score,quiz_passed_at,completed_at,nodes!inner(slug,title)')
 					.in('user_id', parentIds)
-					.eq('status', 'completed')
 					.eq('nodes.slug', 'parent-application');
 	const completedByParent = new Map<string, any[]>();
 	for (const row of completedCourses ?? []) {

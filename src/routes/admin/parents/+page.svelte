@@ -28,7 +28,11 @@
 						<p class="mt-1 text-sm text-slate-300">
 							{completion.nodes?.title || 'Parent Application'}
 							<span class="text-xs text-slate-500">
-								· {completion.updated_at ? new Date(completion.updated_at).toLocaleString() : 'completed'}
+								· {completion.completed_at
+									? new Date(completion.completed_at).toLocaleString()
+									: completion.quiz_passed_at
+										? `quiz passed ${new Date(completion.quiz_passed_at).toLocaleString()}`
+										: completion.status}
 								{#if completion.quiz_score != null}
 									· score {completion.quiz_score}%
 								{/if}

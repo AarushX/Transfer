@@ -520,13 +520,23 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'Invalid true/false answer submitted.' }, { status: 400 });
 		}
 		if (questionType === 'short') {
-			if (rawAnswer.length < shortAnswerMinChars) {
+			const isRequired =
+				question.short_required == null ? true : Boolean(question.short_required);
+			const trimmedAnswer = rawAnswer.trim();
+			if (!trimmedAnswer) {
+				if (isRequired) {
+					return json({ error: 'Please answer all required short-answer questions.' }, { status: 400 });
+				}
+				correct += 1;
+				continue;
+			}
+			if (trimmedAnswer.length < shortAnswerMinChars) {
 				return json(
 					{ error: `Short answers must be at least ${shortAnswerMinChars} characters.` },
 					{ status: 400 }
 				);
 			}
-			if (rawAnswer.length > shortAnswerMaxChars) {
+			if (trimmedAnswer.length > shortAnswerMaxChars) {
 				return json(
 					{ error: `Short answers must be at most ${shortAnswerMaxChars} characters.` },
 					{ status: 400 }
@@ -535,7 +545,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const ignoreCase =
 				question.short_ignore_case == null ? true : Boolean(question.short_ignore_case);
 			const ignorePunctuation = Boolean(question.short_ignore_punctuation);
-			const normalizedAnswer = normalizeShortAnswer(rawAnswer, {
+			const normalizedAnswer = normalizeShortAnswer(trimmedAnswer, {
 				ignoreCase,
 				ignorePunctuation
 			});
@@ -543,6 +553,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				ignoreCase,
 				ignorePunctuation
 			});
+			if (normalizedExpected === 'acknowledged') {
+				correct += 1;
+				continue;
+			}
 			if (normalizedAnswer === normalizedExpected) correct += 1;
 			continue;
 		}

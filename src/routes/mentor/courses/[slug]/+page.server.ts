@@ -45,6 +45,7 @@ function normalizeQuizConfig(raw: any) {
 			max_select?: number;
 			short_ignore_punctuation?: boolean;
 			short_ignore_case?: boolean;
+			short_required?: boolean;
 		}> = [];
 		for (let i = 0; i < list.length; i += 1) {
 			const rawQuestion = (list[i] ?? {}) as Record<string, unknown>;
@@ -69,6 +70,8 @@ function normalizeQuizConfig(raw: any) {
 					: Boolean(rawQuestion.short_ignore_punctuation);
 			const shortIgnoreCase =
 				rawQuestion.short_ignore_case == null ? true : Boolean(rawQuestion.short_ignore_case);
+			const shortRequired =
+				rawQuestion.short_required == null ? true : Boolean(rawQuestion.short_required);
 
 			if (safeType === 'mc' || safeType === 'ms') {
 				const options = (Array.isArray(rawQuestion.options) ? rawQuestion.options : [])
@@ -206,7 +209,8 @@ function normalizeQuizConfig(raw: any) {
 				type: 'short',
 				correct: String(rawQuestion.correct ?? '').trim(),
 				short_ignore_punctuation: shortIgnorePunctuation,
-				short_ignore_case: shortIgnoreCase
+				short_ignore_case: shortIgnoreCase,
+				short_required: shortRequired
 			});
 		}
 		return out;
@@ -520,7 +524,14 @@ export const actions: Actions = {
 							(maxSelect != null && question.correct.length > maxSelect)
 						);
 					}
-					if (question.type === 'short') return !String(question.correct ?? '').trim();
+					if (question.type === 'short') {
+						const required =
+							(question as { short_required?: boolean }).short_required == null
+								? true
+								: Boolean((question as { short_required?: boolean }).short_required);
+						if (!required) return false;
+						return !String(question.correct ?? '').trim();
+					}
 					return false;
 				});
 				if (invalidQuestion) {
@@ -559,7 +570,13 @@ export const actions: Actions = {
 							continue;
 						}
 					}
-					if (invalidQuestion.type === 'short' && !String(invalidQuestion.correct ?? '').trim()) {
+					if (
+						invalidQuestion.type === 'short' &&
+						((invalidQuestion as { short_required?: boolean }).short_required == null
+							? true
+							: Boolean((invalidQuestion as { short_required?: boolean }).short_required)) &&
+						!String(invalidQuestion.correct ?? '').trim()
+					) {
 						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: expected short-answer text is required.`;
 						continue;
 					}
