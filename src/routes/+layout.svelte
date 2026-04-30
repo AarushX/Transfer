@@ -20,8 +20,10 @@
 	type NavItem = { href: string; label: string; match?: (p: string) => boolean };
 
 	const primary: NavItem[] = [
+		...(data.needsOnboarding
+			? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }]
+			: []),
 		{ href: '/dashboard', label: 'Dashboard' },
-		...(data.needsOnboarding ? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }] : []),
 		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
 		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
@@ -164,7 +166,15 @@
 							<a
 								href={item.href}
 								onclick={() => (mobileOpen = false)}
-								class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${isActive(item, page.url.pathname) ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800'}`}
+								class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${
+									item.href === '/onboarding'
+										? isActive(item, page.url.pathname)
+											? 'bg-amber-400 text-slate-950 shadow-sm'
+											: 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30'
+										: isActive(item, page.url.pathname)
+											? 'bg-slate-700 text-white shadow-sm'
+											: 'text-slate-300 hover:bg-slate-800'
+								}`}
 							>
 								{item.label}
 							</a>

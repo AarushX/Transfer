@@ -153,7 +153,7 @@
 						<div
 							in:fly={{ y: 20, duration: 260 }}
 							out:fade={{ duration: 180 }}
-							class="mx-auto aspect-square w-[min(92vw,50rem)] rounded-3xl border-[14px] border-red-500 bg-white p-6 shadow-[0_0_48px_rgba(239,68,68,0.36)]"
+							class="mx-auto aspect-square w-[min(56vw,30rem)] rounded-3xl border-[14px] border-red-500 bg-white p-6 shadow-[0_0_48px_rgba(239,68,68,0.36)]"
 						>
 							<img
 								src={studentQrDataUrl}

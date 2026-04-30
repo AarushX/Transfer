@@ -160,56 +160,65 @@
 		</div>
 	</div>
 
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-		<h2 class="text-lg font-semibold">Admin Manual Controls</h2>
-		<p class="mt-1 text-xs text-slate-400">Manual activate/deactivate plus forced check-in/check-out.</p>
-		<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
-			<select class="rounded bg-slate-800 px-3 py-2 text-sm" bind:value={adminAttendeeUserId}>
-				<option value="">Select member for check-in/out...</option>
-				{#each data.members as member}
-					<option value={member.id}>{member.label}</option>
-				{/each}
-			</select>
-			<input
-				class="rounded bg-slate-800 px-3 py-2 text-sm"
-				placeholder="Note (optional)"
-				bind:value={adminNote}
-				maxlength="300"
-			/>
-			<button
-				class="rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-				disabled={adminActionPending}
-				onclick={() => runAdminAction('activate')}
-			>
-				Activate
-			</button>
-			<button
-				class="rounded bg-rose-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-				disabled={adminActionPending}
-				onclick={() => runAdminAction('deactivate')}
-			>
-				Deactivate
-			</button>
+	<div class="grid gap-4 lg:grid-cols-2">
+		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<h2 class="text-lg font-semibold">Manual Kiosk Toggle</h2>
+			<p class="mt-1 text-xs text-slate-400">Directly activate or deactivate the attendance display.</p>
+			<div class="mt-3 grid gap-2 md:grid-cols-2">
+				<button
+					class="rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+					disabled={adminActionPending}
+					onclick={() => runAdminAction('activate')}
+				>
+					Activate
+				</button>
+				<button
+					class="rounded bg-rose-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+					disabled={adminActionPending}
+					onclick={() => runAdminAction('deactivate')}
+				>
+					Deactivate
+				</button>
+			</div>
 		</div>
-		<div class="mt-2 grid gap-2 md:grid-cols-2">
-			<button
-				class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
-				disabled={adminActionPending || !adminAttendeeUserId}
-				onclick={() => runAdminAction('check_in')}
-			>
-				Manual Check In
-			</button>
-			<button
-				class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
-				disabled={adminActionPending || !adminAttendeeUserId}
-				onclick={() => runAdminAction('check_out')}
-			>
-				Manual Check Out
-			</button>
+
+		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<h2 class="text-lg font-semibold">Manual Member Attendance</h2>
+			<p class="mt-1 text-xs text-slate-400">Forced check-in/check-out actions for a selected member.</p>
+			<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr]">
+				<select class="rounded bg-slate-800 px-3 py-2 text-sm" bind:value={adminAttendeeUserId}>
+					<option value="">Select member for check-in/out...</option>
+					{#each data.members as member}
+						<option value={member.id}>{member.label}</option>
+					{/each}
+				</select>
+				<input
+					class="rounded bg-slate-800 px-3 py-2 text-sm"
+					placeholder="Note (optional)"
+					bind:value={adminNote}
+					maxlength="300"
+				/>
+			</div>
+			<div class="mt-2 grid gap-2 md:grid-cols-2">
+				<button
+					class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
+					disabled={adminActionPending || !adminAttendeeUserId}
+					onclick={() => runAdminAction('check_in')}
+				>
+					Manual Check In
+				</button>
+				<button
+					class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
+					disabled={adminActionPending || !adminAttendeeUserId}
+					onclick={() => runAdminAction('check_out')}
+				>
+					Manual Check Out
+				</button>
+			</div>
 		</div>
-		{#if adminActionMessage}<p class="mt-2 text-xs text-emerald-300">{adminActionMessage}</p>{/if}
-		{#if adminActionError}<p class="mt-2 text-xs text-red-300">{adminActionError}</p>{/if}
 	</div>
+	{#if adminActionMessage}<p class="mt-2 text-xs text-emerald-300">{adminActionMessage}</p>{/if}
+	{#if adminActionError}<p class="mt-2 text-xs text-red-300">{adminActionError}</p>{/if}
 
 	<div class="space-y-3">
 		<h2 class="text-lg font-semibold">Member Sessions</h2>
