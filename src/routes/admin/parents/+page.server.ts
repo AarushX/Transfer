@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { isAdmin } from '$lib/roles';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { profile } = await locals.safeGetSession();
@@ -15,10 +16,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const parentIds = Array.from(
 		new Set((data ?? []).map((row: any) => String(row.parent_user_id)).filter(Boolean))
 	);
+	const supabaseAdmin = createSupabaseServiceClient();
 	const { data: completedCourses } =
 		parentIds.length === 0
 			? { data: [] as any[] }
-			: await locals.supabase
+			: await supabaseAdmin
 					.from('certifications')
 					.select('user_id,status,quiz_score,quiz_passed_at,completed_at,nodes!inner(slug,title)')
 					.in('user_id', parentIds)
