@@ -8,6 +8,8 @@ import {
 } from '$lib/server/attendance';
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const scanAppUrl = `${process.env.PUBLIC_APP_URL || 'https://transfer.circuitrunners.com'}/scan`;
+	const installPwaQrDataUrl = await QRCode.toDataURL(scanAppUrl);
 	const { data: displaySessions, error } = await locals.supabase
 		.from('attendance_display_sessions')
 		.select('id,activated_at')
@@ -19,6 +21,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			authorized: true,
 			isActive: false,
 			bucket: attendanceHourBucket(),
+			scanAppUrl,
+			installPwaQrDataUrl,
 			studentQrDataUrl: await QRCode.toDataURL(ATTENDANCE_PUBLIC_ACTIVATION_QR),
 			mentorQrDataUrl: await QRCode.toDataURL(ATTENDANCE_PUBLIC_ACTIVATION_QR)
 		};
@@ -34,6 +38,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		authorized: true,
 		isActive,
 		bucket,
+		scanAppUrl,
+		installPwaQrDataUrl,
 		studentQrDataUrl,
 		mentorQrDataUrl
 	};

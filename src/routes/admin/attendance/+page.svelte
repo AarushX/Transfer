@@ -2,6 +2,11 @@
 	let { data } = $props();
 	let query = $state('');
 	let dayFilter = $state('');
+	let adminAttendeeUserId = $state('');
+	let adminNote = $state('');
+	let adminActionPending = $state(false);
+	let adminActionMessage = $state('');
+	let adminActionError = $state('');
 
 	type AttendanceRow = (typeof data.sessions)[number];
 	type EventRow = (typeof data.events)[number];
@@ -27,6 +32,8 @@
 		({
 			check_in: 'Check in',
 			check_out: 'Check out',
+			manual_check_in: 'Manual check in',
+			guest_sign_in: 'Guest sign in',
 			display_activate: 'Display activated',
 			display_deactivate: 'Display deactivated'
 		})[action] ?? action;
@@ -71,6 +78,42 @@
 	);
 	const timelineFor = (row: AttendanceRow) =>
 		eventsBySession.get(`${row.attendee_user_id}:${row.attendance_day}`) ?? [];
+
+	const runAdminAction = async (action: 'activate' | 'deactivate' | 'check_in' | 'check_out') => {
+		if (adminActionPending) return;
+		if ((action === 'check_in' || action === 'check_out') && !adminAttendeeUserId) {
+			adminActionError = 'Choose a member first.';
+			adminActionMessage = '';
+			return;
+		}
+		adminActionPending = true;
+		adminActionError = '';
+		adminActionMessage = '';
+		try {
+			const res = await fetch('/api/attendance/admin/manual', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					action,
+					attendeeUserId: adminAttendeeUserId || null,
+					note: adminNote.trim() || null
+				})
+			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				adminActionError = body?.error ?? 'Manual attendance action failed.';
+				return;
+			}
+			adminActionMessage = `Manual ${action.replace('_', ' ')} recorded.`;
+			adminNote = '';
+			await fetch('/api/attendance/public/refresh', { method: 'POST' }).catch(() => null);
+			location.reload();
+		} catch {
+			adminActionError = 'Network error. Try again.';
+		} finally {
+			adminActionPending = false;
+		}
+	};
 </script>
 
 <section class="space-y-6">
@@ -117,6 +160,57 @@
 		</div>
 	</div>
 
+	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+		<h2 class="text-lg font-semibold">Admin Manual Controls</h2>
+		<p class="mt-1 text-xs text-slate-400">Manual activate/deactivate plus forced check-in/check-out.</p>
+		<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+			<select class="rounded bg-slate-800 px-3 py-2 text-sm" bind:value={adminAttendeeUserId}>
+				<option value="">Select member for check-in/out...</option>
+				{#each data.members as member}
+					<option value={member.id}>{member.label}</option>
+				{/each}
+			</select>
+			<input
+				class="rounded bg-slate-800 px-3 py-2 text-sm"
+				placeholder="Note (optional)"
+				bind:value={adminNote}
+				maxlength="300"
+			/>
+			<button
+				class="rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+				disabled={adminActionPending}
+				onclick={() => runAdminAction('activate')}
+			>
+				Activate
+			</button>
+			<button
+				class="rounded bg-rose-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+				disabled={adminActionPending}
+				onclick={() => runAdminAction('deactivate')}
+			>
+				Deactivate
+			</button>
+		</div>
+		<div class="mt-2 grid gap-2 md:grid-cols-2">
+			<button
+				class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
+				disabled={adminActionPending || !adminAttendeeUserId}
+				onclick={() => runAdminAction('check_in')}
+			>
+				Manual Check In
+			</button>
+			<button
+				class="rounded border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
+				disabled={adminActionPending || !adminAttendeeUserId}
+				onclick={() => runAdminAction('check_out')}
+			>
+				Manual Check Out
+			</button>
+		</div>
+		{#if adminActionMessage}<p class="mt-2 text-xs text-emerald-300">{adminActionMessage}</p>{/if}
+		{#if adminActionError}<p class="mt-2 text-xs text-red-300">{adminActionError}</p>{/if}
+	</div>
+
 	<div class="space-y-3">
 		<h2 class="text-lg font-semibold">Member Sessions</h2>
 		{#each filteredSessions as row (row.id)}
@@ -127,6 +221,9 @@
 					<span class={`rounded px-2 py-0.5 text-xs ${row.check_out_at ? 'bg-sky-900/30 text-sky-200' : 'bg-amber-900/30 text-amber-200'}`}>
 						{row.check_out_at ? 'Checked out' : 'Checked in'}
 					</span>
+					{#if row.counts_for_rank === false}
+						<span class="rounded bg-violet-900/30 px-2 py-0.5 text-xs text-violet-200">No RR points</span>
+					{/if}
 				</div>
 				<div class="mt-2 grid gap-2 text-sm md:grid-cols-3">
 					<p><span class="text-slate-400">Check in:</span> {formatDateTime(row.check_in_at)}</p>
@@ -192,5 +289,37 @@
 				</tbody>
 			</table>
 		</div>
+	</div>
+
+	<div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900">
+		<div class="border-b border-slate-800 px-4 py-3">
+			<p class="text-sm font-semibold">Guest Sign-Ins (Separate Admin View)</p>
+		</div>
+		<table class="min-w-full text-sm">
+			<thead class="bg-slate-800 text-left">
+				<tr>
+					<th class="p-2">Day</th>
+					<th class="p-2">Guest</th>
+					<th class="p-2">Reason</th>
+					<th class="p-2">Created by</th>
+					<th class="p-2">Created at</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.guestSignins as row (row.id)}
+					<tr class="border-t border-slate-800">
+						<td class="p-2">{row.attendance_day}</td>
+						<td class="p-2">{row.guest_name}</td>
+						<td class="p-2">{row.reason || '—'}</td>
+						<td class="p-2">{personLabel(row.createdBy, row.created_by_user_id)}</td>
+						<td class="p-2">{formatDateTime(row.created_at)}</td>
+					</tr>
+				{:else}
+					<tr class="border-t border-slate-800">
+						<td colspan="5" class="p-3 text-slate-400">No guest sign-ins yet.</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
 	</div>
 </section>

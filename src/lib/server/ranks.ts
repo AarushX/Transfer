@@ -17,6 +17,7 @@ type AttendanceRow = {
 	attendee_user_id: string;
 	check_in_at: string;
 	check_out_at: string | null;
+	counts_for_rank?: boolean | null;
 };
 
 type SegmentProgressRow = {
@@ -132,7 +133,7 @@ export async function computeUserRanks(
 			.eq('status', 'completed'),
 		supabase
 			.from('attendance_daily_sessions')
-			.select('attendee_user_id,check_in_at,check_out_at')
+			.select('attendee_user_id,check_in_at,check_out_at,counts_for_rank')
 			.in('attendee_user_id', ids),
 		supabase
 			.from('user_node_segment_progress')
@@ -156,6 +157,7 @@ export async function computeUserRanks(
 	const attendanceByUser = new Map<string, number>();
 	const attendanceHoursByUser = new Map<string, number>();
 	for (const row of attendance) {
+		if (row.counts_for_rank === false) continue;
 		const key = String(row.attendee_user_id);
 		attendanceByUser.set(key, (attendanceByUser.get(key) ?? 0) + 1);
 		const startMs = new Date(row.check_in_at).getTime();
