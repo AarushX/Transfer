@@ -72,6 +72,16 @@
 
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
 	const isAttendanceKiosk = $derived(page.url.pathname === '/attendance');
+	const themeVars = $derived(
+		`--app-bg:${data.orgTheme?.background ?? '#020617'};` +
+			`--app-surface:${data.orgTheme?.surface ?? '#0f172a'};` +
+			`--app-surface-alt:${data.orgTheme?.surfaceAlt ?? '#1e293b'};` +
+			`--app-border:${data.orgTheme?.border ?? '#334155'};` +
+			`--app-text:${data.orgTheme?.text ?? '#e2e8f0'};` +
+			`--app-text-muted:${data.orgTheme?.textMuted ?? '#94a3b8'};` +
+			`--app-accent:${data.orgTheme?.accent ?? '#facc15'};` +
+			`--app-accent-text:${data.orgTheme?.accentText ?? '#0f172a'};`
+	);
 
 	const handleInstallClick = async () => {
 		if (!installPromptEvent) return;
@@ -121,16 +131,17 @@
 </script>
 
 <svelte:head>
+	<title>{data.orgName} · Transfer</title>
 	<link rel="icon" href={favicon} />
 	<meta name="theme-color" content="#020617" />
 </svelte:head>
 
 {#if isAttendanceKiosk}
-	<main class="min-h-dvh bg-slate-950 text-slate-100">
+	<main class="min-h-dvh bg-slate-950 text-slate-100" style={themeVars}>
 		{@render children()}
 	</main>
 {:else}
-	<div class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden">
+	<div class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden" style={themeVars}>
 		<!-- Sidebar -->
 		<aside
 			class={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-700 bg-slate-900 pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -169,12 +180,19 @@
 								class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${
 									item.href === '/onboarding'
 										? isActive(item, page.url.pathname)
-											? 'bg-amber-400 text-slate-950 shadow-sm'
-											: 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30'
+											? 'shadow-sm'
+											: ''
 										: isActive(item, page.url.pathname)
 											? 'bg-slate-700 text-white shadow-sm'
 											: 'text-slate-300 hover:bg-slate-800'
 								}`}
+								style={
+									item.href === '/onboarding'
+										? isActive(item, page.url.pathname)
+											? `background: var(--app-accent); color: var(--app-accent-text);`
+											: `background: color-mix(in srgb, var(--app-accent) 22%, transparent); color: color-mix(in srgb, var(--app-accent) 55%, white);`
+										: ''
+								}
 							>
 								{item.label}
 							</a>

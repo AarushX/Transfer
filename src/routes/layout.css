@@ -1,10 +1,21 @@
 @import 'tailwindcss';
 
+:root {
+	--app-bg: #020617;
+	--app-surface: #0f172a;
+	--app-surface-alt: #1e293b;
+	--app-border: #334155;
+	--app-text: #e2e8f0;
+	--app-text-muted: #94a3b8;
+	--app-accent: #facc15;
+	--app-accent-text: #0f172a;
+}
+
 html,
 body {
 	height: 100%;
-	background-color: #020617;
-	color: #e2e8f0;
+	background-color: var(--app-bg);
+	color: var(--app-text);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -15,13 +26,13 @@ body {
 }
 
 ::selection {
-	background: rgba(148, 163, 184, 0.35);
-	color: #f8fafc;
+	background: color-mix(in srgb, var(--app-accent) 35%, transparent);
+	color: var(--app-text);
 }
 
 * {
 	scrollbar-width: thin;
-	scrollbar-color: rgba(100, 116, 139, 0.6) transparent;
+	scrollbar-color: color-mix(in srgb, var(--app-text-muted) 55%, transparent) transparent;
 }
 
 @media (min-width: 768px) {
