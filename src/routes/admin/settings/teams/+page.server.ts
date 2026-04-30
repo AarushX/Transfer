@@ -73,7 +73,7 @@ export const actions: Actions = {
 			sort_order: numberFrom(form.get('team_sort_order'))
 		});
 		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'team' };
+		return { ok: true, section: 'team', selectedTeamId: String(teamGroupId) };
 	},
 	createSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
@@ -108,7 +108,12 @@ export const actions: Actions = {
 			const { error: linkError } = await locals.supabase.from('team_group_subteam_links').insert(linkRows);
 			if (linkError) return fail(400, { error: linkError.message });
 		}
-		return { ok: true, section: 'subteam' };
+		return {
+			ok: true,
+			section: 'subteam',
+			selectedTeamId: String(teamGroupId),
+			selectedSubteamId: String(created.id)
+		};
 	},
 	updateTeam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
@@ -132,13 +137,14 @@ export const actions: Actions = {
 			})
 			.eq('id', teamGroupId);
 		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'team-update' };
+		return { ok: true, section: 'team-update', selectedTeamId: String(teamGroupId) };
 	},
 	updateSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
 		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const subteamId = String(form.get('subteam_id') ?? '').trim();
+		const requestedTeamGroupId = String(form.get('team_group_id') ?? '').trim();
 		const name = String(form.get('subteam_name') ?? '').trim();
 		const slugInput = String(form.get('subteam_slug') ?? '').trim();
 		const slug = slugify(slugInput || name);
@@ -155,11 +161,12 @@ export const actions: Actions = {
 			.maybeSingle();
 		if (subteamReadError) return fail(400, { error: subteamReadError.message });
 		if (!subteam) return fail(404, { error: 'Subteam not found.' });
-		const primaryGroupId = String(subteam.team_group_id);
+		const primaryGroupId = requestedTeamGroupId || String(subteam.team_group_id);
 		const allLinks = Array.from(new Set([primaryGroupId, ...linkedTeamGroupIds]));
 		const { error } = await locals.supabase
 			.from('teams')
 			.update({
+				team_group_id: primaryGroupId,
 				name,
 				slug,
 				color_hex: colorOr(colorHex, '#334155'),
@@ -175,7 +182,12 @@ export const actions: Actions = {
 			);
 			if (linkError) return fail(400, { error: linkError.message });
 		}
-		return { ok: true, section: 'subteam-style' };
+		return {
+			ok: true,
+			section: 'subteam-style',
+			selectedTeamId: primaryGroupId,
+			selectedSubteamId: String(subteamId)
+		};
 	},
 	deleteTeam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
@@ -201,9 +213,17 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const subteamId = String(form.get('subteam_id') ?? '').trim();
 		if (!subteamId) return fail(400, { error: 'Subteam is required.' });
+		const { data: subteam, error: subteamReadError } = await locals.supabase
+			.from('teams')
+			.select('id,team_group_id')
+			.eq('id', subteamId)
+			.maybeSingle();
+		if (subteamReadError) return fail(400, { error: subteamReadError.message });
+		if (!subteam) return fail(404, { error: 'Subteam not found.' });
+		const primaryGroupId = String(subteam.team_group_id);
 		const { error } = await locals.supabase.from('teams').delete().eq('id', subteamId);
 		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'subteam-delete' };
+		return { ok: true, section: 'subteam-delete', selectedTeamId: primaryGroupId };
 	},
 	createCategory: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
@@ -289,7 +309,7 @@ export const actions: Actions = {
 				.in('node_id', removeIds);
 			if (deleteErr) return fail(400, { error: deleteErr.message });
 		}
-		return { ok: true, section: 'team-courses' };
+		return { ok: true, section: 'team-courses', selectedTeamId: String(teamGroupId) };
 	},
 	saveSubteamCourses: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
@@ -324,6 +344,17 @@ export const actions: Actions = {
 				.in('node_id', removeIds);
 			if (deleteErr) return fail(400, { error: deleteErr.message });
 		}
-		return { ok: true, section: 'subteam-courses' };
+		const { data: subteam, error: subteamReadError } = await locals.supabase
+			.from('teams')
+			.select('id,team_group_id')
+			.eq('id', subteamId)
+			.maybeSingle();
+		if (subteamReadError) return fail(400, { error: subteamReadError.message });
+		return {
+			ok: true,
+			section: 'subteam-courses',
+			selectedTeamId: String(subteam?.team_group_id ?? ''),
+			selectedSubteamId: String(subteamId)
+		};
 	}
 };

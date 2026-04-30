@@ -198,6 +198,16 @@
 		const mapped = sectionByAction[section];
 		if (mapped) activeSection = mapped;
 	});
+	$effect(() => {
+		const nextTeamId = String(form?.selectedTeamId ?? '');
+		if (nextTeamId && teamGroups.some((team) => String(team.id) === nextTeamId)) {
+			selectedTeamId = nextTeamId;
+		}
+		const nextSubteamId = String(form?.selectedSubteamId ?? '');
+		if (nextSubteamId && subteams.some((subteam) => String(subteam.id) === nextSubteamId)) {
+			selectedSubteamId = nextSubteamId;
+		}
+	});
 	const setSelectedTeamId = (id: string) => (selectedTeamId = id);
 	const setSelectedSubteamId = (id: string) => (selectedSubteamId = id);
 	const setTeamCourseSearch = (value: string) => (teamCourseSearch = value);

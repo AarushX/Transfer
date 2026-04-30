@@ -53,6 +53,7 @@
 		<form method="POST" action="?/updateSubteam" class="space-y-2 rounded-xl border border-slate-800 bg-slate-900 p-4">
 			<h2 class="font-semibold">Edit Subteam</h2>
 			<input type="hidden" name="subteam_id" value={selectedSubteam.id} />
+			<input type="hidden" name="team_group_id" value={selectedTeamId} />
 			<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" name="subteam_name" value={selectedSubteam.name} required />
 			<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" name="subteam_slug" value={selectedSubteam.slug} required />
 			<select class="w-full rounded bg-slate-800 px-2 py-2 text-sm" name="subteam_category_slug" value={selectedSubteam.category_slug ?? ''} required>
