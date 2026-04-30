@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const categoryTone = (slug: string) => {
 		if (slug === 'technical') return 'bg-sky-900/30 text-sky-100 border-sky-700/50';
@@ -8,6 +8,18 @@
 		if (slug.startsWith('ftc')) return 'bg-indigo-900/30 text-indigo-100 border-indigo-700/50';
 		return 'bg-slate-800 text-slate-200 border-slate-700';
 	};
+	const statusLabel = (status: string) =>
+		({
+			available: 'Not started',
+			video_pending: 'Watching',
+			quiz_pending: 'Ready for quiz',
+			mentor_checkoff_pending: 'Awaiting mentor checkoff',
+			completed: 'Completed'
+		})[status] ?? status;
+	const currentTeamIdForCategory = (categorySlug: string) =>
+		(data.userTeamRows as Array<{ team_id: string; category_slug?: string | null }>)
+			.find((row) => String(row.category_slug ?? '') === categorySlug)
+			?.team_id ?? '';
 </script>
 
 <section class="space-y-6">
@@ -16,6 +28,11 @@
 		<h1 class="mt-1 text-2xl font-semibold">{data.member.full_name || data.member.email}</h1>
 		<p class="text-sm text-slate-400">{data.member.email} · {data.member.role}</p>
 	</div>
+	{#if form?.error}
+		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+	{:else if form?.ok}
+		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">Saved.</p>
+	{/if}
 
 	<div class="grid gap-4 md:grid-cols-3">
 		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -39,13 +56,21 @@
 		</div>
 	</div>
 
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-		<h2 class="text-lg font-semibold">Completed courses</h2>
+	<div id="course-results" class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+		<h2 class="text-lg font-semibold">Course and Test Results</h2>
 		<div class="mt-3 space-y-2">
-			{#each data.completedCourses as course}
+			{#each data.courseResults as course}
 				<div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-					<p class="font-medium">{course.nodes?.title}</p>
-					<p class="text-xs text-slate-500">{course.nodes?.slug}</p>
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p class="font-medium">{course.nodes?.title}</p>
+							<p class="text-xs text-slate-500">{course.nodes?.slug}</p>
+						</div>
+						<span class="rounded bg-slate-800 px-2 py-0.5 text-xs">{statusLabel(course.status)}</span>
+					</div>
+					<p class="mt-2 text-xs text-slate-400">
+						Quiz score: {course.quiz_score ?? '—'} · Quiz passed: {course.quiz_passed_at ? new Date(course.quiz_passed_at).toLocaleString() : '—'} · Approved: {course.approved_at ? new Date(course.approved_at).toLocaleString() : '—'}
+					</p>
 					<div class="mt-2 flex flex-wrap gap-1">
 						{#each course.categories as category}
 							<span class={`rounded border px-2 py-0.5 text-[11px] ${categoryTone(category.slug)}`}>
@@ -55,34 +80,45 @@
 					</div>
 				</div>
 			{:else}
-				<p class="text-sm text-slate-400">No completed courses yet.</p>
+				<p class="text-sm text-slate-400">No course records yet.</p>
 			{/each}
 		</div>
 	</div>
 
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-		<h2 class="text-lg font-semibold">Attendance history</h2>
-		<div class="mt-3 overflow-x-auto">
-			<table class="min-w-full text-sm">
-				<thead class="text-left text-xs uppercase text-slate-400">
-					<tr>
-						<th class="px-2 py-1">Day</th>
-						<th class="px-2 py-1">Check in</th>
-						<th class="px-2 py-1">Check out</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.attendanceSessions as session}
-						<tr class="border-t border-slate-800">
-							<td class="px-2 py-1">{session.attendance_day}</td>
-							<td class="px-2 py-1">{session.check_in_at ? new Date(session.check_in_at).toLocaleString() : '—'}</td>
-							<td class="px-2 py-1">{session.check_out_at ? new Date(session.check_out_at).toLocaleString() : '—'}</td>
-						</tr>
-					{:else}
-						<tr><td class="px-2 py-3 text-slate-400" colspan="3">No attendance records yet.</td></tr>
-					{/each}
-				</tbody>
-			</table>
+	{#if data.canManageUsers}
+		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<h2 class="text-lg font-semibold">Admin: Team assignments</h2>
+			<form method="POST" action="?/setUserTeams" class="mt-3 space-y-2">
+				<label class="flex flex-col gap-1 text-xs">
+					<span>Main team</span>
+					<select class="rounded bg-slate-800 px-2 py-1.5" name="primary_team_group_id" required>
+						<option value="">Select main team</option>
+						{#each data.teamGroups as teamGroup}
+							<option value={teamGroup.id} selected={String(teamGroup.id) === String(data.currentPrimaryTeamGroupId)}>
+								{teamGroup.name}
+							</option>
+						{/each}
+					</select>
+				</label>
+				{#each data.requiredCategories as category}
+					{@const categorySlug = String(category.slug)}
+					<label class="flex flex-col gap-1 text-xs">
+						<span>{category.name} subteam</span>
+						<select class="rounded bg-slate-800 px-2 py-1.5" name={`team_id_${categorySlug}`} required>
+							<option value="">Select {String(category.name).toLowerCase()} subteam</option>
+							{#each data.subteams as subteam}
+								{#if String(subteam.category_slug ?? '') === categorySlug}
+									<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === String(subteam.id)}>
+										{subteam.name}
+									</option>
+								{/if}
+							{/each}
+						</select>
+					</label>
+				{/each}
+				<button class="rounded border border-slate-700 px-2 py-1 text-xs">Save team assignments</button>
+			</form>
 		</div>
-	</div>
+	{/if}
+
 </section>

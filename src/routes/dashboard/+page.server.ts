@@ -20,10 +20,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		blockRowsResp,
 		blockProgressResp,
 		trainingData,
-		surveysResp,
-		surveyPrereqResp,
-		surveySubmissionResp,
-		coursesDashboard
+		coursesDashboard,
+		requiredCategoriesResp,
+		teamGroupsResp,
+		teamsResp,
+		primaryTeamResp
 	] = await Promise.all([
 		locals.supabase
 			.from('nodes')
@@ -34,8 +35,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.select('node_id,computed_status')
 			.eq('user_id', user.id),
 		locals.supabase.from('subteams').select('id,name,slug').order('name'),
-		locals.supabase.from('profile_teams').select('team_id').eq('user_id', user.id),
-		locals.supabase.from('profile_teams').select('team_group_id').eq('user_id', user.id),
+		locals.supabase
+			.from('profile_teams')
+			.select('team_id,team_group_id,category_slug')
+			.eq('user_id', user.id),
+		locals.supabase
+			.from('profile_teams')
+			.select('team_group_id,team_groups(designator)')
+			.eq('user_id', user.id),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
 		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
 		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id'),
@@ -50,29 +57,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.select('node_id,block_id,completed_at')
 			.eq('user_id', user.id),
 		loadTrainingCategories(locals.supabase),
+		loadStudentCoursesDashboard(locals.supabase, user.id),
 		locals.supabase
-			.from('surveys')
-			.select(
-				'id,title,slug,description,is_active,show_when_inactive,visible_from,visible_until,updated_at,max_submissions'
-			)
-			.or('is_active.eq.true,slug.eq.team-path-selection')
-			.order('updated_at', { ascending: false }),
-		locals.supabase.from('survey_prerequisites').select('survey_id,node_id'),
-		locals.supabase.from('survey_submissions').select('survey_id,submitted_at').eq('user_id', user.id),
-		loadStudentCoursesDashboard(locals.supabase, user.id)
+			.from('subteam_categories')
+			.select('slug,name,is_required_onboarding,sort_order')
+			.eq('is_required_onboarding', true),
+		locals.supabase.from('team_groups').select('id,name,color_hex'),
+		locals.supabase.from('teams').select('id,name,color_hex,category_slug,team_group_id'),
+		locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle()
 	]);
-
-	const surveys = surveysResp.data ?? [];
-	const surveySubmissions = surveySubmissionResp.data ?? [];
-
-	const submissionSummaryBySurvey = new Map<string, { count: number; latestAt: string | null }>();
-	for (const row of surveySubmissions as { survey_id: string; submitted_at: string }[]) {
-		const sid = String(row.survey_id);
-		const prev = submissionSummaryBySurvey.get(sid) ?? { count: 0, latestAt: null };
-		prev.count += 1;
-		if (!prev.latestAt || row.submitted_at > prev.latestAt) prev.latestAt = row.submitted_at;
-		submissionSummaryBySurvey.set(sid, prev);
-	}
 
 	return {
 		profile,
@@ -89,10 +82,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		blockProgress: blockProgressResp.data ?? [],
 		trainingCategories: trainingData.categories,
 		nodeCategories: trainingData.nodeCategories,
-		surveys,
-		surveyPrerequisites: surveyPrereqResp.data ?? [],
-		surveySubmissions,
-		submissionSummaryBySurvey: Object.fromEntries(submissionSummaryBySurvey.entries()),
-		coursesDashboard
+		coursesDashboard,
+		teamGroups: teamGroupsResp.data ?? [],
+		teams: teamsResp.data ?? [],
+		primaryTeamGroupId: primaryTeamResp.data?.team_group_id ?? '',
+		requiredOnboardingCategories: requiredCategoriesResp.data ?? []
 	};
 };

@@ -5,8 +5,8 @@ export type SurveySubmitResult =
 	| { ok: false; code: 'cap_reached' | 'db_error'; message: string };
 
 /**
- * Inserts a new submission row, applies outcome rules (replacing prior mappings from this survey),
- * and syncs courseload assignments. Caller must enforce prerequisites and visibility.
+ * Inserts a new survey submission and syncs courseload assignments.
+ * Caller must enforce prerequisites and visibility.
  */
 export async function finalizeSurveySubmission(
 	supabase: SupabaseClient,
@@ -47,15 +47,6 @@ export async function finalizeSurveySubmission(
 
 	if (insErr || !inserted?.id) {
 		return { ok: false, code: 'db_error', message: insErr?.message ?? 'Could not save submission.' };
-	}
-
-	const { error: applyErr } = await supabase.rpc('apply_survey_outcomes_for_user', {
-		p_survey_id: args.surveyId,
-		p_user_id: args.userId,
-		p_answers: args.answers
-	});
-	if (applyErr) {
-		return { ok: false, code: 'db_error', message: applyErr.message };
 	}
 
 	const { error: syncErr } = await supabase.rpc('sync_profile_courseloads_for_user', {

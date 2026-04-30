@@ -1,6 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { replaceSurveyOutcomeRules, serializeOutcomeRulesForEditor } from '$lib/server/survey-outcome-rules';
 
 const normalizeQuestions = (input: unknown) => {
 	const rawList = Array.isArray(input) ? input : [];
@@ -68,21 +67,11 @@ const normalizeQuestions = (input: unknown) => {
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	const [{ data: survey }, { data: nodes }, { data: teams }] = await Promise.all([
+	const [{ data: survey }, { data: nodes }] = await Promise.all([
 		locals.supabase.from('surveys').select('*').eq('slug', params.slug).maybeSingle(),
-		locals.supabase.from('nodes').select('id,title').order('title'),
-		locals.supabase
-			.from('teams')
-			.select('id,slug,name,team_groups(name,slug)')
-			.order('name')
+		locals.supabase.from('nodes').select('id,title').order('title')
 	]);
 	if (!survey) throw error(404, 'Survey not found');
-	const { data: outcomeRuleRows } = await locals.supabase
-		.from('survey_outcome_rules')
-		.select('question_id,match_value,tag_slug,target_role,teams(slug)')
-		.eq('survey_id', survey.id)
-		.order('sort_order', { ascending: true });
-	const outcomeRulesJson = serializeOutcomeRulesForEditor((outcomeRuleRows ?? []) as any[]);
 	const [{ data: prereqs }, { data: submissions }] = await Promise.all([
 		locals.supabase.from('survey_prerequisites').select('node_id').eq('survey_id', survey.id),
 		locals.supabase
@@ -98,9 +87,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const profileById = new Map((profiles ?? []).map((row: any) => [String(row.id), row]));
 	return {
 		survey,
-		outcomeRulesJson,
 		nodes: nodes ?? [],
-		teams: teams ?? [],
 		prereqIds: (prereqs ?? []).map((row: any) => String(row.node_id)),
 		submissions: (submissions ?? []).map((row: any) => ({
 			...row,
@@ -122,8 +109,6 @@ export const actions: Actions = {
 		const maxSubmissionsRaw = Number(form.get('max_submissions') ?? '1');
 		const maxSubmissions =
 			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1 ? Math.trunc(maxSubmissionsRaw) : 1;
-		const allowRoleMapping = String(form.get('allow_role_mapping') ?? '') === 'on';
-		const outcomeRulesRaw = String(form.get('outcome_rules_json') ?? '').trim();
 		const prereqIds = form
 			.getAll('prereq_node_ids')
 			.map((v) => String(v))
@@ -149,8 +134,7 @@ export const actions: Actions = {
 				show_when_inactive: showWhenInactive,
 				visible_from: visibleFromRaw || null,
 				visible_until: visibleUntilRaw || null,
-				max_submissions: maxSubmissions,
-				allow_role_mapping: allowRoleMapping
+				max_submissions: maxSubmissions
 			})
 			.eq('slug', params.slug)
 			.select('id')
@@ -171,9 +155,6 @@ export const actions: Actions = {
 			);
 			if (insertErr) return fail(400, { error: insertErr.message });
 		}
-
-		const rulesResult = await replaceSurveyOutcomeRules(locals.supabase, survey.id, outcomeRulesRaw || '[]');
-		if (!rulesResult.ok) return fail(400, { error: rulesResult.message });
 
 		return { ok: true };
 	},

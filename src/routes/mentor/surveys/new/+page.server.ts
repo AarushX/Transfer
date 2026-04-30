@@ -118,8 +118,7 @@ export const actions: Actions = {
 				show_when_inactive: showWhenInactive,
 				visible_from: visibleFromRaw || null,
 				visible_until: visibleUntilRaw || null,
-				max_submissions: 1,
-				allow_role_mapping: false
+				max_submissions: 1
 			})
 			.select('id,slug')
 			.single();

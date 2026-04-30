@@ -29,6 +29,5 @@ export type CourseloadSummary = {
 export type CoursesDashboardModel = {
 	teams: TeamChip[];
 	courseloads: CourseloadSummary[];
-	teamSurveySubmissionCount: number;
 	nextCourse: CourseloadCourseRow | null;
 };

@@ -4,8 +4,12 @@
 
 type Node = { id: string; title: string; slug: string; subteam_id: string; video_url?: string | null };
 	type Status = { node_id: string; computed_status: string };
-	type ProfileTeam = { team_id: string };
-	type ProfileTeamGroup = { team_group_id: string };
+	type ProfileTeam = {
+		team_id: string;
+		team_group_id: string;
+		category_slug?: string | null;
+	};
+	type ProfileTeamGroup = { team_group_id: string; team_groups?: { designator?: string | null } | null };
 	type NodeTeamTarget = { node_id: string; team_id: string };
 	type NodeTeamGroupTarget = { node_id: string; team_group_id: string };
 	type CheckoffReview = { node_id: string; status: 'needs_review' | 'blocked'; updated_at: string };
@@ -14,6 +18,14 @@ type NodeBlockRow = { node_id: string; id: string };
 type BlockProgressRow = { node_id: string; block_id: string; completed_at: string | null };
 
 	let { data } = $props();
+	const teamById = $derived(
+		new Map(
+			((data.teams as Array<{ id: string; name?: string; category_slug?: string }>) ?? []).map((row) => [
+				String(row.id),
+				row
+			])
+		)
+	);
 
 	const statusMap = $derived(new Map((data.statuses as Status[]).map((s) => [s.node_id, s.computed_status])));
 	const checkoffReviewMap = $derived(
@@ -44,6 +56,19 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 	const userTeamIds = $derived(
 		new Set(((data.profileTeams as ProfileTeam[]) ?? []).map((row) => String(row.team_id)))
 	);
+	const selectedMainTeamLabel = $derived.by(() => {
+		const primaryTeamGroupId = String((data as any).primaryTeamGroupId ?? '');
+		if (!primaryTeamGroupId) return 'Unset';
+		const group = ((data.teamGroups as Array<{ id: string; name?: string }>) ?? []).find(
+			(row) => String(row.id) === primaryTeamGroupId
+		);
+		return String(group?.name ?? 'Unset');
+	});
+	const selectedSubteamLabels = $derived.by(() =>
+		((data.profileTeams as ProfileTeam[]) ?? [])
+			.map((row) => String(teamById.get(String(row.team_id))?.name ?? '').trim())
+			.filter(Boolean)
+	);
 	const userTeamGroupIds = $derived(
 		new Set(
 			((data.profileTeamGroups as ProfileTeamGroup[]) ?? []).map((row) =>
@@ -51,7 +76,63 @@ type BlockProgressRow = { node_id: string; block_id: string; completed_at: strin
 			)
 		)
 	);
-	const needsOnboarding = $derived(userTeamIds.size === 0 || userTeamGroupIds.size === 0);
+	const onboardingRequiredDesignators = $derived(
+		new Set(
+			((data.requiredOnboardingCategories as Array<{ slug: string }>) ?? []).map((row) => String(row.slug))
+		)
+	);
+	const selectedDesignators = $derived(
+		new Set(
+			((data.profileTeams as ProfileTeam[]) ?? [])
+				.map((row) => String(row.category_slug ?? ''))
+				.filter(Boolean)
+		)
+	);
+	const needsOnboarding = $derived.by(() => {
+		if (userTeamIds.size === 0 || userTeamGroupIds.size === 0) return true;
+		if (!String((data as any).primaryTeamGroupId ?? '')) return true;
+		for (const required of onboardingRequiredDesignators) {
+			if (!selectedDesignators.has(required)) return true;
+		}
+		return false;
+	});
+	const teamColorById = $derived(
+		new Map(
+			((data.teams as Array<{ id: string; color_hex?: string | null }>) ?? []).map((row) => [
+				String(row.id),
+				String(row.color_hex ?? '')
+			])
+		)
+	);
+	const teamGroupColorById = $derived(
+		new Map(
+			((data.teamGroups as Array<{ id: string; color_hex?: string | null }>) ?? []).map((row) => [
+				String(row.id),
+				String(row.color_hex ?? '')
+			])
+		)
+	);
+	const accentColorForNode = (nodeId: string) => {
+		const teamTargets = targetTeamIdsByNode.get(String(nodeId));
+		if (teamTargets) {
+			for (const teamId of userTeamIds) {
+				if (teamTargets.has(teamId)) {
+					const color = teamColorById.get(teamId);
+					if (color) return color;
+				}
+			}
+		}
+		const groupTargets = targetTeamGroupIdsByNode.get(String(nodeId));
+		if (groupTargets) {
+			for (const groupId of userTeamGroupIds) {
+				if (groupTargets.has(groupId)) {
+					const color = teamGroupColorById.get(groupId);
+					if (color) return color;
+				}
+			}
+		}
+		return '';
+	};
 	const targetTeamIdsByNode = $derived.by(() => {
 		const map = new Map<string, Set<string>>();
 		for (const row of (data.nodeTeamTargets as NodeTeamTarget[]) ?? []) {
@@ -170,6 +251,52 @@ const courseCardClass = (status: string) => {
 	}
 	return `${base} border-slate-700 bg-slate-900/65 text-slate-200`;
 };
+const teamNameById = $derived(
+	new Map(
+		((data.teams as Array<{ id: string; name?: string | null }>) ?? []).map((row) => [
+			String(row.id),
+			String(row.name ?? '')
+		])
+	)
+);
+const teamGroupNameById = $derived(
+	new Map(
+		((data.teamGroups as Array<{ id: string; name?: string | null }>) ?? []).map((row) => [
+			String(row.id),
+			String(row.name ?? '')
+		])
+	)
+);
+const linkedTeamLabelForNode = (nodeId: string) => {
+	const teamTargets = targetTeamIdsByNode.get(String(nodeId));
+	if (teamTargets) {
+		for (const teamId of userTeamIds) {
+			if (!teamTargets.has(teamId)) continue;
+			const name = teamNameById.get(teamId);
+			if (name) return name;
+		}
+	}
+	const groupTargets = targetTeamGroupIdsByNode.get(String(nodeId));
+	if (groupTargets) {
+		for (const groupId of userTeamGroupIds) {
+			if (!groupTargets.has(groupId)) continue;
+			const name = teamGroupNameById.get(groupId);
+			if (name) return name;
+		}
+	}
+	return 'General';
+};
+const teamChipStyleForNode = (nodeId: string) => {
+	const accent = accentColorForNode(nodeId);
+	if (!accent) return '';
+	return `background: color-mix(in srgb, ${accent} 22%, transparent); border-color: color-mix(in srgb, ${accent} 70%, #334155); color: color-mix(in srgb, ${accent} 35%, #f8fafc);`;
+};
+const progressPercentForCard = (nodeId: string, status: string) => {
+	const total = totalModulesForNode(nodeId);
+	const done = Math.min(blockDoneByNode[nodeId] ?? 0, total);
+	if (total > 0) return Math.round((done / total) * 100);
+	return status === 'completed' ? 100 : 0;
+};
 const blockTotalsByNode = $derived.by(() => {
 	const out: Record<string, number> = {};
 	for (const row of data.blockRows as NodeBlockRow[]) {
@@ -186,12 +313,6 @@ const blockDoneByNode = $derived.by(() => {
 	}
 	return out;
 });
-const progressLabelFor = (nodeId: string) => {
-	const total = totalModulesForNode(nodeId);
-	if (!total) return null;
-	const done = Math.min(blockDoneByNode[nodeId] ?? 0, total);
-	return `${done} / ${total} modules`;
-};
 const hasPartialProgress = (nodeId: string) => {
 	const total = totalModulesForNode(nodeId);
 	if (!total) return false;
@@ -218,6 +339,12 @@ const hasPartialProgress = (nodeId: string) => {
 		{/if}
 		<div class="flex flex-wrap items-center gap-3">
 			<h2 class="mr-auto text-lg font-semibold">My Courses</h2>
+			<div class="flex flex-wrap gap-2 text-xs">
+				<span class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">Main team: {selectedMainTeamLabel}</span>
+				<span class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
+					Subteams: {selectedSubteamLabels.length > 0 ? selectedSubteamLabels.join(', ') : 'Unset'}
+				</span>
+			</div>
 			<div class="w-full md:w-72">
 				<SearchField bind:value={filter} placeholder="Search courses..." />
 			</div>
@@ -229,110 +356,154 @@ const hasPartialProgress = (nodeId: string) => {
 
 		<div class="space-y-6">
 			<div class="space-y-3">
-				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">In Progress</h3>
-					<span class="text-xs text-slate-500">{inProgressPrimary.length}</span>
-				</div>
-				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-					{#each inProgressPrimary as node (node.id)}
-						{@const status = effectiveStatusFor(node.id)}
-						{@const progressLabel = progressLabelFor(node.id)}
-						<a
-							href={`/learn/${node.slug}`}
-							class={courseCardClass(status)}
-						>
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<p class="truncate text-base font-semibold">{node.title}</p>
-									{#if progressLabel}
-										<p class="mt-1 text-xs text-slate-400">{progressLabel}</p>
-									{/if}
-								</div>
-								<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-							</div>
-						</a>
-					{:else}
-						<p class="text-sm text-slate-400">No in-progress courses.</p>
-					{/each}
-				</div>
-			</div>
-
-			<div class="space-y-3">
-				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Startable</h3>
-					<span class="text-xs text-slate-500">{takeablePrimary.length}</span>
-				</div>
-				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-					{#each takeablePrimary as node (node.id)}
-						{@const status = effectiveStatusFor(node.id)}
-						<a
-							href={`/learn/${node.slug}`}
-							class={courseCardClass(status)}
-						>
-							<div class="flex items-start justify-between gap-3">
-								<p class="min-w-0 truncate text-base font-semibold">{node.title}</p>
-								<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-							</div>
-						</a>
-					{:else}
-						<p class="text-sm text-slate-400">No startable courses right now.</p>
-					{/each}
-				</div>
-			</div>
-
-			<div class="space-y-3">
-				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Locked</h3>
-					<span class="text-xs text-slate-500">{lockedPrimary.length}</span>
-				</div>
-				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-					{#each lockedPrimary as node (node.id)}
-						{@const status = effectiveStatusFor(node.id)}
-						<a
-							href={`/learn/${node.slug}`}
-							class={courseCardClass(status)}
-						>
-							<div class="flex items-start justify-between gap-3">
-								<p class="min-w-0 truncate text-base font-semibold">{node.title}</p>
-								<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-							</div>
-						</a>
-					{:else}
-						<p class="text-sm text-slate-400">No locked courses.</p>
-					{/each}
-				</div>
-			</div>
-
-			<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-				<button
-					type="button"
-					class="flex w-full items-center justify-between text-left"
-					onclick={() => (showCompletedCourses = !showCompletedCourses)}
-				>
-					<span class="text-sm font-semibold text-slate-200">
-						Completed courses ({completedPrimary.length})
-					</span>
-					<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
-				</button>
-				{#if showCompletedCourses}
-					<div class="mt-3 grid gap-2">
-						{#each completedPrimary as node (node.id)}
+				{#if inProgressPrimary.length > 0}
+					<div class="flex items-center justify-between">
+						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">In Progress</h3>
+						<span class="text-xs text-slate-500">{inProgressPrimary.length}</span>
+					</div>
+					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+						{#each inProgressPrimary as node (node.id)}
 							{@const status = effectiveStatusFor(node.id)}
 							<a
 								href={`/learn/${node.slug}`}
 								class={courseCardClass(status)}
 							>
 								<div class="flex items-start justify-between gap-3">
-									<p class="min-w-0 truncate text-base font-semibold">{node.title}</p>
-									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-base font-semibold">{node.title}</p>
+									</div>
+									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+										{linkedTeamLabelForNode(node.id)}
+									</span>
+								</div>
+								<div class="mt-3 flex items-center justify-between text-xs">
+									{#if status !== 'available'}
+										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+									{/if}
+								</div>
+								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+									<div
+										class="h-full rounded-full transition-all duration-300"
+										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+									></div>
 								</div>
 							</a>
-						{:else}
-							<p class="text-sm text-slate-400">No completed courses yet.</p>
 						{/each}
 					</div>
 				{/if}
 			</div>
+
+			<div class="space-y-3">
+				{#if takeablePrimary.length > 0}
+					<div class="flex items-center justify-between">
+						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Startable</h3>
+						<span class="text-xs text-slate-500">{takeablePrimary.length}</span>
+					</div>
+					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+						{#each takeablePrimary as node (node.id)}
+							{@const status = effectiveStatusFor(node.id)}
+							<a
+								href={`/learn/${node.slug}`}
+								class={courseCardClass(status)}
+							>
+								<div class="flex items-start justify-between gap-3">
+									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+										{linkedTeamLabelForNode(node.id)}
+									</span>
+								</div>
+								<div class="mt-3 flex items-center justify-between text-xs">
+									{#if status !== 'available'}
+										<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+									{/if}
+								</div>
+								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+									<div
+										class="h-full rounded-full transition-all duration-300"
+										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+									></div>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<div class="space-y-3">
+				{#if lockedPrimary.length > 0}
+					<div class="flex items-center justify-between">
+						<h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Locked</h3>
+						<span class="text-xs text-slate-500">{lockedPrimary.length}</span>
+					</div>
+					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+						{#each lockedPrimary as node (node.id)}
+							{@const status = effectiveStatusFor(node.id)}
+							<a
+								href={`/learn/${node.slug}`}
+								class={courseCardClass(status)}
+							>
+								<div class="flex items-start justify-between gap-3">
+									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+										{linkedTeamLabelForNode(node.id)}
+									</span>
+								</div>
+								<div class="mt-3 flex items-center justify-between text-xs">
+									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+								</div>
+								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+									<div
+										class="h-full rounded-full transition-all duration-300"
+										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+									></div>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			{#if completedPrimary.length > 0}
+				<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+					<button
+						type="button"
+						class="flex w-full items-center justify-between text-left"
+						onclick={() => (showCompletedCourses = !showCompletedCourses)}
+					>
+						<span class="text-sm font-semibold text-slate-200">
+							Completed courses ({completedPrimary.length})
+						</span>
+						<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
+					</button>
+					{#if showCompletedCourses}
+						<div class="mt-3 grid gap-2">
+							{#each completedPrimary as node (node.id)}
+							{@const status = effectiveStatusFor(node.id)}
+							<a
+								href={`/learn/${node.slug}`}
+								class={courseCardClass(status)}
+							>
+								<div class="flex items-start justify-between gap-3">
+									<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+									<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+										{linkedTeamLabelForNode(node.id)}
+									</span>
+								</div>
+								<div class="mt-3 flex items-center justify-between text-xs">
+									<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
+								</div>
+								<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+									<div
+										class="h-full rounded-full transition-all duration-300"
+										style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+									></div>
+								</div>
+							</a>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 		</div>
 	</div>

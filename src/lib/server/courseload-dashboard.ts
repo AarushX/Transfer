@@ -14,7 +14,7 @@ export async function loadStudentCoursesDashboard(
 ): Promise<CoursesDashboardModel> {
 	await supabase.rpc('sync_profile_courseloads_for_user', { p_user_id: userId });
 
-	const [{ data: ptRows }, { data: pcRows }, { data: statuses }, { data: teamSurvey }] =
+	const [{ data: ptRows }, { data: pcRows }, { data: statuses }] =
 		await Promise.all([
 			supabase
 				.from('profile_teams')
@@ -24,8 +24,7 @@ export async function loadStudentCoursesDashboard(
 				.from('profile_courseloads')
 				.select('courseload_id, courseloads(id,slug,title,description,sort_order)')
 				.eq('user_id', userId),
-			supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', userId),
-			supabase.from('surveys').select('id').eq('slug', 'team-path-selection').maybeSingle()
+			supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', userId)
 		]);
 
 	const statusByNode = new Map(
@@ -42,16 +41,6 @@ export async function loadStudentCoursesDashboard(
 			teamName: String(t?.name ?? '')
 		};
 	});
-
-	let teamSurveySubmissionCount = 0;
-	if (teamSurvey?.id) {
-		const { count } = await supabase
-			.from('survey_submissions')
-			.select('id', { count: 'exact', head: true })
-			.eq('user_id', userId)
-			.eq('survey_id', teamSurvey.id);
-		teamSurveySubmissionCount = count ?? 0;
-	}
 
 	const sortedPc = [...(pcRows ?? [])].sort(
 		(a: any, b: any) =>
@@ -124,7 +113,6 @@ export async function loadStudentCoursesDashboard(
 	return {
 		teams,
 		courseloads,
-		teamSurveySubmissionCount,
 		nextCourse
 	};
 }
