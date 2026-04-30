@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { TEMPLATE_QUESTIONS, WORKFLOW_META, type WorkflowKind } from '$lib/surveys/workflows';
+
 	let { data, form } = $props();
 	type SurveyQuestion = {
 		id: string;
@@ -14,7 +16,15 @@
 	let questions = $state<SurveyQuestion[]>([
 		{ id: 'q1', prompt: '', type: 'short', correct: '', short_ignore_case: true, short_ignore_punctuation: false }
 	]);
+	let workflowKind = $state<WorkflowKind>('leadership');
+	let saveAsTemplate = $state(false);
 	const questionsJson = $derived(JSON.stringify(questions));
+	const applyTemplate = (kind: WorkflowKind) => {
+		workflowKind = kind;
+		if (kind === 'custom') return;
+		const template = TEMPLATE_QUESTIONS[kind].map((q) => ({ ...q }));
+		questions = template;
+	};
 	const addQuestion = () => {
 		questions = [
 			...questions,
@@ -55,6 +65,34 @@
 		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
 	{/if}
 	<form method="POST" action="?/createSurvey" class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+		{#if (data.templates ?? []).length > 0}
+			<div class="rounded border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300">
+				{data.templates.length} saved template{data.templates.length === 1 ? '' : 's'} available for future expansion.
+			</div>
+		{/if}
+		<div class="space-y-2 rounded border border-slate-800 bg-slate-950/60 p-3">
+			<p class="text-sm font-semibold">Workflow template</p>
+			<div class="grid gap-2 md:grid-cols-3">
+				{#each Object.entries(WORKFLOW_META) as [kind, meta]}
+					<button
+						type="button"
+						class={`rounded border px-3 py-2 text-left text-xs ${workflowKind === kind ? 'border-yellow-400 bg-yellow-900/20 text-yellow-100' : 'border-slate-700 text-slate-200'}`}
+						onclick={() => applyTemplate(kind as WorkflowKind)}
+					>
+						<p class="font-semibold">{meta.label}</p>
+						<p class="mt-1 text-slate-400">{meta.description}</p>
+					</button>
+				{/each}
+				<button
+					type="button"
+					class={`rounded border px-3 py-2 text-left text-xs ${workflowKind === 'custom' ? 'border-yellow-400 bg-yellow-900/20 text-yellow-100' : 'border-slate-700 text-slate-200'}`}
+					onclick={() => (workflowKind = 'custom')}
+				>
+					<p class="font-semibold">Custom</p>
+					<p class="mt-1 text-slate-400">Build your own question flow.</p>
+				</button>
+			</div>
+		</div>
 		<label class="flex flex-col gap-1 text-sm">
 			<span>Title</span>
 			<input class="rounded bg-slate-800 px-2 py-2" name="title" required />
@@ -66,6 +104,10 @@
 		<label class="flex flex-col gap-1 text-sm">
 			<span>Description</span>
 			<textarea class="rounded bg-slate-800 px-2 py-2" rows="3" name="description"></textarea>
+		</label>
+		<label class="flex flex-col gap-1 text-sm md:max-w-xs">
+			<span>Max submissions per student</span>
+			<input type="number" min="1" class="rounded bg-slate-800 px-2 py-2" name="max_submissions" value="1" required />
 		</label>
 		<div class="grid gap-2 md:grid-cols-2">
 			<label class="flex flex-col gap-1 text-sm">
@@ -83,7 +125,19 @@
 				<input type="checkbox" name="show_when_inactive" />
 				Show to users when inactive
 			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" name="allow_student_view_submissions" checked />
+				Allow students to view submissions
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" name="allow_student_edits" />
+				Allow student edits
+			</label>
 		</div>
+		<label class="flex flex-col gap-1 text-sm md:max-w-sm">
+			<span>Student edit deadline (optional)</span>
+			<input type="datetime-local" class="rounded bg-slate-800 px-2 py-2" name="student_edit_deadline" />
+		</label>
 		<div>
 			<p class="mb-1 text-sm">Module prerequisites</p>
 			<div class="grid max-h-52 gap-1 overflow-auto rounded border border-slate-800 bg-slate-950 p-2">
@@ -180,6 +234,21 @@
 			{/each}
 		</div>
 		<input type="hidden" name="questions_json" value={questionsJson} />
+		<input type="hidden" name="workflow_kind" value={workflowKind} />
+		<div class="space-y-2 rounded border border-slate-800 bg-slate-950/60 p-3">
+			<label class="inline-flex items-center gap-2 text-sm">
+				<input type="checkbox" name="save_as_template" bind:checked={saveAsTemplate} />
+				Save this as a template
+			</label>
+			{#if saveAsTemplate}
+				<input
+					class="w-full rounded bg-slate-800 px-2 py-2 text-sm"
+					name="template_name"
+					placeholder="Template name"
+					required
+				/>
+			{/if}
+		</div>
 		<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">Create survey</button>
 	</form>
 </section>

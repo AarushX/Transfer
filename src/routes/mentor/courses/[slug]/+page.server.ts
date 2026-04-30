@@ -236,6 +236,44 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions: Actions = {
+	saveTemplate: async ({ locals, params, request }) => {
+		const { user } = await locals.safeGetSession();
+		const form = await request.formData();
+		const templateName = String(form.get('template_name') ?? '').trim();
+		if (!templateName) return fail(400, { error: 'Template name is required.', section: 'details' });
+
+		const { data: node } = await locals.supabase
+			.from('nodes')
+			.select('id,title,description')
+			.eq('slug', params.slug)
+			.single();
+		if (!node) return fail(404, { error: 'Course not found.', section: 'details' });
+
+		const [{ data: teamTargets }, { data: categories }, { data: prereqs }, { data: blocks }] =
+			await Promise.all([
+				locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id),
+				locals.supabase.from('node_categories').select('category_id').eq('node_id', node.id),
+				locals.supabase.from('node_prerequisites').select('prerequisite_node_id').eq('node_id', node.id),
+				locals.supabase
+					.from('node_blocks')
+					.select('position,type,config')
+					.eq('node_id', node.id)
+					.order('position')
+			]);
+
+		const { error: templateErr } = await locals.supabase.from('course_templates').insert({
+			name: templateName,
+			title: String(node.title ?? ''),
+			description: String(node.description ?? ''),
+			team_ids: (teamTargets ?? []).map((row: any) => String(row.team_id)),
+			category_ids: (categories ?? []).map((row: any) => String(row.category_id)),
+			prereq_ids: (prereqs ?? []).map((row: any) => String(row.prerequisite_node_id)),
+			blocks_json: blocks ?? [],
+			created_by: user?.id ?? null
+		});
+		if (templateErr) return fail(400, { error: templateErr.message, section: 'details' });
+		return { ok: true, section: 'details' };
+	},
 	updateNode: async ({ locals, params, request }) => {
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();

@@ -388,6 +388,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		if (form?.ok) return { tone: 'ok' as const, text: 'Saved.' };
 		return null;
 	});
+	let templateName = $state('');
 </script>
 
 <section class="space-y-6">
@@ -411,6 +412,21 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 					class="rounded border border-red-700 bg-red-900/30 px-3 py-2 text-sm text-red-200 hover:bg-red-900/60"
 				>
 					Delete
+				</button>
+			</form>
+			<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
+				<input
+					class="rounded bg-slate-800 px-2 py-2 text-xs"
+					name="template_name"
+					bind:value={templateName}
+					placeholder="Template name"
+					required
+				/>
+				<button
+					type="submit"
+					class="rounded border border-sky-700 bg-sky-900/30 px-3 py-2 text-xs text-sky-200 hover:bg-sky-900/50"
+				>
+					Save as template
 				</button>
 			</form>
 		</div>

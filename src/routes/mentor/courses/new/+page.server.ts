@@ -51,6 +51,7 @@ export const actions: Actions = {
 			.insert({
 				title,
 				slug,
+				video_url: '',
 				subteam_id: null,
 				description
 			})

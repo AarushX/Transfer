@@ -1,6 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { finalizeSurveySubmission } from '$lib/server/survey-submit';
+import { inferWorkflowKindFromSlug } from '$lib/surveys/workflows';
 
 const isSurveyVisibleNow = (survey: any) => {
 	const now = Date.now();
@@ -8,6 +9,12 @@ const isSurveyVisibleNow = (survey: any) => {
 	const until = survey.visible_until ? new Date(survey.visible_until).getTime() : null;
 	const inWindow = (from == null || now >= from) && (until == null || now <= until);
 	return (survey.is_active && inWindow) || survey.show_when_inactive;
+};
+
+const canEditSubmission = (survey: any) => {
+	if (!survey?.allow_student_edits) return false;
+	if (!survey?.student_edit_deadline) return true;
+	return Date.now() <= new Date(survey.student_edit_deadline).getTime();
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -29,11 +36,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			locals.supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', user.id),
 			locals.supabase
 				.from('survey_submissions')
-				.select('answers,submitted_at')
+				.select('id,answers,submitted_at')
 				.eq('survey_id', survey.id)
 				.eq('user_id', user.id)
 				.order('submitted_at', { ascending: false })
-				.limit(1),
+				.limit(50),
 			locals.supabase
 				.from('survey_submissions')
 				.select('id', { count: 'exact', head: true })
@@ -50,18 +57,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}));
 	const missingPrereqs = prereqRows.filter((row) => !row.completed);
 
-	const submission = submissionRows?.[0] ?? null;
+	const submissions = submissionRows ?? [];
+	const submission = submissions[0] ?? null;
 	const count = submissionCount ?? 0;
 	const submissionCapReached = count >= maxSubmissions;
+	const editAllowed = canEditSubmission(survey);
+	const canEditExisting = editAllowed && Boolean(submission);
+	const submissionBlocked = submissionCapReached && !canEditExisting;
+	const showSubmissions = Boolean(survey.allow_student_view_submissions);
 
 	return {
 		survey,
+		workflowKind: inferWorkflowKindFromSlug(String(survey.slug ?? '')),
 		maxSubmissions,
 		submissionCount: count,
 		submissionCapReached,
+		submissionBlocked,
+		editAllowed,
+		showSubmissions,
 		prereqs: prereqRows,
 		missingPrereqs,
-		submission
+		submission,
+		submissions
 	};
 };
 
@@ -75,6 +92,7 @@ export const actions: Actions = {
 		if (!isSurveyVisibleNow(survey)) return fail(403, { error: 'Survey is not currently available' });
 
 		const maxSubmissions = Number(survey.max_submissions ?? 1);
+		const editAllowed = canEditSubmission(survey);
 
 		const { data: prereqs } = await locals.supabase
 			.from('survey_prerequisites')
@@ -122,6 +140,26 @@ export const actions: Actions = {
 				}
 			} else {
 				answers[key] = String(form.get(key) ?? '').trim();
+			}
+		}
+
+		if (editAllowed) {
+			const { data: existingRows } = await locals.supabase
+				.from('survey_submissions')
+				.select('id')
+				.eq('survey_id', survey.id)
+				.eq('user_id', user.id)
+				.order('submitted_at', { ascending: false })
+				.limit(1);
+			const existing = existingRows?.[0] ?? null;
+			if (existing?.id) {
+				const { error: updateErr } = await locals.supabase
+					.from('survey_submissions')
+					.update({ answers, submitted_at: new Date().toISOString() })
+					.eq('id', existing.id)
+					.eq('user_id', user.id);
+				if (updateErr) return fail(400, { error: updateErr.message });
+				return { ok: true };
 			}
 		}
 

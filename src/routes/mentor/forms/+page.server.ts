@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { toDriveDownloadUrl } from '$lib/utils/drive-links';
 
 const slugify = (value: string) =>
 	value
@@ -8,10 +9,8 @@ const slugify = (value: string) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-
 export const load: PageServerLoad = async ({ locals }) => {
-	const [{ data: formTypes }, { data: submissions }] = await Promise.all([
+	const [{ data: forms }, { data: submissions }] = await Promise.all([
 		locals.supabase.from('form_types').select('*').order('created_at', { ascending: false }),
 		locals.supabase
 			.from('form_submissions')
@@ -29,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		: { data: [] as any[] };
 	const profileById = new Map((profiles ?? []).map((row: any) => [String(row.id), row]));
 	return {
-		formTypes: formTypes ?? [],
+		forms: forms ?? [],
 		submissions: (submissions ?? []).map((row: any) => ({
 			...row,
 			user: profileById.get(String(row.user_id)) ?? null,
@@ -39,36 +38,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	createFormType: async ({ locals, request }) => {
+	createForm: async ({ locals, request }) => {
 		const { user } = await locals.safeGetSession();
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const slug = slugify(String(form.get('slug') ?? '').trim() || name);
 		const description = String(form.get('description') ?? '').trim();
-		const allowMultiple = String(form.get('allow_multiple') ?? '') === 'on';
 		const isActive = String(form.get('is_active') ?? '') === 'on';
-		const template = form.get('template_file');
+		const templateDriveLinkRaw = String(form.get('template_drive_link') ?? '').trim();
+		const templateDriveLink = toDriveDownloadUrl(templateDriveLinkRaw);
+		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
 		if (!name || !slug) return fail(400, { error: 'Name and slug are required.' });
-		let templateFileName: string | null = null;
-		let templateFileMime: string | null = null;
-		let templateFileDataUrl: string | null = null;
-		if (template instanceof File && template.size > 0) {
-			if (template.size > MAX_FILE_BYTES) return fail(400, { error: 'Template file too large (max 10MB).' });
-			const buffer = await template.arrayBuffer();
-			templateFileName = template.name || 'template';
-			templateFileMime = template.type || 'application/octet-stream';
-			templateFileDataUrl = `data:${templateFileMime};base64,${Buffer.from(buffer).toString('base64')}`;
-		}
 
 		const { error } = await locals.supabase.from('form_types').insert({
 			name,
 			slug,
 			description,
-			allow_multiple: allowMultiple,
 			is_active: isActive,
-			template_file_name: templateFileName,
-			template_file_mime: templateFileMime,
-			template_file_data_url: templateFileDataUrl,
+			allow_student_view_submissions: allowStudentViewSubmissions,
+			school_doc_links_json: [],
+			template_file_name: null,
+			template_file_mime: null,
+			template_file_data_url: null,
+			template_drive_link: templateDriveLink,
 			created_by: user?.id ?? null
 		});
 		if (error) return fail(400, { error: error.message });
@@ -90,6 +82,42 @@ export const actions: Actions = {
 				reviewed_by: user?.id ?? null
 			})
 			.eq('id', submissionId);
+		if (error) return fail(400, { error: error.message });
+		return { ok: true };
+	},
+	updateForm: async ({ locals, request }) => {
+		const form = await request.formData();
+		const formId = String(form.get('form_id') ?? '').trim();
+		const name = String(form.get('name') ?? '').trim();
+		const slug = slugify(String(form.get('slug') ?? '').trim() || name);
+		const description = String(form.get('description') ?? '').trim();
+		const isActive = String(form.get('is_active') ?? '') === 'on';
+		const templateDriveLinkRaw = String(form.get('template_drive_link') ?? '').trim();
+		const templateDriveLink = toDriveDownloadUrl(templateDriveLinkRaw);
+		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		if (!formId) return fail(400, { error: 'Form is required.' });
+		if (!name || !slug) return fail(400, { error: 'Name and slug are required.' });
+
+		const { error } = await locals.supabase
+			.from('form_types')
+			.update({
+				name,
+				slug,
+				description,
+				is_active: isActive,
+				allow_student_view_submissions: allowStudentViewSubmissions,
+				school_doc_links_json: [],
+				template_drive_link: templateDriveLink
+			})
+			.eq('id', formId);
+		if (error) return fail(400, { error: error.message });
+		return { ok: true };
+	},
+	deleteForm: async ({ locals, request }) => {
+		const form = await request.formData();
+		const formId = String(form.get('form_id') ?? '').trim();
+		if (!formId) return fail(400, { error: 'Form is required.' });
+		const { error } = await locals.supabase.from('form_types').delete().eq('id', formId);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true };
 	}

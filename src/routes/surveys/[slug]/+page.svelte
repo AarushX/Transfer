@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { WORKFLOW_META } from '$lib/surveys/workflows';
 	let { data, form } = $props();
 
 	type AnswerValue = string | string[];
@@ -27,20 +28,28 @@
 
 <section class="space-y-4">
 	<div>
-		<a href="/dashboard" class="text-xs text-slate-400">← Dashboard</a>
+		<a href="/surveys" class="text-xs text-slate-400">← Applications & Signups</a>
 		<h1 class="text-2xl font-semibold">{data.survey.title}</h1>
+		<p class="text-xs text-slate-400">
+			{data.workflowKind === 'custom' ? 'Custom workflow' : WORKFLOW_META[data.workflowKind]?.label}
+		</p>
 		{#if data.survey.description}
 			<p class="text-sm text-slate-300">{data.survey.description}</p>
 		{/if}
 	</div>
 
-	{#if data.submissionCapReached}
+	{#if data.submissionBlocked}
 		<div class="rounded-xl border border-amber-600/50 bg-amber-950/40 p-4 text-sm text-amber-100">
 			<p class="font-semibold">Submission limit reached</p>
 			<p class="mt-1 text-xs text-amber-200/90">
 				This survey allows {data.maxSubmissions} submission{data.maxSubmissions === 1 ? '' : 's'}.
 				Contact a mentor if you need another attempt.
 			</p>
+		</div>
+	{/if}
+	{#if data.editAllowed && data.submission}
+		<div class="rounded border border-sky-700 bg-sky-900/20 p-3 text-xs text-sky-100">
+			Editing is enabled for this application. Re-submitting updates your latest submission.
 		</div>
 	{/if}
 
@@ -79,7 +88,7 @@
 				{/each}
 			</ul>
 		</div>
-	{:else if !data.submissionCapReached}
+	{:else if !data.submissionBlocked}
 		<form
 			method="POST"
 			action="?/submitSurvey"
@@ -165,8 +174,25 @@
 				</fieldset>
 			{/each}
 			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
-				Submit survey
+				{data.workflowKind === 'carpool'
+					? 'Submit availability'
+					: data.workflowKind === 'leadership'
+						? 'Submit application'
+						: 'Submit form'}
 			</button>
 		</form>
+	{/if}
+	{#if data.showSubmissions && (data.submissions ?? []).length > 0}
+		<div class="space-y-2 rounded-xl border border-slate-800 bg-slate-900 p-4">
+			<div class="flex items-center justify-between">
+				<p class="text-sm font-semibold">Your submissions</p>
+				<p class="text-xs text-slate-400">{data.submissions.length} total</p>
+			</div>
+			{#each data.submissions as submission, idx (submission.id ?? idx)}
+				<div class="rounded border border-slate-800 bg-slate-950/60 p-3">
+					<p class="text-xs text-slate-400">{new Date(submission.submitted_at).toLocaleString()}</p>
+				</div>
+			{/each}
+		</div>
 	{/if}
 </section>

@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { inferWorkflowKindFromSlug } from '$lib/surveys/workflows';
 
 const normalizeQuestions = (input: unknown) => {
 	const rawList = Array.isArray(input) ? input : [];
@@ -87,6 +88,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const profileById = new Map((profiles ?? []).map((row: any) => [String(row.id), row]));
 	return {
 		survey,
+		workflowKind: inferWorkflowKindFromSlug(String(survey.slug ?? '')),
 		nodes: nodes ?? [],
 		prereqIds: (prereqs ?? []).map((row: any) => String(row.node_id)),
 		submissions: (submissions ?? []).map((row: any) => ({
@@ -106,6 +108,9 @@ export const actions: Actions = {
 		const showWhenInactive = String(form.get('show_when_inactive') ?? '') === 'on';
 		const visibleFromRaw = String(form.get('visible_from') ?? '').trim();
 		const visibleUntilRaw = String(form.get('visible_until') ?? '').trim();
+		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		const allowStudentEdits = String(form.get('allow_student_edits') ?? '') === 'on';
+		const studentEditDeadlineRaw = String(form.get('student_edit_deadline') ?? '').trim();
 		const maxSubmissionsRaw = Number(form.get('max_submissions') ?? '1');
 		const maxSubmissions =
 			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1 ? Math.trunc(maxSubmissionsRaw) : 1;
@@ -134,6 +139,9 @@ export const actions: Actions = {
 				show_when_inactive: showWhenInactive,
 				visible_from: visibleFromRaw || null,
 				visible_until: visibleUntilRaw || null,
+				allow_student_view_submissions: allowStudentViewSubmissions,
+				allow_student_edits: allowStudentEdits,
+				student_edit_deadline: studentEditDeadlineRaw || null,
 				max_submissions: maxSubmissions
 			})
 			.eq('slug', params.slug)

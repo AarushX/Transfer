@@ -23,6 +23,8 @@
 		{ href: '/dashboard', label: 'Dashboard' },
 		...(data.needsOnboarding ? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }] : []),
 		{ href: '/calendar', label: 'Calendar' },
+		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
+		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },
 		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
@@ -43,6 +45,11 @@
 			href: '/mentor/forms',
 			label: 'Forms management',
 			match: (p) => p.startsWith('/mentor/forms')
+		},
+		{
+			href: '/mentor/carpool',
+			label: 'Carpool management',
+			match: (p) => p.startsWith('/mentor/carpool')
 		},
 		{
 			href: '/mentor/machines',

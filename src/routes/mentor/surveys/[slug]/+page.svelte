@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { WORKFLOW_META } from '$lib/surveys/workflows';
 	let { data, form } = $props();
 	type SurveyQuestion = {
 		id: string;
@@ -156,6 +157,10 @@
 		<a href="/mentor/surveys" class="text-xs text-slate-400">← Surveys</a>
 		<h1 class="text-2xl font-semibold">Edit Survey</h1>
 		<p class="text-xs text-slate-400">{survey.slug}</p>
+		<p class="text-xs text-slate-400">
+			Workflow:
+			{data.workflowKind === 'custom' ? 'Custom' : WORKFLOW_META[data.workflowKind]?.label ?? 'Custom'}
+		</p>
 	</div>
 	{#if form?.error}
 		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
@@ -198,7 +203,24 @@
 				<input type="checkbox" name="show_when_inactive" checked={survey.show_when_inactive} />
 				Show to users when inactive
 			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" name="allow_student_view_submissions" checked={survey.allow_student_view_submissions} />
+				Allow students to view submissions
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" name="allow_student_edits" checked={survey.allow_student_edits} />
+				Allow student edits
+			</label>
 		</div>
+		<label class="flex flex-col gap-1 text-sm md:max-w-sm">
+			<span>Student edit deadline (optional)</span>
+			<input
+				type="datetime-local"
+				class="rounded bg-slate-800 px-2 py-2"
+				name="student_edit_deadline"
+				value={dateValue(survey.student_edit_deadline)}
+			/>
+		</label>
 		<div>
 			<p class="mb-1 text-sm">Module prerequisites</p>
 			<div class="grid max-h-52 gap-1 overflow-auto rounded border border-slate-800 bg-slate-950 p-2">

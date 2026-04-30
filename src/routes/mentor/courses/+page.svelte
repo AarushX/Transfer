@@ -1,8 +1,16 @@
 <script lang="ts">
-	let { data } = $props();
+	let { data, form } = $props();
 	const teamsById = $derived(
 		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
 	);
+	let selectedTemplateId = $state((data.templates?.[0]?.id as string | undefined) ?? '');
+	let newTitle = $state('');
+	let newSlug = $state('');
+	let showTemplatePanel = $state(false);
+	const selectedTemplate = $derived((data.templates ?? []).find((t: any) => t.id === selectedTemplateId) ?? null);
+	$effect(() => {
+		if (!newTitle && selectedTemplate) newTitle = String(selectedTemplate.title ?? '');
+	});
 	const teamNamesForNode = (nodeId: string) => {
 		const teamIds = (data.nodeTargets as Array<{ node_id: string; team_id: string }>)
 			.filter((row) => String(row.node_id) === String(nodeId))
@@ -24,13 +32,57 @@
 				{data.nodes.length} module{data.nodes.length === 1 ? '' : 's'} in the catalog.
 			</p>
 		</div>
-		<a
-			href="/mentor/courses/new"
-			class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-yellow-300"
-		>
-			+ New course
-		</a>
+		<div class="flex items-center gap-2">
+			<a
+				href="/mentor/courses/new"
+				class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-yellow-300"
+			>
+				+ New course
+			</a>
+			{#if (data.templates ?? []).length > 0}
+				<button
+					type="button"
+					class="rounded border border-sky-700 px-3 py-2 text-sm text-sky-200 hover:bg-sky-900/30"
+					onclick={() => (showTemplatePanel = !showTemplatePanel)}
+				>
+					Use template
+				</button>
+			{/if}
+		</div>
 	</div>
+	{#if showTemplatePanel && (data.templates ?? []).length > 0}
+		<form method="POST" action="?/createFromTemplate" class="grid gap-2 rounded-xl border border-sky-800/70 bg-sky-950/20 p-3 md:grid-cols-4">
+			<select
+				name="template_id"
+				class="rounded bg-slate-800 px-2 py-2 text-xs"
+				bind:value={selectedTemplateId}
+			>
+				{#each data.templates as template (template.id)}
+					<option value={template.id}>{template.name}</option>
+				{/each}
+			</select>
+			<input
+				name="title"
+				class="rounded bg-slate-800 px-2 py-2 text-xs"
+				bind:value={newTitle}
+				placeholder="Course title"
+				required
+			/>
+			<input
+				name="slug"
+				class="rounded bg-slate-800 px-2 py-2 text-xs"
+				bind:value={newSlug}
+				placeholder="Slug (optional)"
+			/>
+			<div class="flex gap-2">
+				<button class="rounded border border-sky-700 px-3 py-2 text-xs text-sky-200">Create</button>
+				<button type="button" class="rounded border border-slate-700 px-3 py-2 text-xs" onclick={() => (showTemplatePanel = false)}>Cancel</button>
+			</div>
+		</form>
+	{/if}
+	{#if form?.error}
+		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+	{/if}
 
 	<form
 		method="GET"
@@ -49,7 +101,7 @@
 			<span>Team</span>
 			<select name="team" class="rounded bg-slate-800 px-2 py-2 text-sm text-slate-100">
 				<option value="">All teams</option>
-				{#each data.teams as team}
+				{#each (data.teams as any[]) as team}
 					<option value={team.id} selected={team.id === data.filter.team}>
 						{team.team_groups?.name ? `${team.team_groups.name}: ` : ''}{team.name}
 					</option>

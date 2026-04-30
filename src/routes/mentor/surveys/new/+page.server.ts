@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { applyWorkflowPrefixToSlug } from '$lib/surveys/workflows';
 
 const slugify = (value: string) =>
 	value
@@ -74,26 +75,49 @@ const normalizeQuestions = (input: unknown) => {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { data: nodes } = await locals.supabase.from('nodes').select('id,title').order('title');
-	return { nodes: nodes ?? [] };
+	const [{ data: nodes }, { data: templates }] = await Promise.all([
+		locals.supabase.from('nodes').select('id,title').order('title'),
+		locals.supabase
+			.from('survey_templates')
+			.select('id,name,title,workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids')
+			.order('created_at', { ascending: false })
+	]);
+	return { nodes: nodes ?? [], templates: templates ?? [] };
 };
 
 export const actions: Actions = {
 	createSurvey: async ({ locals, request }) => {
+		const { user } = await locals.safeGetSession();
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const slugRaw = String(form.get('slug') ?? '').trim();
-		const slug = slugify(slugRaw || title);
+		const workflowKindRaw = String(form.get('workflow_kind') ?? 'custom').trim();
+		const workflowKind =
+			workflowKindRaw === 'leadership' ||
+			workflowKindRaw === 'school' ||
+			workflowKindRaw === 'carpool'
+				? workflowKindRaw
+				: 'custom';
+		const baseSlug = slugify(slugRaw || title);
+		const slug = applyWorkflowPrefixToSlug(workflowKind, baseSlug);
 		const description = String(form.get('description') ?? '').trim();
 		const questionsRaw = String(form.get('questions_json') ?? '[]').trim();
 		const isActive = String(form.get('is_active') ?? '') === 'on';
 		const showWhenInactive = String(form.get('show_when_inactive') ?? '') === 'on';
 		const visibleFromRaw = String(form.get('visible_from') ?? '').trim();
 		const visibleUntilRaw = String(form.get('visible_until') ?? '').trim();
+		const maxSubmissionsRaw = Number(form.get('max_submissions') ?? '1');
+		const maxSubmissions =
+			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1 ? Math.trunc(maxSubmissionsRaw) : 1;
+		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		const allowStudentEdits = String(form.get('allow_student_edits') ?? '') === 'on';
+		const studentEditDeadlineRaw = String(form.get('student_edit_deadline') ?? '').trim();
 		const prereqIds = form
 			.getAll('prereq_node_ids')
 			.map((v) => String(v))
 			.filter(Boolean);
+		const saveAsTemplate = String(form.get('save_as_template') ?? '') === 'on';
+		const templateName = String(form.get('template_name') ?? '').trim();
 
 		if (!title || !slug) return fail(400, { error: 'Title and slug are required.' });
 
@@ -118,7 +142,10 @@ export const actions: Actions = {
 				show_when_inactive: showWhenInactive,
 				visible_from: visibleFromRaw || null,
 				visible_until: visibleUntilRaw || null,
-				max_submissions: 1
+				allow_student_view_submissions: allowStudentViewSubmissions,
+				allow_student_edits: allowStudentEdits,
+				student_edit_deadline: studentEditDeadlineRaw || null,
+				max_submissions: maxSubmissions
 			})
 			.select('id,slug')
 			.single();
@@ -128,6 +155,24 @@ export const actions: Actions = {
 			const rows = prereqIds.map((nodeId) => ({ survey_id: created.id, node_id: nodeId }));
 			const { error: prereqErr } = await locals.supabase.from('survey_prerequisites').insert(rows);
 			if (prereqErr) return fail(400, { error: prereqErr.message });
+		}
+
+		if (saveAsTemplate) {
+			if (!templateName) return fail(400, { error: 'Template name is required when saving a template.' });
+			const { error: templateErr } = await locals.supabase.from('survey_templates').insert({
+				name: templateName,
+				title,
+				workflow_kind: workflowKind,
+				description,
+				questions: normalized.questions,
+				is_active: isActive,
+				show_when_inactive: showWhenInactive,
+				visible_from: visibleFromRaw || null,
+				visible_until: visibleUntilRaw || null,
+				prereq_node_ids: prereqIds,
+				created_by: user?.id ?? null
+			});
+			if (templateErr) return fail(400, { error: templateErr.message });
 		}
 
 		throw redirect(303, `/mentor/surveys/${created.slug}`);
