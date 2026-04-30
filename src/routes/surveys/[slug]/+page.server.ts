@@ -166,8 +166,7 @@ export const actions: Actions = {
 		const result = await finalizeSurveySubmission(locals.supabase, {
 			surveyId: survey.id,
 			userId: user.id,
-			answers,
-			maxSubmissions
+			answers
 		});
 
 		if (!result.ok) {

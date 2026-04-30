@@ -22,6 +22,7 @@
 	const primary: NavItem[] = [
 		{ href: '/dashboard', label: 'Dashboard' },
 		...(data.needsOnboarding ? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }] : []),
+		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
 		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
 		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },

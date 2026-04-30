@@ -266,12 +266,28 @@ export const actions: Actions = {
 			.getAll('node_ids')
 			.map((v) => String(v))
 			.filter(Boolean);
-		await locals.supabase.from('node_team_group_targets').delete().eq('team_group_id', teamGroupId);
+		const { data: existingRows, error: existingErr } = await locals.supabase
+			.from('node_team_group_targets')
+			.select('node_id')
+			.eq('team_group_id', teamGroupId);
+		if (existingErr) return fail(400, { error: existingErr.message });
+		const existingIds = (existingRows ?? []).map((row: any) => String(row.node_id));
 		if (nodeIds.length > 0) {
-			const { error } = await locals.supabase.from('node_team_group_targets').insert(
+			const { error } = await locals.supabase.from('node_team_group_targets').upsert(
 				nodeIds.map((nodeId) => ({ team_group_id: teamGroupId, node_id: nodeId }))
+				,
+				{ onConflict: 'node_id,team_group_id' }
 			);
 			if (error) return fail(400, { error: error.message });
+		}
+		const removeIds = existingIds.filter((id) => !nodeIds.includes(id));
+		if (removeIds.length > 0) {
+			const { error: deleteErr } = await locals.supabase
+				.from('node_team_group_targets')
+				.delete()
+				.eq('team_group_id', teamGroupId)
+				.in('node_id', removeIds);
+			if (deleteErr) return fail(400, { error: deleteErr.message });
 		}
 		return { ok: true, section: 'team-courses' };
 	},
@@ -285,12 +301,28 @@ export const actions: Actions = {
 			.getAll('node_ids')
 			.map((v) => String(v))
 			.filter(Boolean);
-		await locals.supabase.from('node_team_targets').delete().eq('team_id', subteamId);
+		const { data: existingRows, error: existingErr } = await locals.supabase
+			.from('node_team_targets')
+			.select('node_id')
+			.eq('team_id', subteamId);
+		if (existingErr) return fail(400, { error: existingErr.message });
+		const existingIds = (existingRows ?? []).map((row: any) => String(row.node_id));
 		if (nodeIds.length > 0) {
-			const { error } = await locals.supabase.from('node_team_targets').insert(
+			const { error } = await locals.supabase.from('node_team_targets').upsert(
 				nodeIds.map((nodeId) => ({ team_id: subteamId, node_id: nodeId }))
+				,
+				{ onConflict: 'node_id,team_id' }
 			);
 			if (error) return fail(400, { error: error.message });
+		}
+		const removeIds = existingIds.filter((id) => !nodeIds.includes(id));
+		if (removeIds.length > 0) {
+			const { error: deleteErr } = await locals.supabase
+				.from('node_team_targets')
+				.delete()
+				.eq('team_id', subteamId)
+				.in('node_id', removeIds);
+			if (deleteErr) return fail(400, { error: deleteErr.message });
 		}
 		return { ok: true, section: 'subteam-courses' };
 	}

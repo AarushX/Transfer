@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { applyWorkflowPrefixToSlug } from '$lib/surveys/workflows';
+import { isMentor } from '$lib/roles';
 
 const slugify = (value: string) =>
 	value
@@ -74,7 +75,17 @@ const normalizeQuestions = (input: unknown) => {
 	return { questions: normalized };
 };
 
+const toIsoOrNull = (value: string) => {
+	if (!value.trim()) return null;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toISOString();
+};
+
 export const load: PageServerLoad = async ({ locals }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const [{ data: nodes }, { data: templates }] = await Promise.all([
 		locals.supabase.from('nodes').select('id,title').order('title'),
 		locals.supabase
@@ -87,7 +98,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	createSurvey: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const slugRaw = String(form.get('slug') ?? '').trim();
@@ -130,6 +142,19 @@ export const actions: Actions = {
 		if (!Array.isArray(questions)) return fail(400, { error: 'Questions JSON must be an array.' });
 		const normalized = normalizeQuestions(questions);
 		if ('error' in normalized) return fail(400, { error: normalized.error });
+		const visibleFrom = toIsoOrNull(visibleFromRaw);
+		const visibleUntil = toIsoOrNull(visibleUntilRaw);
+		const studentEditDeadline = toIsoOrNull(studentEditDeadlineRaw);
+		if (visibleFromRaw && !visibleFrom) return fail(400, { error: 'Invalid visible-from date.' });
+		if (visibleUntilRaw && !visibleUntil) return fail(400, { error: 'Invalid visible-until date.' });
+		if (studentEditDeadlineRaw && !studentEditDeadline)
+			return fail(400, { error: 'Invalid student edit deadline.' });
+		if (visibleFrom && visibleUntil && visibleFrom > visibleUntil) {
+			return fail(400, { error: 'Visible-from date must be before visible-until date.' });
+		}
+		if (studentEditDeadline && visibleUntil && studentEditDeadline > visibleUntil) {
+			return fail(400, { error: 'Student edit deadline must be before visible-until date.' });
+		}
 
 		const { data: created, error: createErr } = await locals.supabase
 			.from('surveys')
@@ -140,11 +165,11 @@ export const actions: Actions = {
 				questions: normalized.questions,
 				is_active: isActive,
 				show_when_inactive: showWhenInactive,
-				visible_from: visibleFromRaw || null,
-				visible_until: visibleUntilRaw || null,
+				visible_from: visibleFrom,
+				visible_until: visibleUntil,
 				allow_student_view_submissions: allowStudentViewSubmissions,
 				allow_student_edits: allowStudentEdits,
-				student_edit_deadline: studentEditDeadlineRaw || null,
+				student_edit_deadline: studentEditDeadline,
 				max_submissions: maxSubmissions
 			})
 			.select('id,slug')
@@ -167,8 +192,8 @@ export const actions: Actions = {
 				questions: normalized.questions,
 				is_active: isActive,
 				show_when_inactive: showWhenInactive,
-				visible_from: visibleFromRaw || null,
-				visible_until: visibleUntilRaw || null,
+				visible_from: visibleFrom,
+				visible_until: visibleUntil,
 				prereq_node_ids: prereqIds,
 				created_by: user?.id ?? null
 			});

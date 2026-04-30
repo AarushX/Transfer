@@ -2,6 +2,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { inferWorkflowKindFromSlug } from '$lib/surveys/workflows';
 import { applyWorkflowPrefixToSlug } from '$lib/surveys/workflows';
+import { isMentor } from '$lib/roles';
 
 const slugify = (value: string) =>
 	value
@@ -11,6 +12,9 @@ const slugify = (value: string) =>
 		.replace(/^-+|-+$/g, '');
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const [{ data: surveys }, { data: nodes }, { data: templates }] = await Promise.all([
 		locals.supabase
 			.from('surveys')
@@ -35,6 +39,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	createFromTemplate: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const templateId = String(form.get('template_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();

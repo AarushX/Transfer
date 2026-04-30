@@ -1,6 +1,7 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { toDriveDownloadUrl } from '$lib/utils/drive-links';
+import { isMentor } from '$lib/roles';
 
 const slugify = (value: string) =>
 	value
@@ -10,6 +11,9 @@ const slugify = (value: string) =>
 		.replace(/^-+|-+$/g, '');
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const [{ data: forms }, { data: submissions }] = await Promise.all([
 		locals.supabase.from('form_types').select('*').order('created_at', { ascending: false }),
 		locals.supabase
@@ -39,7 +43,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	createForm: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const slug = slugify(String(form.get('slug') ?? '').trim() || name);
@@ -67,12 +72,15 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	updateSubmission: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const submissionId = String(form.get('submission_id') ?? '').trim();
 		const status = String(form.get('status') ?? '').trim() || 'submitted';
 		const reviewNotes = String(form.get('review_notes') ?? '').trim();
+		const allowedStatuses = new Set(['submitted', 'approved', 'rejected', 'needs_changes']);
 		if (!submissionId) return fail(400, { error: 'Submission is required.' });
+		if (!allowedStatuses.has(status)) return fail(400, { error: 'Invalid submission status.' });
 		const { error } = await locals.supabase
 			.from('form_submissions')
 			.update({
@@ -86,6 +94,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	updateForm: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const formId = String(form.get('form_id') ?? '').trim();
 		const name = String(form.get('name') ?? '').trim();
@@ -114,6 +124,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	deleteForm: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const formId = String(form.get('form_id') ?? '').trim();
 		if (!formId) return fail(400, { error: 'Form is required.' });

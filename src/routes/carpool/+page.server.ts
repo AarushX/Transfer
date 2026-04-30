@@ -4,12 +4,37 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) return { events: [], days: [], roles: [], signups: [], me: null };
-	const [{ data: events }, { data: days }, { data: roles }, { data: signups }] = await Promise.all([
-		locals.supabase.from('carpool_events').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-		locals.supabase.from('carpool_event_days').select('*').order('day_date').order('sort_order'),
-		locals.supabase.from('carpool_day_roles').select('*').order('sort_order'),
-		locals.supabase.from('carpool_signups').select('id,role_id,user_id,notes,capacity_count,created_at')
-	]);
+	const { data: events } = await locals.supabase
+		.from('carpool_events')
+		.select('*')
+		.eq('is_active', true)
+		.order('created_at', { ascending: false });
+	const eventIds = (events ?? []).map((row: any) => String(row.id));
+	if (eventIds.length === 0) {
+		return { me: user.id, events: [], days: [], roles: [], signups: [] };
+	}
+	const { data: days } = await locals.supabase
+		.from('carpool_event_days')
+		.select('*')
+		.in('event_id', eventIds)
+		.order('day_date')
+		.order('sort_order');
+	const dayIds = (days ?? []).map((row: any) => String(row.id));
+	if (dayIds.length === 0) {
+		return { me: user.id, events: events ?? [], days: [], roles: [], signups: [] };
+	}
+	const { data: roles } = await locals.supabase
+		.from('carpool_day_roles')
+		.select('*')
+		.in('day_id', dayIds)
+		.order('sort_order');
+	const roleIds = (roles ?? []).map((row: any) => String(row.id));
+	const { data: signups } = roleIds.length
+		? await locals.supabase
+				.from('carpool_signups')
+				.select('id,role_id,user_id,notes,capacity_count,created_at')
+				.in('role_id', roleIds)
+		: { data: [] as any[] };
 
 	const profileIds = Array.from(new Set((signups ?? []).map((row: any) => String(row.user_id))));
 	const { data: profiles } = profileIds.length
@@ -38,32 +63,10 @@ export const actions: Actions = {
 		const notes = String(form.get('notes') ?? '').trim();
 		const capacityInput = Math.max(1, Number(form.get('capacity_count') ?? '1') || 1);
 		if (!roleId) return fail(400, { error: 'Role is required.' });
-
-		const { data: role } = await locals.supabase
-			.from('carpool_day_roles')
-			.select('id,slot_count,signup_mode')
-			.eq('id', roleId)
-			.maybeSingle();
-		if (!role) return fail(404, { error: 'Slot not found.' });
-		const { data: roleSignups } = await locals.supabase
-			.from('carpool_signups')
-			.select('id,capacity_count')
-			.eq('role_id', roleId);
-		const isCapacityMode = String((role as any).signup_mode ?? 'slots') === 'capacity';
-		if (isCapacityMode) {
-			const used = (roleSignups ?? []).reduce((sum: number, row: any) => sum + Math.max(1, Number(row.capacity_count ?? 1) || 1), 0);
-			if (used + capacityInput > Number(role.slot_count ?? 1)) {
-				return fail(400, { error: 'Not enough remaining capacity for that amount.' });
-			}
-		} else if ((roleSignups ?? []).length >= Number(role.slot_count ?? 1)) {
-			return fail(400, { error: 'That slot is already full.' });
-		}
-
-		const { error } = await locals.supabase.from('carpool_signups').insert({
-			role_id: roleId,
-			user_id: user.id,
-			notes,
-			capacity_count: isCapacityMode ? capacityInput : 1
+		const { error } = await locals.supabase.rpc('carpool_signup_atomic', {
+			p_role_id: roleId,
+			p_notes: notes,
+			p_capacity_count: capacityInput
 		});
 		if (error) return fail(400, { error: error.message });
 		return { ok: true };

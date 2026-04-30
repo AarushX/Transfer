@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { isMentor } from '$lib/roles';
 
 type DayInput = {
 	date: string;
@@ -43,7 +44,10 @@ const createEventWithDays = async (
 			})
 			.select('id')
 			.single();
-		if (dayErr || !dayRow) return { error: dayErr?.message ?? 'Could not create event days.', eventId: null };
+		if (dayErr || !dayRow) {
+			await supabase.from('carpool_events').delete().eq('id', event.id);
+			return { error: dayErr?.message ?? 'Could not create event days.', eventId: null };
+		}
 		const roleRows = day.roles.map((role, idx) => ({
 			day_id: dayRow.id,
 			role_key: `role_${i + 1}_${idx + 1}`,
@@ -54,7 +58,10 @@ const createEventWithDays = async (
 			sort_order: idx
 		}));
 		const { error: roleErr } = await supabase.from('carpool_day_roles').insert(roleRows);
-		if (roleErr) return { error: roleErr.message, eventId: null };
+		if (roleErr) {
+			await supabase.from('carpool_events').delete().eq('id', event.id);
+			return { error: roleErr.message, eventId: null };
+		}
 	}
 
 	return { error: null, eventId: String(event.id) };
@@ -123,6 +130,9 @@ const parseDays = (raw: string): DayInput[] => {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) return { events: [], days: [], roles: [], signups: [], templates: [] };
+
 	const [{ data: events }, { data: days }, { data: roles }, { data: signups }, { data: templates }] = await Promise.all([
 		locals.supabase.from('carpool_events').select('*').order('created_at', { ascending: false }),
 		locals.supabase.from('carpool_event_days').select('*').order('day_date').order('sort_order'),
@@ -154,7 +164,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	createFromTemplate: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const templateId = String(form.get('template_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();
@@ -182,7 +193,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	createEvent: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const description = String(form.get('description') ?? '').trim();
@@ -219,6 +231,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	updateEvent: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const eventId = String(form.get('event_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();
@@ -234,6 +248,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	deleteEvent: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const eventId = String(form.get('event_id') ?? '').trim();
 		if (!eventId) return fail(400, { error: 'Event is required.' });
@@ -242,7 +258,8 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	saveTemplateFromEvent: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const eventId = String(form.get('event_id') ?? '').trim();
 		const templateName = String(form.get('template_name') ?? '').trim();

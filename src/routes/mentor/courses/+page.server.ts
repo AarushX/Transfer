@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
+import { isMentor } from '$lib/roles';
 
 const slugify = (value: string) =>
 	value
@@ -9,6 +10,9 @@ const slugify = (value: string) =>
 		.replace(/^-+|-+$/g, '');
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const teamFilter = url.searchParams.get('team') ?? '';
 	const q = url.searchParams.get('q') ?? '';
 
@@ -55,6 +59,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	createFromTemplate: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const templateId = String(form.get('template_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();
@@ -96,12 +102,13 @@ export const actions: Actions = {
 		const blocks = Array.isArray((template as any).blocks_json) ? (template as any).blocks_json : [];
 
 		if (teamIds.length) {
-			await locals.supabase
+			const { error: teamErr } = await locals.supabase
 				.from('node_team_targets')
 				.insert(teamIds.map((teamId: string) => ({ node_id: node.id, team_id: teamId })));
+			if (teamErr) return fail(400, { error: teamErr.message });
 		}
 		if (categoryIds.length) {
-			await locals.supabase
+			const { error: categoryErr } = await locals.supabase
 				.from('node_categories')
 				.insert(
 					categoryIds.map((categoryId: string) => ({
@@ -109,15 +116,19 @@ export const actions: Actions = {
 						category_id: categoryId
 					}))
 				);
+			if (categoryErr) return fail(400, { error: categoryErr.message });
 		}
 		if (prereqIds.length) {
 			const insertRows = prereqIds
 				.filter((id: string) => id !== node.id)
 				.map((id: string) => ({ node_id: node.id, prerequisite_node_id: id }));
-			if (insertRows.length) await locals.supabase.from('node_prerequisites').insert(insertRows);
+			if (insertRows.length) {
+				const { error: prereqErr } = await locals.supabase.from('node_prerequisites').insert(insertRows);
+				if (prereqErr) return fail(400, { error: prereqErr.message });
+			}
 		}
 		if (blocks.length) {
-			await locals.supabase.from('node_blocks').insert(
+			const { error: blockErr } = await locals.supabase.from('node_blocks').insert(
 				blocks.map((block: any, idx: number) => ({
 					node_id: node.id,
 					position: idx + 1,
@@ -125,12 +136,13 @@ export const actions: Actions = {
 					config: block.config ?? {}
 				}))
 			);
+			if (blockErr) return fail(400, { error: blockErr.message });
 		}
 
 		const checkoffBlock = blocks.find((b: any) => String(b?.type) === 'checkoff');
 		if (checkoffBlock?.config) {
 			const cfg = checkoffBlock.config;
-			await locals.supabase.from('node_checkoff_requirements').upsert(
+			const { error: checkoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: node.id,
 					title: String(cfg.title ?? 'Skills Check'),
@@ -141,11 +153,12 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (checkoffErr) return fail(400, { error: checkoffErr.message });
 		}
 		const quizBlock = blocks.find((b: any) => String(b?.type) === 'quiz');
 		if (quizBlock?.config) {
 			const cfg = quizBlock.config;
-			await locals.supabase.from('assessments').upsert(
+			const { error: assessmentErr } = await locals.supabase.from('assessments').upsert(
 				{
 					node_id: node.id,
 					passing_score: Number(cfg.passing_score ?? 80),
@@ -158,6 +171,7 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (assessmentErr) return fail(400, { error: assessmentErr.message });
 		}
 
 		throw redirect(303, `/mentor/courses/${node.slug}`);

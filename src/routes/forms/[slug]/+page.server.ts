@@ -54,24 +54,16 @@ export const actions: Actions = {
 			.eq('is_active', true)
 			.maybeSingle();
 		if (!formRecord || !formRecord.is_active) return fail(400, { error: 'Invalid form.' });
-		const { count } = await locals.supabase
-			.from('form_submissions')
-			.select('id', { count: 'exact', head: true })
-			.eq('form_type_id', formRecord.id)
-			.eq('user_id', user.id);
-		if ((count ?? 0) > 0) return fail(400, { error: 'You already submitted this form.' });
-
-		const { error: insertErr } = await locals.supabase.from('form_submissions').insert({
-			form_type_id: formRecord.id,
-			user_id: user.id,
-			notes,
-			external_doc_links_json: externalDocLinks,
-			cloud_link: cloudLink,
-			file_name: 'cloud-link',
-			file_mime: 'text/uri-list',
-			file_data_url: cloudLink
+		const { error: submitErr } = await locals.supabase.rpc('submit_form_submission_once', {
+			p_form_type_id: formRecord.id,
+			p_notes: notes,
+			p_external_doc_links_json: externalDocLinks,
+			p_cloud_link: cloudLink,
+			p_file_name: 'cloud-link',
+			p_file_mime: 'text/uri-list',
+			p_file_data_url: cloudLink
 		});
-		if (insertErr) return fail(400, { error: insertErr.message });
+		if (submitErr) return fail(400, { error: submitErr.message });
 		return { ok: true };
 	}
 };

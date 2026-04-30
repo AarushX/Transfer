@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { inferWorkflowKindFromSlug } from '$lib/surveys/workflows';
+import { isMentor } from '$lib/roles';
 
 const normalizeQuestions = (input: unknown) => {
 	const rawList = Array.isArray(input) ? input : [];
@@ -67,7 +68,17 @@ const normalizeQuestions = (input: unknown) => {
 	return { questions: normalized };
 };
 
+const toIsoOrNull = (value: string) => {
+	if (!value.trim()) return null;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toISOString();
+};
+
 export const load: PageServerLoad = async ({ locals, params }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const [{ data: survey }, { data: nodes }] = await Promise.all([
 		locals.supabase.from('surveys').select('*').eq('slug', params.slug).maybeSingle(),
 		locals.supabase.from('nodes').select('id,title').order('title')
@@ -100,6 +111,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
 	saveSurvey: async ({ locals, request, params }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const description = String(form.get('description') ?? '').trim();
@@ -128,6 +141,19 @@ export const actions: Actions = {
 		if (!Array.isArray(questions)) return fail(400, { error: 'Questions JSON must be an array.' });
 		const normalized = normalizeQuestions(questions);
 		if ('error' in normalized) return fail(400, { error: normalized.error });
+		const visibleFrom = toIsoOrNull(visibleFromRaw);
+		const visibleUntil = toIsoOrNull(visibleUntilRaw);
+		const studentEditDeadline = toIsoOrNull(studentEditDeadlineRaw);
+		if (visibleFromRaw && !visibleFrom) return fail(400, { error: 'Invalid visible-from date.' });
+		if (visibleUntilRaw && !visibleUntil) return fail(400, { error: 'Invalid visible-until date.' });
+		if (studentEditDeadlineRaw && !studentEditDeadline)
+			return fail(400, { error: 'Invalid student edit deadline.' });
+		if (visibleFrom && visibleUntil && visibleFrom > visibleUntil) {
+			return fail(400, { error: 'Visible-from date must be before visible-until date.' });
+		}
+		if (studentEditDeadline && visibleUntil && studentEditDeadline > visibleUntil) {
+			return fail(400, { error: 'Student edit deadline must be before visible-until date.' });
+		}
 
 		const { data: survey, error: surveyErr } = await locals.supabase
 			.from('surveys')
@@ -137,11 +163,11 @@ export const actions: Actions = {
 				questions: normalized.questions,
 				is_active: isActive,
 				show_when_inactive: showWhenInactive,
-				visible_from: visibleFromRaw || null,
-				visible_until: visibleUntilRaw || null,
+				visible_from: visibleFrom,
+				visible_until: visibleUntil,
 				allow_student_view_submissions: allowStudentViewSubmissions,
 				allow_student_edits: allowStudentEdits,
-				student_edit_deadline: studentEditDeadlineRaw || null,
+				student_edit_deadline: studentEditDeadline,
 				max_submissions: maxSubmissions
 			})
 			.eq('slug', params.slug)
@@ -149,17 +175,28 @@ export const actions: Actions = {
 			.single();
 		if (surveyErr || !survey) return fail(400, { error: surveyErr?.message ?? 'Could not save survey.' });
 
-		const { error: deleteErr } = await locals.supabase
+		const { data: existingPrereqs, error: existingErr } = await locals.supabase
 			.from('survey_prerequisites')
-			.delete()
+			.select('node_id')
 			.eq('survey_id', survey.id);
-		if (deleteErr) return fail(400, { error: deleteErr.message });
+		if (existingErr) return fail(400, { error: existingErr.message });
+		const existingIds = (existingPrereqs ?? []).map((row: any) => String(row.node_id));
+		const removeIds = existingIds.filter((id) => !prereqIds.includes(id));
+		if (removeIds.length > 0) {
+			const { error: deleteErr } = await locals.supabase
+				.from('survey_prerequisites')
+				.delete()
+				.eq('survey_id', survey.id)
+				.in('node_id', removeIds);
+			if (deleteErr) return fail(400, { error: deleteErr.message });
+		}
 		if (prereqIds.length > 0) {
-			const { error: insertErr } = await locals.supabase.from('survey_prerequisites').insert(
+			const { error: insertErr } = await locals.supabase.from('survey_prerequisites').upsert(
 				prereqIds.map((nodeId) => ({
 					survey_id: survey.id,
 					node_id: nodeId
-				}))
+				})),
+				{ onConflict: 'survey_id,node_id' }
 			);
 			if (insertErr) return fail(400, { error: insertErr.message });
 		}

@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { isMentor } from '$lib/roles';
 
 const slugify = (value: string) =>
 	value
@@ -179,6 +180,9 @@ function normalizeReadingConfig(raw: any) {
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
+	const { user, profile } = await locals.safeGetSession();
+	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+
 	const { data: node, error: nodeErr } = await locals.supabase
 		.from('nodes')
 		.select('id,title,slug,description')
@@ -237,7 +241,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
 	saveTemplate: async ({ locals, params, request }) => {
-		const { user } = await locals.safeGetSession();
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile))
+			return fail(403, { error: 'Forbidden', section: 'details' });
 		const form = await request.formData();
 		const templateName = String(form.get('template_name') ?? '').trim();
 		if (!templateName) return fail(400, { error: 'Template name is required.', section: 'details' });
@@ -275,6 +281,9 @@ export const actions: Actions = {
 		return { ok: true, section: 'details' };
 	},
 	updateNode: async ({ locals, params, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile))
+			return fail(403, { error: 'Forbidden', section: 'details' });
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const rawSlug = String(form.get('slug') ?? '').trim();
@@ -307,23 +316,34 @@ export const actions: Actions = {
 
 		const { data: currentNode } = await locals.supabase.from('nodes').select('id').eq('slug', slug).single();
 		if (currentNode?.id) {
-			await locals.supabase.from('node_team_targets').delete().eq('node_id', currentNode.id);
+			const { error: deleteTeamsErr } = await locals.supabase
+				.from('node_team_targets')
+				.delete()
+				.eq('node_id', currentNode.id);
+			if (deleteTeamsErr) return fail(400, { error: deleteTeamsErr.message, section: 'details' });
 			if (teamIds.length > 0) {
-				await locals.supabase.from('node_team_targets').insert(
+				const { error: insertTeamsErr } = await locals.supabase.from('node_team_targets').insert(
 					teamIds.map((teamId) => ({
 						node_id: currentNode.id,
 						team_id: teamId
 					}))
 				);
+				if (insertTeamsErr) return fail(400, { error: insertTeamsErr.message, section: 'details' });
 			}
-			await locals.supabase.from('node_categories').delete().eq('node_id', currentNode.id);
+			const { error: deleteCategoriesErr } = await locals.supabase
+				.from('node_categories')
+				.delete()
+				.eq('node_id', currentNode.id);
+			if (deleteCategoriesErr) return fail(400, { error: deleteCategoriesErr.message, section: 'details' });
 			if (categoryIds.length > 0) {
-				await locals.supabase.from('node_categories').insert(
+				const { error: insertCategoriesErr } = await locals.supabase.from('node_categories').insert(
 					categoryIds.map((categoryId) => ({
 						node_id: currentNode.id,
 						category_id: categoryId
 					}))
 				);
+				if (insertCategoriesErr)
+					return fail(400, { error: insertCategoriesErr.message, section: 'details' });
 			}
 		}
 
@@ -332,6 +352,9 @@ export const actions: Actions = {
 	},
 
 	saveBlocks: async ({ locals, params, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile))
+			return fail(403, { error: 'Forbidden', section: 'blocks' });
 		const form = await request.formData();
 		const rawBlocksJson = String(form.get('blocks_json') ?? '[]');
 		let draftBlocks: BlockDraft[] = [];
@@ -562,7 +585,7 @@ export const actions: Actions = {
 		const checkoffBlock = rows.find((r) => r.type === 'checkoff');
 		if (checkoffBlock) {
 			const cfg = checkoffBlock.config as ReturnType<typeof normalizeCheckoffConfig>;
-			await locals.supabase.from('node_checkoff_requirements').upsert(
+			const { error: checkoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: nodeRow.id,
 					title: cfg.title,
@@ -573,8 +596,9 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (checkoffErr) return fail(400, { error: checkoffErr.message, section: 'blocks' });
 		} else {
-			await locals.supabase.from('node_checkoff_requirements').upsert(
+			const { error: resetCheckoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
 				{
 					node_id: nodeRow.id,
 					title: 'Skills Check',
@@ -585,12 +609,13 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (resetCheckoffErr) return fail(400, { error: resetCheckoffErr.message, section: 'blocks' });
 		}
 
 		const quizBlocks = rows.filter((r) => r.type === 'quiz');
 		const firstQuiz = quizBlocks[0]?.config as ReturnType<typeof normalizeQuizConfig> | undefined;
 		if (firstQuiz) {
-			await locals.supabase.from('assessments').upsert(
+			const { error: assessmentErr } = await locals.supabase.from('assessments').upsert(
 				{
 					node_id: nodeRow.id,
 					passing_score: firstQuiz.passing_score,
@@ -603,12 +628,16 @@ export const actions: Actions = {
 				},
 				{ onConflict: 'node_id' }
 			);
+			if (assessmentErr) return fail(400, { error: assessmentErr.message, section: 'blocks' });
 		}
 
 		return { ok: true, section: 'blocks' };
 	},
 
 	savePrereqs: async ({ locals, params, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile))
+			return fail(403, { error: 'Forbidden', section: 'prereqs' });
 		const form = await request.formData();
 		const ids = form
 			.getAll('prereq_ids')
@@ -643,6 +672,9 @@ export const actions: Actions = {
 	},
 
 	deleteNode: async ({ locals, params }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !isMentor(profile))
+			return fail(403, { error: 'Forbidden', section: 'delete' });
 		const { error: err } = await locals.supabase
 			.from('nodes')
 			.delete()

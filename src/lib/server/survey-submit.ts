@@ -14,47 +14,20 @@ export async function finalizeSurveySubmission(
 		surveyId: string;
 		userId: string;
 		answers: Record<string, unknown>;
-		maxSubmissions: number;
 	}
 ): Promise<SurveySubmitResult> {
-	const { count, error: countErr } = await supabase
-		.from('survey_submissions')
-		.select('id', { count: 'exact', head: true })
-		.eq('survey_id', args.surveyId)
-		.eq('user_id', args.userId);
-
-	if (countErr) {
-		return { ok: false, code: 'db_error', message: countErr.message };
-	}
-	if ((count ?? 0) >= args.maxSubmissions) {
+	const { data: insertedId, error: submitErr } = await supabase.rpc('submit_survey_submission_atomic', {
+		p_survey_id: args.surveyId,
+		p_answers: args.answers as object
+	});
+	if (submitErr) {
+		const isCapError = /at most\s+\d+\s+submission/i.test(submitErr.message);
 		return {
 			ok: false,
-			code: 'cap_reached',
-			message: `This survey allows at most ${args.maxSubmissions} submission${args.maxSubmissions === 1 ? '' : 's'}.`
+			code: isCapError ? 'cap_reached' : 'db_error',
+			message: submitErr.message
 		};
 	}
 
-	const { data: inserted, error: insErr } = await supabase
-		.from('survey_submissions')
-		.insert({
-			survey_id: args.surveyId,
-			user_id: args.userId,
-			answers: args.answers as object,
-			submitted_at: new Date().toISOString()
-		})
-		.select('id')
-		.single();
-
-	if (insErr || !inserted?.id) {
-		return { ok: false, code: 'db_error', message: insErr?.message ?? 'Could not save submission.' };
-	}
-
-	const { error: syncErr } = await supabase.rpc('sync_profile_courseloads_for_user', {
-		p_user_id: args.userId
-	});
-	if (syncErr) {
-		return { ok: false, code: 'db_error', message: syncErr.message };
-	}
-
-	return { ok: true, submissionId: String(inserted.id) };
+	return { ok: true, submissionId: String(insertedId) };
 }
