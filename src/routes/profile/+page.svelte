@@ -1,17 +1,13 @@
 <script lang="ts">
 	import Avatar from '$lib/components/Avatar.svelte';
-	import PassportQR from '$lib/components/PassportQR.svelte';
 import { roleBadgeParts } from '$lib/roles';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
 	const roleLabel = $derived(roleBadgeParts(data.profile).join(' · '));
-	const specialTitles = $derived((data.specialTitles ?? []) as string[]);
-	const trackRanks = $derived((data.trackRanks ?? []) as any[]);
 	const successText = $derived.by(() => {
 		if (!form?.ok) return '';
-		if (form?.section === 'primary') return 'Primary team updated.';
 		return 'Profile updated.';
 	});
 
@@ -118,104 +114,6 @@ import { roleBadgeParts } from '$lib/roles';
 				</button>
 			</div>
 		</form>
-	</div>
-
-	<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
-		<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Organization Structure</p>
-		<form method="POST" action="?/setPrimaryTeam" use:enhance={refreshOnSuccess} class="mt-3">
-			<p class="mb-2 text-sm font-medium">Primary main team</p>
-			<p class="mb-3 text-xs text-slate-400">Used as your default context for dashboard/courses.</p>
-			<div class="grid gap-2 md:grid-cols-2">
-				{#each data.teamGroups as group}
-					<label class="flex cursor-pointer items-center gap-2 rounded border border-slate-700 p-3 hover:bg-slate-800/60">
-						<input
-							type="radio"
-							name="team_group_id"
-							value={group.id}
-							checked={data.primaryTeamGroupId === group.id}
-							class="accent-yellow-400"
-						/>
-						<div>
-							<p class="font-medium">{group.name}</p>
-							<p class="text-xs text-slate-500">{group.slug}</p>
-						</div>
-					</label>
-				{:else}
-					<p class="text-sm text-slate-500 md:col-span-2">No team group memberships found yet.</p>
-				{/each}
-			</div>
-			<div class="mt-3 flex gap-2">
-				<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900" type="submit">
-					Save primary main team
-				</button>
-				<button class="rounded border border-slate-700 px-4 py-2 text-sm" type="submit" name="team_group_id" value="">
-					Clear
-				</button>
-			</div>
-		</form>
-		<div class="mt-5 border-t border-slate-700 pt-4">
-			<p class="mb-2 text-sm font-medium">Current team memberships</p>
-			<div class="space-y-2">
-				{#each data.teamMemberships as membership}
-					<div class="rounded border border-slate-700 bg-slate-950/40 p-3">
-						<p class="text-sm font-medium text-slate-100">
-							{membership.teamName}
-							{#if data.primaryTeamGroupId === membership.teamGroupId}
-								<span class="ml-2 rounded bg-yellow-400 px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">Primary group</span>
-							{/if}
-						</p>
-						<p class="text-xs text-slate-400">
-							Main team: {membership.teamGroupName || membership.teamGroupSlug}
-							{#if membership.categorySlug}
-								· Category: {membership.categorySlug}
-							{/if}
-						</p>
-					</div>
-				{:else}
-					<p class="text-sm text-slate-500">No memberships assigned yet.</p>
-				{/each}
-			</div>
-		</div>
-	</div>
-
-	<div class="grid gap-4 md:grid-cols-2">
-		<div class="rounded-xl border border-slate-700 bg-slate-900 p-4">
-			<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Digital passport</p>
-			<p class="mt-2 text-slate-300">{data.profile?.full_name || data.profile?.email}</p>
-			<p class="mt-2 rounded bg-slate-800 px-2 py-1 text-sm">{data.progressSummary}</p>
-			<p class="mt-2 text-sm text-yellow-300">Overall rank: {data.overallRank}</p>
-			{#if data.rankSummary?.rank}
-				<p class="mt-1 text-xs text-slate-300">
-					{data.rankSummary.rank.medal_label} · {data.rankSummary.totalPoints} pts
-				</p>
-				<p class="text-xs text-slate-400">
-					Courses {data.rankSummary.coursePoints} + Attendance {data.rankSummary.attendancePoints}
-				</p>
-			{/if}
-			{#if specialTitles.length > 0}
-				<p class="mt-1 text-xs text-emerald-200">Special: {specialTitles.join(' · ')}</p>
-			{/if}
-			<div class="mt-3 rounded bg-slate-900/50 p-2">
-				<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Track rank tiers</p>
-				<ul class="mt-1 space-y-1 text-sm text-slate-300">
-					{#each trackRanks as rank}
-						<li>{rank.trackName}: {rank.tier} ({rank.count} completed)</li>
-					{:else}
-						<li class="text-slate-400">Complete courses to earn track tiers.</li>
-					{/each}
-				</ul>
-			</div>
-			<h2 class="mt-4 font-semibold">Badges</h2>
-			<ul class="mt-2 list-disc pl-5 text-sm text-slate-300">
-				{#each data.badges as badge}
-					<li>{badge}</li>
-				{/each}
-			</ul>
-		</div>
-		<div class="rounded-xl border border-slate-700 bg-slate-900 p-4">
-			<h2 class="mb-3 text-lg font-semibold">QR Identity</h2>
-			<PassportQR qrDataUrl={data.qrDataUrl} />
-		</div>
 	</div>
 
 	<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">

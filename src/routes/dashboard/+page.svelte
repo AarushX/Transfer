@@ -17,7 +17,7 @@ type Node = { id: string; title: string; slug: string; subteam_id: string; video
 type NodeBlockRow = { node_id: string; id: string };
 type BlockProgressRow = { node_id: string; block_id: string; completed_at: string | null };
 
-	let { data } = $props();
+let { data, form } = $props();
 	const teamById = $derived(
 		new Map(
 			((data.teams as Array<{ id: string; name?: string; category_slug?: string }>) ?? []).map((row) => [
@@ -391,6 +391,61 @@ const hasPartialProgress = (nodeId: string) => {
 
 <section class="-mx-6 space-y-0 md:-mx-10">
 	<div class="space-y-0 divide-y divide-slate-800/80">
+		{#if data.profile?.is_parent_guardian}
+			<div class="bg-slate-950/30 px-6 py-5 md:px-10">
+				<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Parent Linking</p>
+							<p class="mt-1 text-sm text-slate-300">
+								Enter the student-generated link code from their profile to connect accounts.
+							</p>
+							<p class="mt-1 text-xs text-slate-500">
+								Application status: {String(data.parentApplicationStatus ?? 'not_started').replaceAll('_', ' ')}
+							</p>
+						</div>
+					</div>
+					{#if form?.error}
+						<p class="mt-2 rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">
+							{form.error}
+						</p>
+					{:else if form?.ok && form?.section === 'parent-link'}
+						<p class="mt-2 rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">
+							Student linked successfully.
+						</p>
+					{/if}
+					<form method="POST" action="?/linkStudentByCode" class="mt-3 flex flex-wrap items-center gap-2">
+						<input
+							name="code"
+							required
+							class="rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm uppercase"
+							placeholder="AB12CD34"
+							disabled={String(data.parentApplicationStatus ?? '') !== 'approved'}
+						/>
+						<button
+							class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+							disabled={String(data.parentApplicationStatus ?? '') !== 'approved'}
+						>
+							Link student
+						</button>
+					</form>
+					{#if String(data.parentApplicationStatus ?? '') !== 'approved'}
+						<p class="mt-2 text-xs text-slate-500">
+							Linking unlocks after admin approval.
+						</p>
+					{/if}
+					<div class="mt-3 space-y-1">
+						<p class="text-xs uppercase tracking-wide text-slate-500">Linked students</p>
+						{#each data.linkedStudents ?? [] as student}
+							<p class="text-sm text-slate-300">{student.full_name || student.email}</p>
+						{:else}
+							<p class="text-sm text-slate-500">No linked students yet.</p>
+						{/each}
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		{#if needsOnboarding}
 			<div class="bg-amber-950/20 px-6 py-5 md:px-10">
 				<p class="text-sm font-semibold text-amber-100">Finish onboarding</p>

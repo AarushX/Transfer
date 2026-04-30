@@ -12,10 +12,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 		)
 		.order('submitted_at', { ascending: false, nullsFirst: false });
 	if (error) return { applications: [] };
+	const parentIds = Array.from(
+		new Set((data ?? []).map((row: any) => String(row.parent_user_id)).filter(Boolean))
+	);
+	const { data: completedCourses } =
+		parentIds.length === 0
+			? { data: [] as any[] }
+			: await locals.supabase
+					.from('certifications')
+					.select('user_id,status,quiz_score,updated_at,nodes!inner(slug,title)')
+					.in('user_id', parentIds)
+					.eq('status', 'completed')
+					.eq('nodes.slug', 'parent-application');
+	const completedByParent = new Map<string, any[]>();
+	for (const row of completedCourses ?? []) {
+		const key = String((row as any).user_id);
+		const list = completedByParent.get(key) ?? [];
+		list.push(row);
+		completedByParent.set(key, list);
+	}
 	return {
 		applications: (data ?? []).map((row: any) => ({
 			...row,
-			parent: Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null
+			parent: Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null,
+			completedCourses: completedByParent.get(String(row.parent_user_id)) ?? []
 		}))
 	};
 };

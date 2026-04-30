@@ -1,6 +1,5 @@
 <script lang="ts">
 	let { data, form } = $props();
-	let openId = $state('');
 </script>
 
 <section class="space-y-4">
@@ -21,10 +20,23 @@
 					</div>
 					<div class="flex items-center gap-2">
 						<span class="rounded border border-slate-700 px-2 py-1 text-xs uppercase">{app.status}</span>
-						<button type="button" class="rounded border border-slate-700 px-2 py-1 text-xs" onclick={() => (openId = openId === app.id ? '' : app.id)}>
-							{openId === app.id ? 'Hide Details' : 'View Details'}
-						</button>
 					</div>
+				</div>
+				<div class="mt-3 rounded border border-slate-800 bg-slate-950/40 p-2">
+					<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed Parent Courses</p>
+					{#each app.completedCourses as completion}
+						<p class="mt-1 text-sm text-slate-300">
+							{completion.nodes?.title || 'Parent Application'}
+							<span class="text-xs text-slate-500">
+								· {completion.updated_at ? new Date(completion.updated_at).toLocaleString() : 'completed'}
+								{#if completion.quiz_score != null}
+									· score {completion.quiz_score}%
+								{/if}
+							</span>
+						</p>
+					{:else}
+						<p class="mt-1 text-sm text-slate-500">No completed parent-application course yet.</p>
+					{/each}
 				</div>
 				<div class="mt-2 flex gap-2">
 					<form method="POST" action="?/setStatus">
@@ -43,9 +55,6 @@
 						<button class="rounded border border-slate-700 px-2 py-1 text-xs">Mark Submitted</button>
 					</form>
 				</div>
-				{#if openId === app.id}
-					<pre class="mt-3 overflow-auto rounded border border-slate-800 bg-slate-950/40 p-2 text-xs text-slate-300">{JSON.stringify(app.application_payload ?? {}, null, 2)}</pre>
-				{/if}
 			</div>
 		{:else}
 			<p class="text-sm text-slate-500">No parent applications found.</p>
