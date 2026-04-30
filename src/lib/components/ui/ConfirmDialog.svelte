@@ -22,7 +22,8 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4"
+		style="background: color-mix(in srgb, var(--app-overlay-scrim) 70%, transparent);"
 		role="button"
 		tabindex="0"
 		onclick={() => onCancel?.()}
@@ -31,15 +32,17 @@
 		}}
 	>
 		<div
-			class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-4"
+			class="w-full max-w-md rounded-xl border p-4"
+			style="border-color: var(--app-border); background: var(--app-surface); color: var(--app-text);"
 			onclick={(event) => event.stopPropagation()}
 		>
-			<h3 class="text-lg font-semibold text-slate-100">{title}</h3>
-			<p class="mt-2 text-sm text-slate-300">{message}</p>
+			<h3 class="text-lg font-semibold">{title}</h3>
+			<p class="mt-2 text-sm" style="color: var(--app-text-muted);">{message}</p>
 			<div class="mt-4 flex justify-end gap-2">
 				<button
 					type="button"
-					class="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+					class="rounded border px-3 py-1.5 text-sm"
+					style="border-color: var(--app-button-secondary-border); background: var(--app-button-secondary-bg); color: var(--app-button-secondary-text);"
 					onclick={() => onCancel?.()}
 				>
 					{cancelLabel}
@@ -47,8 +50,13 @@
 				<button
 					type="button"
 					class={`rounded px-3 py-1.5 text-sm font-semibold ${
-						danger ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-sky-600 text-white hover:bg-sky-500'
+						danger ? '' : ''
 					}`}
+					style={
+						danger
+							? 'background: var(--app-danger); color: white;'
+							: 'background: var(--app-info); color: white;'
+					}
 					onclick={() => onConfirm?.()}
 				>
 					{confirmLabel}

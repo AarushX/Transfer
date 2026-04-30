@@ -73,14 +73,29 @@
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
 	const isAttendanceKiosk = $derived(page.url.pathname === '/attendance');
 	const themeVars = $derived(
-		`--app-bg:${data.orgTheme?.background ?? '#020617'};` +
-			`--app-surface:${data.orgTheme?.surface ?? '#0f172a'};` +
-			`--app-surface-alt:${data.orgTheme?.surfaceAlt ?? '#1e293b'};` +
-			`--app-border:${data.orgTheme?.border ?? '#334155'};` +
-			`--app-text:${data.orgTheme?.text ?? '#e2e8f0'};` +
-			`--app-text-muted:${data.orgTheme?.textMuted ?? '#94a3b8'};` +
-			`--app-accent:${data.orgTheme?.accent ?? '#facc15'};` +
-			`--app-accent-text:${data.orgTheme?.accentText ?? '#0f172a'};`
+		`--app-bg:${data.orgTheme?.background ?? '#0b1220'};` +
+			`--app-surface:${data.orgTheme?.surface ?? '#121a2b'};` +
+			`--app-surface-alt:${data.orgTheme?.surfaceAlt ?? '#1a2438'};` +
+			`--app-border:${data.orgTheme?.border ?? '#2a3754'};` +
+			`--app-text:${data.orgTheme?.text ?? '#e6edf7'};` +
+			`--app-text-muted:${data.orgTheme?.textMuted ?? '#9fb0cc'};` +
+			`--app-accent:${data.orgTheme?.accent ?? '#8b5cf6'};` +
+			`--app-accent-text:${data.orgTheme?.accentText ?? '#ffffff'};` +
+			`--app-success:${data.orgTheme?.success ?? '#22c55e'};` +
+			`--app-warning:${data.orgTheme?.warning ?? '#f59e0b'};` +
+			`--app-danger:${data.orgTheme?.danger ?? '#f43f5e'};` +
+			`--app-info:${data.orgTheme?.info ?? '#06b6d4'};` +
+			`--app-link:${data.orgTheme?.link ?? '#60a5fa'};` +
+			`--app-link-hover:${data.orgTheme?.linkHover ?? '#3b82f6'};` +
+			`--app-input-bg:${data.orgTheme?.inputBg ?? '#111a2e'};` +
+			`--app-input-text:${data.orgTheme?.inputText ?? '#e6edf7'};` +
+			`--app-table-header-bg:${data.orgTheme?.tableHeaderBg ?? '#1a2438'};` +
+			`--app-table-row-hover:${data.orgTheme?.tableRowHover ?? '#182136'};` +
+			`--app-overlay-scrim:${data.orgTheme?.overlayScrim ?? '#020617'};` +
+			`--app-focus-ring:${data.orgTheme?.focusRing ?? '#a78bfa'};` +
+			`--app-button-secondary-bg:${data.orgTheme?.buttonSecondaryBg ?? '#1a2438'};` +
+			`--app-button-secondary-text:${data.orgTheme?.buttonSecondaryText ?? '#d6e2f5'};` +
+			`--app-button-secondary-border:${data.orgTheme?.buttonSecondaryBorder ?? '#334766'};`
 	);
 
 	const handleInstallClick = async () => {
@@ -132,7 +147,7 @@
 
 <svelte:head>
 	<title>{data.orgName} · Transfer</title>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href={data.orgIconDataUrl || favicon} />
 	<meta name="theme-color" content="#020617" />
 </svelte:head>
 
@@ -141,10 +156,14 @@
 		{@render children()}
 	</main>
 {:else}
-	<div class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden" style={themeVars}>
+	<div
+		class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden"
+		style={`${themeVars} background: var(--app-bg); color: var(--app-text);`}
+	>
 		<!-- Sidebar -->
 		<aside
 			class={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-700 bg-slate-900 pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+			style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
 		>
 			<div class="flex items-center justify-between border-b border-slate-700 px-5 py-5">
 				<a href="/dashboard" class="block leading-tight">
@@ -292,6 +311,7 @@
 			<!-- Mobile top bar -->
 			<header
 				class="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-4 py-3 md:hidden"
+				style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
 			>
 				<button
 					type="button"
@@ -335,7 +355,7 @@
 				</div>
 			{/if}
 
-			<main class="flex-1 bg-slate-950 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10">
+			<main class="flex-1 bg-slate-950 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10" style="background: var(--app-bg); color: var(--app-text);">
 				<div class="mx-auto w-full max-w-6xl">
 					{@render children()}
 				</div>
