@@ -161,8 +161,13 @@ export const actions: Actions = {
 			.maybeSingle();
 		if (subteamReadError) return fail(400, { error: subteamReadError.message });
 		if (!subteam) return fail(404, { error: 'Subteam not found.' });
-		const primaryGroupId = requestedTeamGroupId || String(subteam.team_group_id);
-		const allLinks = Array.from(new Set([primaryGroupId, ...linkedTeamGroupIds]));
+		const existingPrimaryGroupId = String(subteam.team_group_id);
+		const normalizedLinks = Array.from(new Set(linkedTeamGroupIds.filter(Boolean)));
+		let primaryGroupId = requestedTeamGroupId || existingPrimaryGroupId;
+		if (normalizedLinks.length > 0 && !normalizedLinks.includes(primaryGroupId)) {
+			primaryGroupId = normalizedLinks[0];
+		}
+		const allLinks = Array.from(new Set([primaryGroupId, ...normalizedLinks]));
 		const { error } = await locals.supabase
 			.from('teams')
 			.update({
