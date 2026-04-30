@@ -2,9 +2,13 @@
 	type Question = {
 		id: string;
 		prompt: string;
-		type: 'mc' | 'tf' | 'short';
+		type: 'mc' | 'ms' | 'tf' | 'short';
 		options?: string[];
-		correct: string;
+		correct: string | string[];
+		randomize_options?: boolean;
+		max_select?: number;
+		short_ignore_punctuation?: boolean;
+		short_ignore_case?: boolean;
 	};
 
 	type VideoConfig = {
@@ -48,6 +52,22 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	| { id?: string; type: 'reading'; config: ReadingConfig };
 
 	let { data, form } = $props();
+const selectableCategories = $derived(
+	((data.trainingCategories as Array<any>) ?? []).filter((category) => category.parent_id != null)
+);
+const selectedNodeCategoryIds = $derived(new Set((data.nodeCategoryIds as string[]) ?? []));
+const selectedNodeTeamIds = $derived(new Set((data.nodeTeamIds as string[]) ?? []));
+const teamsByGroup = $derived.by(() => {
+	const groups = new Map<string, { name: string; teams: Array<any> }>();
+	for (const team of (data.teams as any[]) ?? []) {
+		const groupSlug = String(team.team_groups?.slug ?? 'other');
+		const groupName = String(team.team_groups?.name ?? 'Other');
+		const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
+		bucket.teams.push(team);
+		groups.set(groupSlug, bucket);
+	}
+	return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
+});
 	const postedBlocks = $derived.by<Block[] | null>(() => {
 		if (form?.section !== 'blocks' || !form?.blocks_json) return null;
 		try {
@@ -180,7 +200,7 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				type: 'video',
 				config: {
 					title: '',
-					video_url: data.node.video_url ?? '',
+					video_url: '',
 					start_seconds: 0,
 					end_seconds: null
 				}
@@ -253,7 +273,8 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 				prompt: '',
 				type: 'mc',
 				options: ['', ''],
-				correct: ''
+				correct: '',
+				randomize_options: false
 			}
 		];
 	}
@@ -263,12 +284,34 @@ type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	function onQuestionTypeChange(q: Question) {
 		if (q.type === 'mc') {
 			if (!Array.isArray(q.options) || q.options.length < 2) q.options = ['', ''];
-			if (!q.options.includes(q.correct)) q.correct = '';
+			const current = typeof q.correct === 'string' ? q.correct : '';
+			if (!q.options.includes(current)) q.correct = '';
+			else q.correct = current;
+			if (q.randomize_options == null) q.randomize_options = false;
+		} else if (q.type === 'ms') {
+			if (!Array.isArray(q.options) || q.options.length < 2) q.options = ['', ''];
+			const current = Array.isArray(q.correct)
+				? q.correct
+				: typeof q.correct === 'string' && q.correct
+					? [q.correct]
+					: [];
+			q.correct = Array.from(new Set(current.filter((option) => q.options?.includes(option))));
+			const currentMax = Number(q.max_select);
+			q.max_select =
+				Number.isFinite(currentMax) && currentMax > 0
+					? Math.min(Math.trunc(currentMax), q.options.length)
+					: undefined;
+			if (q.randomize_options == null) q.randomize_options = false;
 		} else if (q.type === 'tf') {
 			q.options = undefined;
-			if (q.correct !== 'true' && q.correct !== 'false') q.correct = 'true';
+			const current = typeof q.correct === 'string' ? q.correct : '';
+			if (current !== 'true' && current !== 'false') q.correct = 'true';
+			else q.correct = current;
 		} else {
 			q.options = undefined;
+			if (Array.isArray(q.correct)) q.correct = q.correct[0] ?? '';
+			if (q.short_ignore_punctuation == null) q.short_ignore_punctuation = false;
+			if (q.short_ignore_case == null) q.short_ignore_case = true;
 		}
 	}
 
@@ -345,6 +388,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		if (form?.ok) return { tone: 'ok' as const, text: 'Saved.' };
 		return null;
 	});
+	let templateName = $state('');
 </script>
 
 <section class="space-y-6">
@@ -368,6 +412,21 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 					class="rounded border border-red-700 bg-red-900/30 px-3 py-2 text-sm text-red-200 hover:bg-red-900/60"
 				>
 					Delete
+				</button>
+			</form>
+			<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
+				<input
+					class="rounded bg-slate-800 px-2 py-2 text-xs"
+					name="template_name"
+					bind:value={templateName}
+					placeholder="Template name"
+					required
+				/>
+				<button
+					type="submit"
+					class="rounded border border-sky-700 bg-sky-900/30 px-3 py-2 text-xs text-sky-200 hover:bg-sky-900/50"
+				>
+					Save as template
 				</button>
 			</form>
 		</div>
@@ -397,24 +456,53 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 			<span class="text-slate-300">Slug</span>
 			<input class="rounded bg-slate-800 px-2 py-2" name="slug" value={data.node.slug} required />
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Subteam</span>
-			<select class="rounded bg-slate-800 px-2 py-2" name="subteam_id" required>
-				{#each data.subteams as team}
-					<option value={team.id} selected={team.id === data.node.subteam_id}>{team.name}</option>
+		<div class="space-y-2 text-sm md:col-span-2">
+			<p class="text-slate-300">Team mapping (FTC/FRC + divisions)</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each teamsByGroup as group (group.slug)}
+					<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+						<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
+						<div class="space-y-1">
+							{#each group.teams as team (team.id)}
+								<label class="inline-flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										name="team_ids"
+										value={team.id}
+										checked={selectedNodeTeamIds.has(team.id)}
+									/>
+									{team.name}
+								</label>
+							{/each}
+						</div>
+					</div>
 				{/each}
-			</select>
-		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Fallback video URL (used if no video blocks yet)</span>
-			<input class="rounded bg-slate-800 px-2 py-2" name="video_url" value={data.node.video_url ?? ''} />
-		</label>
+			</div>
+		</div>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Description</span>
 			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"
 				>{data.node.description ?? ''}</textarea
 			>
 		</label>
+		<fieldset class="md:col-span-2 rounded border border-slate-800 p-3">
+			<legend class="px-1 text-xs uppercase tracking-wide text-slate-400">Category mapping</legend>
+			<p class="mb-2 text-xs text-slate-500">Used for dashboard grouping and color coding.</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each selectableCategories as category}
+					<label class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/50 p-2 text-sm">
+						<input
+							type="checkbox"
+							name="category_ids"
+							value={category.id}
+							checked={selectedNodeCategoryIds.has(category.id)}
+							class="accent-yellow-400"
+						/>
+						<span>{category.name}</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
 		<div class="flex justify-end md:col-span-2">
 			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
 				Save details
@@ -606,6 +694,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 											<div class="flex items-center gap-2">
 												<select class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
 													<option value="mc">Multiple choice</option>
+													<option value="ms">Multiple select</option>
 													<option value="tf">True / False</option>
 													<option value="short">Short answer</option>
 												</select>
@@ -617,12 +706,63 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 															<input
 																type="radio"
 																name={`correct-${i}-${qIdx}`}
-																checked={q.correct !== '' && q.correct === q.options![oi]}
+																checked={typeof q.correct === 'string' && q.correct !== '' && q.correct === q.options![oi]}
 																onchange={() => (q.correct = q.options![oi])}
 															/>
 															<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
 														</div>
 													{/each}
+													<label class="mt-1 inline-flex items-center gap-2 text-xs text-slate-300">
+														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+														Randomize option order for students
+													</label>
+													<div class="flex gap-2 pt-1">
+														<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+													</div>
+												</div>
+											{:else if q.type === 'ms'}
+												<div class="space-y-1">
+													{#each q.options ?? [] as _opt, oi (oi)}
+														<div class="flex items-center gap-2">
+															<input
+																type="checkbox"
+																checked={Array.isArray(q.correct) && q.correct.includes(q.options![oi])}
+																onchange={(e) => {
+																	const option = q.options![oi];
+																	const current = Array.isArray(q.correct) ? q.correct : [];
+																	const checked = (e.currentTarget as HTMLInputElement).checked;
+																	q.correct = checked
+																		? Array.from(new Set([...current, option]))
+																		: current.filter((value) => value !== option);
+																}}
+															/>
+															<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+														</div>
+													{/each}
+													<label class="mt-1 inline-flex items-center gap-2 text-xs text-slate-300">
+														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+														Randomize option order for students
+													</label>
+													<label class="mt-1 flex items-center gap-2 text-xs text-slate-300">
+														<span>Max selections (optional)</span>
+														<input
+															type="number"
+															min="1"
+															max={Math.max(1, (q.options ?? []).length)}
+															class="w-24 rounded bg-slate-800 px-2 py-1 text-xs"
+															value={q.max_select ?? ''}
+															oninput={(e) => {
+																const raw = (e.currentTarget as HTMLInputElement).value.trim();
+																q.max_select = raw
+																	? Math.max(1, Math.min(Number(raw) || 1, (q.options ?? []).length))
+																	: undefined;
+																if (Array.isArray(q.correct) && q.max_select && q.correct.length > q.max_select) {
+																	q.correct = q.correct.slice(0, q.max_select);
+																}
+															}}
+															placeholder="No limit"
+														/>
+													</label>
 													<div class="flex gap-2 pt-1">
 														<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
 													</div>
@@ -633,7 +773,31 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 													<button type="button" class={`px-4 py-1 text-sm ${q.correct === 'false' ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-200'}`} onclick={() => (q.correct = 'false')}>False</button>
 												</div>
 											{:else}
-												<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" placeholder="Expected answer" bind:value={q.correct} />
+												<input
+													class="w-full rounded bg-slate-800 px-2 py-2 text-sm"
+													placeholder="Expected answer"
+													value={Array.isArray(q.correct) ? (q.correct[0] ?? '') : q.correct}
+													oninput={(e) => (q.correct = (e.currentTarget as HTMLInputElement).value)}
+												/>
+												<div class="flex flex-wrap gap-4 text-xs text-slate-300">
+													<label class="inline-flex items-center gap-2">
+														<input
+															type="checkbox"
+															checked={q.short_ignore_case ?? true}
+															onchange={(e) => (q.short_ignore_case = (e.currentTarget as HTMLInputElement).checked)}
+														/>
+														Ignore capitalization
+													</label>
+													<label class="inline-flex items-center gap-2">
+														<input
+															type="checkbox"
+															checked={q.short_ignore_punctuation ?? false}
+															onchange={(e) =>
+																(q.short_ignore_punctuation = (e.currentTarget as HTMLInputElement).checked)}
+														/>
+														Ignore periods/punctuation
+													</label>
+												</div>
 											{/if}
 										</div>
 									{:else}

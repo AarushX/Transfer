@@ -1,22 +1,32 @@
-import type { PageServerLoad } from './$types';
+import { fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import { isAdmin } from '$lib/roles';
+
+const BASE_ALLOWED = new Set(['member', 'admin']);
+
+const toLegacyRole = (baseRole: string, isMentor: boolean, isLead: boolean) => {
+	if (baseRole === 'admin') return 'admin';
+	if (isMentor) return 'mentor';
+	if (isLead) return 'student_lead';
+	return 'student';
+};
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const [{ data: profiles }, { data: certs }, { data: quizAttempts }, { data: submissions }, { data: assessments }] =
-		await Promise.all([
-			locals.supabase.from('profiles').select('id,full_name,email,role,subteam_id'),
-			locals.supabase
-				.from('certifications')
-				.select('user_id,status,node_id,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)')
-				.not('status', 'eq', 'locked'),
-			locals.supabase
-				.from('quiz_attempts')
-				.select('user_id,node_id,score,passed,answers,created_at,nodes!inner(title,slug)')
-				.order('created_at', { ascending: false }),
-			locals.supabase
-				.from('checkoff_submissions')
-				.select('user_id,node_id,notes,photo_data_url,photo_data_urls,updated_at'),
-			locals.supabase.from('assessments').select('node_id,questions')
-		]);
+	const { profile } = await locals.safeGetSession();
+	const canManageUsers = isAdmin(profile);
+	const [{ data: profiles }, { data: certs }, { data: attendanceSessions }] = await Promise.all([
+		locals.supabase
+			.from('profiles')
+			.select('id,full_name,email,role,base_role,is_mentor,is_lead,subteam_id'),
+		locals.supabase
+			.from('certifications')
+			.select('user_id,status,node_id,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)')
+			.not('status', 'eq', 'locked'),
+		locals.supabase
+			.from('attendance_daily_sessions')
+			.select('attendee_user_id,attendance_day,check_in_at,check_out_at')
+			.order('attendance_day', { ascending: false })
+	]);
 
 	const byUser = new Map<string, { completed: number; pending: number }>();
 	const bottlenecks = new Map<string, number>();
@@ -31,61 +41,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		byUser.set(cert.user_id, agg);
 	}
 
-	const submissionsByKey = new Map(
-		(submissions ?? []).map((s: any) => [`${s.user_id}:${s.node_id}`, s])
-	);
-	const attemptsByUserNode = new Map<string, any[]>();
-	for (const attempt of quizAttempts ?? []) {
-		const key = `${attempt.user_id}:${attempt.node_id}`;
-		const list = attemptsByUserNode.get(key) ?? [];
-		list.push(attempt);
-		attemptsByUserNode.set(key, list);
-	}
-	const questionLabelByNode = new Map<string, Map<string, string>>();
-	for (const assessment of assessments ?? []) {
-		const perNode = new Map<string, string>();
-		const questions = Array.isArray((assessment as any).questions) ? (assessment as any).questions : [];
-		for (const q of questions) {
-			const id = String((q as any)?.id ?? '');
-			if (!id) continue;
-			perNode.set(id, String((q as any)?.prompt ?? id));
-		}
-		questionLabelByNode.set((assessment as any).node_id, perNode);
-	}
-
 	const rows = (profiles ?? []).map((profile) => {
 		const agg = byUser.get(profile.id) ?? { completed: 0, pending: 0 };
 		const total = Math.max(agg.completed + agg.pending, 1);
 		const userCourses = (certs ?? [])
 			.filter((c: any) => c.user_id === profile.id)
-			.map((c: any) => {
-				const key = `${profile.id}:${c.node_id}`;
-				const attempts = (attemptsByUserNode.get(key) ?? []).map((attempt: any) => {
-					const rawAnswers = attempt?.answers && typeof attempt.answers === 'object' ? attempt.answers : {};
-					const labels = questionLabelByNode.get(c.node_id) ?? new Map<string, string>();
-					const formattedAnswers = Object.entries(rawAnswers).map(([questionId, answer]) => {
-						const label = labels.get(questionId) ?? questionId;
-						const answerText = Array.isArray(answer)
-							? answer.map((item) => String(item)).join(', ')
-							: typeof answer === 'object' && answer !== null
-								? JSON.stringify(answer)
-								: String(answer ?? '');
-						return { questionId, label, answerText };
-					});
-					return { ...attempt, formattedAnswers };
-				});
-				return {
-					node_id: c.node_id,
-					title: c.nodes?.title,
-					slug: c.nodes?.slug,
-					status: c.status,
-					quiz_score: c.quiz_score,
-					quiz_passed_at: c.quiz_passed_at,
-					approved_at: c.approved_at,
-					submission: submissionsByKey.get(key) ?? null,
-					quizAttempts: attempts
-				};
-			})
+			.map((c: any) => ({
+				node_id: c.node_id,
+				title: c.nodes?.title,
+				slug: c.nodes?.slug,
+				status: c.status,
+				quiz_score: c.quiz_score,
+				quiz_passed_at: c.quiz_passed_at,
+				approved_at: c.approved_at
+			}))
 			.sort((a: any, b: any) => {
 				const aTs = a.approved_at || a.quiz_passed_at || '';
 				const bTs = b.approved_at || b.quiz_passed_at || '';
@@ -101,6 +70,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		rows,
-		bottlenecks: Array.from(bottlenecks.entries()).map(([node, count]) => ({ node, count }))
+		bottlenecks: Array.from(bottlenecks.entries()).map(([node, count]) => ({ node, count })),
+		canManageUsers,
+		attendanceSessions: attendanceSessions ?? []
 	};
+};
+
+export const actions: Actions = {
+	setRole: async ({ locals, request }) => {
+		const { profile } = await locals.safeGetSession();
+		if (!isAdmin(profile)) return fail(403, { error: 'Forbidden' });
+		const form = await request.formData();
+		const userId = String(form.get('user_id') ?? '');
+		const baseRole = String(form.get('base_role') ?? '');
+		const isMentor = String(form.get('is_mentor') ?? '') === 'on';
+		const isLead = String(form.get('is_lead') ?? '') === 'on';
+		if (!userId || !BASE_ALLOWED.has(baseRole)) return fail(400, { error: 'Invalid role update.' });
+		const role = toLegacyRole(baseRole, isMentor, isLead);
+		const { error } = await locals.supabase
+			.from('profiles')
+			.update({
+				base_role: baseRole,
+				is_mentor: isMentor,
+				is_lead: isLead,
+				role
+			})
+			.eq('id', userId);
+		if (error) return fail(400, { error: error.message });
+		return { ok: true, section: 'roles' };
+	}
 };

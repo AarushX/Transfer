@@ -19,6 +19,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (certError) {
 		return {
 			queue: [],
+			history: [],
+			historyPage: 1,
+			historyPageSize,
+			historyTotal: 0,
+			historyTotalPages: 1,
 			subteams: subteams ?? [],
 			mentorTeamIds: [],
 			scope,
@@ -37,7 +42,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	const baseQueue = certRows ?? [];
-	const [{ data: historyCertRows }, { data: reviewHistoryRows }, { count: completedHistoryCount }, { count: reviewHistoryCount }] = await Promise.all([
+	const [
+		{ data: historyCertRows },
+		{ data: reviewHistoryRows },
+		{ count: completedHistoryCount },
+		{ count: reviewHistoryCount }
+	] = await Promise.all([
 		locals.supabase
 			.from('certifications')
 			.select('user_id,node_id,approved_at,approved_by,status')
@@ -62,41 +72,44 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const nodeIds = Array.from(new Set(baseQueue.map((item: any) => item.node_id)));
 	const userIds = Array.from(new Set(baseQueue.map((item: any) => item.user_id)));
-	const [reqResp, submissionResp, reviewsResp, nodesResp, profilesResp, checkoffBlocksResp] = await Promise.all([
-		nodeIds.length
-			? locals.supabase
-					.from('node_checkoff_requirements')
-					.select('node_id,title,directions,mentor_checklist,resource_links,evidence_mode')
-					.in('node_id', nodeIds)
-			: Promise.resolve({ data: [] as any[] }),
-		nodeIds.length && userIds.length
-			? locals.supabase
-					.from('checkoff_submissions')
-					.select('user_id,node_id,block_id,notes,photo_data_url,photo_data_urls,updated_at')
-					.in('node_id', nodeIds)
-					.in('user_id', userIds)
-			: Promise.resolve({ data: [] as any[] }),
-		nodeIds.length && userIds.length
-			? locals.supabase
-					.from('checkoff_reviews')
-					.select('user_id,node_id,block_id,status,mentor_notes,checklist_results,reviewer_id,updated_at')
-					.in('node_id', nodeIds)
-					.in('user_id', userIds)
-			: Promise.resolve({ data: [] as any[] }),
-		nodeIds.length
-			? locals.supabase.from('nodes').select('id,title,slug,subteam_id').in('id', nodeIds)
-			: Promise.resolve({ data: [] as any[] }),
-		userIds.length
-			? locals.supabase.from('profiles').select('id,email,full_name,subteam_id').in('id', userIds)
-			: Promise.resolve({ data: [] as any[] }),
-		nodeIds.length
-			? locals.supabase
-					.from('node_blocks')
-					.select('id,node_id,position,type,config')
-					.in('node_id', nodeIds)
-					.eq('type', 'checkoff')
-			: Promise.resolve({ data: [] as any[] })
-	]);
+	const [reqResp, submissionResp, reviewsResp, nodesResp, profilesResp, checkoffBlocksResp] =
+		await Promise.all([
+			nodeIds.length
+				? locals.supabase
+						.from('node_checkoff_requirements')
+						.select('node_id,title,directions,mentor_checklist,resource_links,evidence_mode')
+						.in('node_id', nodeIds)
+				: Promise.resolve({ data: [] as any[] }),
+			nodeIds.length && userIds.length
+				? locals.supabase
+						.from('checkoff_submissions')
+						.select('user_id,node_id,block_id,notes,photo_data_url,photo_data_urls,updated_at')
+						.in('node_id', nodeIds)
+						.in('user_id', userIds)
+				: Promise.resolve({ data: [] as any[] }),
+			nodeIds.length && userIds.length
+				? locals.supabase
+						.from('checkoff_reviews')
+						.select(
+							'user_id,node_id,block_id,status,mentor_notes,checklist_results,reviewer_id,updated_at'
+						)
+						.in('node_id', nodeIds)
+						.in('user_id', userIds)
+				: Promise.resolve({ data: [] as any[] }),
+			nodeIds.length
+				? locals.supabase.from('nodes').select('id,title,slug,subteam_id').in('id', nodeIds)
+				: Promise.resolve({ data: [] as any[] }),
+			userIds.length
+				? locals.supabase.from('profiles').select('id,email,full_name,subteam_id').in('id', userIds)
+				: Promise.resolve({ data: [] as any[] }),
+			nodeIds.length
+				? locals.supabase
+						.from('node_blocks')
+						.select('id,node_id,position,type,config')
+						.in('node_id', nodeIds)
+						.eq('type', 'checkoff')
+				: Promise.resolve({ data: [] as any[] })
+		]);
 
 	const subteamMap = new Map((subteams ?? []).map((s: any) => [s.id, s]));
 	const requirementByNode = new Map((reqResp.data ?? []).map((r: any) => [r.node_id, r]));
@@ -136,7 +149,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			? locals.supabase.from('nodes').select('id,title,slug,subteam_id').in('id', historyNodeIds)
 			: Promise.resolve({ data: [] as any[] }),
 		historyUserIds.length
-			? locals.supabase.from('profiles').select('id,full_name,email,subteam_id').in('id', historyUserIds)
+			? locals.supabase
+					.from('profiles')
+					.select('id,full_name,email,subteam_id')
+					.in('id', historyUserIds)
 			: Promise.resolve({ data: [] as any[] })
 	]);
 	const historyNodeById = new Map((historyNodesResp.data ?? []).map((n: any) => [n.id, n]));
@@ -151,14 +167,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			const p = profileById.get(item.user_id);
 			return {
 				...p,
-				subteam: p?.subteam_id ? subteamMap.get(p.subteam_id) ?? null : null
+				subteam: p?.subteam_id ? (subteamMap.get(p.subteam_id) ?? null) : null
 			};
 		})(),
 		node: (() => {
 			const n = nodeById.get(item.node_id);
 			return {
 				...n,
-				subteam: n?.subteam_id ? subteamMap.get(n.subteam_id) ?? null : null
+				subteam: n?.subteam_id ? (subteamMap.get(n.subteam_id) ?? null) : null
 			};
 		})(),
 		submission: submissionByPair.get(`${item.user_id}:${item.node_id}`) ?? null,

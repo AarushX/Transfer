@@ -1,0 +1,16 @@
+alter table public.org_settings
+	add column if not exists color_success text not null default '#22c55e',
+	add column if not exists color_warning text not null default '#f59e0b',
+	add column if not exists color_danger text not null default '#f43f5e',
+	add column if not exists color_info text not null default '#06b6d4',
+	add column if not exists color_link text not null default '#60a5fa',
+	add column if not exists color_link_hover text not null default '#3b82f6',
+	add column if not exists color_input_bg text not null default '#111a2e',
+	add column if not exists color_input_text text not null default '#e6edf7',
+	add column if not exists color_table_header_bg text not null default '#1a2438',
+	add column if not exists color_table_row_hover text not null default '#182136',
+	add column if not exists color_overlay_scrim text not null default '#020617',
+	add column if not exists color_focus_ring text not null default '#a78bfa',
+	add column if not exists color_button_secondary_bg text not null default '#1a2438',
+	add column if not exists color_button_secondary_text text not null default '#d6e2f5',
+	add column if not exists color_button_secondary_border text not null default '#334766';

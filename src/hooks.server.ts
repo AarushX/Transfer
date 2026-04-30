@@ -1,19 +1,26 @@
 import { redirect, type Handle } from '@sveltejs/kit';
+import type { Session, User } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { isAdmin, isMentor } from '$lib/roles';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
 
+type ProfileRow = NonNullable<Awaited<ReturnType<App.Locals['safeGetSession']>>['profile']>;
+
+type SafeSessionResult = {
+	session: Session | null;
+	user: User | null;
+	profile: ProfileRow | null;
+};
+
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createSupabaseServerClient(event.cookies);
-	let cachedSessionResult:
-		| Promise<{ session: unknown; user: unknown; profile: unknown }>
-		| undefined;
+	let cachedSessionResult: Promise<SafeSessionResult> | undefined;
 
 	event.locals.safeGetSession = async () => {
 		if (cachedSessionResult) return cachedSessionResult;
-		cachedSessionResult = (async () => {
+		cachedSessionResult = (async (): Promise<SafeSessionResult> => {
 			const {
 				data: { user },
 				error: userError
@@ -31,7 +38,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				.eq('id', user.id)
 				.single();
 
-			return { session: null, user, profile: profile ?? null };
+			return { session: null, user, profile: (profile ?? null) as ProfileRow | null };
 		})();
 		return cachedSessionResult;
 	};

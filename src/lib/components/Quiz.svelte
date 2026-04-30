@@ -4,9 +4,13 @@
 	type Question = {
 		id: string;
 		prompt: string;
-		type: 'mc' | 'tf' | 'short';
+		type: 'mc' | 'ms' | 'tf' | 'short';
 		options?: string[];
-		correct?: string;
+		correct?: string | string[];
+		randomize_options?: boolean;
+		max_select?: number;
+		short_ignore_punctuation?: boolean;
+		short_ignore_case?: boolean;
 	};
 
 	let {
@@ -27,13 +31,73 @@
 		lockedMessage?: string;
 	} = $props();
 
-	let answers = $state<Record<string, string>>({});
+	let answers = $state<Record<string, string | string[]>>({});
 	let submitting = $state(false);
 	let result = $state<null | { passed: boolean; score: number }>(null);
 	let errorMsg = $state('');
+	let randomizeEpoch = $state(0);
+
+	function hashSeed(input: string): number {
+		let h = 2166136261;
+		for (let i = 0; i < input.length; i += 1) {
+			h ^= input.charCodeAt(i);
+			h = Math.imul(h, 16777619);
+		}
+		return h >>> 0;
+	}
+
+	function shuffledOptions(options: string[], seedKey: string): string[] {
+		const out = [...options];
+		let seed = hashSeed(seedKey);
+		for (let i = out.length - 1; i > 0; i -= 1) {
+			seed = Math.imul(seed, 1664525) + 1013904223;
+			const j = Math.abs(seed) % (i + 1);
+			const tmp = out[i];
+			out[i] = out[j];
+			out[j] = tmp;
+		}
+		return out;
+	}
+
+	const displayOptions = $derived.by(() => {
+		const map: Record<string, string[]> = {};
+		for (const question of questions) {
+			const base = Array.isArray(question.options) ? question.options : [];
+			if (!question.randomize_options || base.length <= 1) {
+				map[question.id] = base;
+				continue;
+			}
+			map[question.id] = shuffledOptions(base, `${question.id}:${randomizeEpoch}`);
+		}
+		return map;
+	});
+	const hasRandomizableQuestions = $derived(
+		questions.some(
+			(q) => (q.type === 'mc' || q.type === 'ms') && q.randomize_options && (q.options?.length ?? 0) > 1
+		)
+	);
+	const getMaxSelect = (question: Question): number | null => {
+		const value = Number(question.max_select);
+		return Number.isFinite(value) && value > 0 ? Math.trunc(value) : null;
+	};
+	const getSelectedCount = (questionId: string): number =>
+		Array.isArray(answers[questionId]) ? (answers[questionId] as string[]).length : 0;
+	const isMsOptionDisabled = (question: Question, option: string): boolean => {
+		const maxSelect = getMaxSelect(question);
+		if (maxSelect == null) return false;
+		const selected = Array.isArray(answers[question.id]) ? (answers[question.id] as string[]) : [];
+		if (selected.includes(option)) return false;
+		return selected.length >= maxSelect;
+	};
 
 	const unanswered = $derived(
-		questions.filter((q) => !((answers[q.id] ?? '') + '').trim()).length
+		questions.filter((q) => {
+			if (q.type === 'ms') {
+				const selected = answers[q.id];
+				return !Array.isArray(selected) || selected.length === 0;
+			}
+			return !String(answers[q.id] ?? '').trim();
+		}).length
 	);
 
 	async function onSubmit(event: SubmitEvent) {
@@ -45,7 +109,14 @@
 		fd.set('nodeId', nodeId);
 		if (segmentId) fd.set('segmentId', segmentId);
 		if (blockId) fd.set('blockId', blockId);
-		for (const q of questions) fd.set(q.id, answers[q.id] ?? '');
+		for (const q of questions) {
+			if (q.type === 'ms') {
+				const selected = Array.isArray(answers[q.id]) ? (answers[q.id] as string[]) : [];
+				fd.set(q.id, JSON.stringify(selected));
+			} else {
+				fd.set(q.id, String(answers[q.id] ?? ''));
+			}
+		}
 		try {
 			const res = await fetch('/api/quiz/grade', { method: 'POST', body: fd });
 			if (!res.ok) {
@@ -68,6 +139,7 @@
 		answers = {};
 		result = null;
 		errorMsg = '';
+		randomizeEpoch += 1;
 	}
 </script>
 
@@ -92,6 +164,18 @@
 				{errorMsg}
 			</div>
 		{/if}
+		{#if hasRandomizableQuestions}
+			<div class="flex justify-end">
+				<button
+					type="button"
+					class="rounded border border-slate-700 px-3 py-1 text-xs hover:bg-slate-800"
+					onclick={() => (randomizeEpoch += 1)}
+					disabled={submitting || !allowSubmit}
+				>
+					Randomize choices
+				</button>
+			</div>
+		{/if}
 
 		{#each questions as question, i (question.id ?? i)}
 			<fieldset class="space-y-2 rounded border border-slate-800 bg-slate-900/50 p-3">
@@ -99,7 +183,7 @@
 				<p class="font-medium">{question.prompt}</p>
 				{#if question.type === 'mc'}
 					<div class="space-y-1">
-						{#each question.options ?? [] as option, oi (oi)}
+						{#each displayOptions[question.id] ?? [] as option, oi (oi)}
 							<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-800">
 								<input
 									type="radio"
@@ -114,6 +198,36 @@
 								<span>{option}</span>
 							</label>
 						{/each}
+					</div>
+				{:else if question.type === 'ms'}
+					<div class="space-y-1">
+						{#each displayOptions[question.id] ?? [] as option, oi (oi)}
+							<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-800">
+								<input
+									type="checkbox"
+									name={`${question.id}-${oi}`}
+									value={option}
+									class="accent-yellow-400"
+									checked={Array.isArray(answers[question.id]) && (answers[question.id] as string[]).includes(option)}
+									onchange={(event) => {
+										const checked = (event.currentTarget as HTMLInputElement).checked;
+										const current = Array.isArray(answers[question.id])
+											? ([...(answers[question.id] as string[])] as string[])
+											: [];
+										answers[question.id] = checked
+											? Array.from(new Set([...current, option]))
+											: current.filter((value) => value !== option);
+									}}
+									disabled={submitting || !allowSubmit || isMsOptionDisabled(question, option)}
+								/>
+								<span>{option}</span>
+							</label>
+						{/each}
+						{#if getMaxSelect(question) != null}
+							<p class="text-xs text-slate-400">
+								Select up to {getMaxSelect(question)} option{getMaxSelect(question) === 1 ? '' : 's'}.
+							</p>
+						{/if}
 					</div>
 				{:else if question.type === 'tf'}
 					<div class="flex gap-2">

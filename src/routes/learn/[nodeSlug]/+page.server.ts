@@ -1,4 +1,4 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { SignJWT } from 'jose';
 import QRCode from 'qrcode';
 import type { Actions, PageServerLoad } from './$types';
@@ -8,12 +8,30 @@ const encoder = new TextEncoder();
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user) throw error(401, 'Unauthorized');
+	const [currentTeamsResp, primaryResp, requiredResp] = await Promise.all([
+		locals.supabase.from('profile_teams').select('category_slug').eq('user_id', user.id),
+		locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle(),
+		locals.supabase
+			.from('subteam_categories')
+			.select('slug')
+			.eq('is_required_onboarding', true)
+	]);
+	const currentTeams = currentTeamsResp.data ?? [];
+	const selectedDesignators = new Set(
+		currentTeams.map((row: any) => String(row.category_slug ?? '')).filter(Boolean)
+	);
+	const requiredDesignators = (requiredResp.data ?? []).map((row: any) => String(row.slug));
+	const needsOnboarding =
+		currentTeams.length === 0 ||
+		!String(primaryResp.data?.team_group_id ?? '') ||
+		requiredDesignators.some((slug) => !selectedDesignators.has(slug));
+	if (needsOnboarding) throw redirect(303, '/onboarding');
 	const previewRequested = url.searchParams.get('preview') === '1';
 	const previewBypass = previewRequested && !!profile && ['mentor', 'admin'].includes(profile.role);
 
 	const { data: node } = await locals.supabase
 		.from('nodes')
-		.select('id,title,description,video_url,subteam_id')
+		.select('id,title,description,video_url')
 		.eq('slug', params.nodeSlug)
 		.single();
 

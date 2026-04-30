@@ -2,17 +2,13 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { isMentor } from '$lib/roles';
 import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
+import { computeUserRanks } from '$lib/server/ranks';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user || !profile) throw redirect(303, '/login');
 
-	const [
-		{ data: subteams },
-		mentorPrefsResult,
-		{ data: completedRows },
-		{ data: allSubteams }
-	] = await Promise.all([
+	const [{ data: subteams }, mentorPrefsResult, rankMap] = await Promise.all([
 		locals.supabase.from('subteams').select('id,name,slug').order('name'),
 		isMentor(profile)
 			? locals.supabase
@@ -20,24 +16,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 					.select('subteam_id')
 					.eq('mentor_id', user.id)
 			: Promise.resolve({ data: [] as { subteam_id: string }[] }),
-		locals.supabase
-			.from('certifications')
-			.select('node_id,nodes!inner(title,subteam_id)')
-			.eq('user_id', user.id)
-			.eq('status', 'completed'),
-		locals.supabase.from('subteams').select('id,name')
+		computeUserRanks(locals.supabase, [user.id])
 	]);
 
 	const mentorTeamIds = (mentorPrefsResult.data ?? []).map((row: { subteam_id: string }) => row.subteam_id);
-	const completed = completedRows ?? [];
-	const badges = completed.map((row: any) => row.nodes?.title).filter(Boolean);
-	const progressSummary = `${completed.length} module${completed.length === 1 ? '' : 's'} completed`;
-	const subteamNameById = new Map((allSubteams ?? []).map((s: any) => [String(s.id), String(s.name)]));
+	const rankSummary = rankMap.get(user.id);
+	const courseCompletions = rankSummary?.courseCompletions ?? 0;
+	const progressSummary = `${courseCompletions} module${courseCompletions === 1 ? '' : 's'} completed`;
+	const subteamNameById = new Map((subteams ?? []).map((s: any) => [String(s.id), String(s.name)]));
 	const perTrack = new Map<string, number>();
-	for (const row of completed) {
-		const trackId = String(row?.nodes?.subteam_id ?? '');
-		if (!trackId) continue;
-		perTrack.set(trackId, (perTrack.get(trackId) ?? 0) + 1);
+	const { data: completedRows } = await locals.supabase
+		.from('certifications')
+		.select('node_id,nodes!inner(title,subteam_id)')
+		.eq('user_id', user.id)
+		.eq('status', 'completed');
+	for (const row of completedRows ?? []) {
+		const trackId = String((row as any)?.nodes?.subteam_id ?? '');
+		if (trackId) perTrack.set(trackId, (perTrack.get(trackId) ?? 0) + 1);
 	}
 	const trackRanks = Array.from(perTrack.entries())
 		.map(([trackId, count]) => ({
@@ -48,16 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}))
 		.sort((a, b) => b.count - a.count || a.trackName.localeCompare(b.trackName));
 
-	const overallRank =
-		completed.length >= 12
-			? 'Master'
-			: completed.length >= 8
-				? 'Specialist'
-				: completed.length >= 4
-					? 'Builder'
-					: completed.length >= 1
-						? 'Apprentice'
-						: 'Rookie';
+	const overallRank = rankSummary?.rank?.name ?? 'Rookie';
 	const masteredTracks = trackRanks.filter((t) => t.tier === 'Expert').length;
 	const specialTitles = [
 		...(masteredTracks >= 2 ? ['Cross-Track Ace'] : []),
@@ -77,11 +63,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		subteams: subteams ?? [],
 		mentorTeamIds,
 		qrDataUrl,
-		badges,
+		badges: rankSummary?.badges ?? [],
 		progressSummary,
 		overallRank,
 		trackRanks,
-		specialTitles
+		specialTitles,
+		rankSummary
 	};
 };
 

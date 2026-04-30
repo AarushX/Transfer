@@ -56,7 +56,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!authorized) {
 		return json(
 			{
-				error: `You are missing ${missingCount} required completed training module(s) for ${machine.name}.`,
+				error:
+					`You are missing ${missingCount} required completed training module(s) for ${machine.name}.`,
 				machine
 			},
 			{ status: 403 }

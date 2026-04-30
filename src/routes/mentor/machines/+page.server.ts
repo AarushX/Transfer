@@ -33,7 +33,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		? await locals.supabase.from('profiles').select('id,full_name,email').in('id', profileIds)
 		: { data: [] as any[] };
 	const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-
 	const machineMap = new Map((machines ?? []).map((m: any) => [m.id, m]));
 	const decoratedEvents = (usageEvents ?? []).map((evt: any) => ({
 		...evt,

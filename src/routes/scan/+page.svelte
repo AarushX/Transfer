@@ -7,6 +7,11 @@
 	let machine = $state<{ name?: string; description?: string } | null>(null);
 	let lastToken = $state('');
 	let releaseLastTokenHandle: ReturnType<typeof setTimeout> | null = null;
+	let manualAttendeeUserId = $state('');
+	let manualReason = $state('');
+	let manualMessage = $state('');
+	let manualError = $state('');
+	let manualSaving = $state(false);
 
 	const authorize = async (token: string) => {
 		if (!token || status === 'checking' || token === lastToken) return;
@@ -87,6 +92,31 @@
 		if (data.machineToken) authorize(data.machineToken);
 	});
 
+	const submitManualCheckIn = async () => {
+		if (!manualAttendeeUserId || manualSaving) return;
+		manualSaving = true;
+		manualError = '';
+		manualMessage = '';
+		try {
+			const res = await fetch('/api/attendance/manual', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ attendeeUserId: manualAttendeeUserId, reason: manualReason.trim() || null })
+			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				manualError = body?.error ?? 'Manual attendance failed.';
+				return;
+			}
+			manualMessage = 'Manual check-in recorded (excluded from RR).';
+			manualReason = '';
+		} catch {
+			manualError = 'Network error. Try again.';
+		} finally {
+			manualSaving = false;
+		}
+	};
+
 </script>
 
 <section class="space-y-6">
@@ -142,4 +172,36 @@
 			<p class="text-center text-xs text-slate-500">Ready for next scan automatically.</p>
 		</div>
 	</div>
+
+	{#if data.canManageAttendance}
+		<div class="grid gap-4">
+			<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+				<p class="text-sm font-semibold">Manual Attendance Assist (No RR)</p>
+				<p class="mt-1 text-xs text-slate-400">Use when a member cannot scan. This records attendance but excludes RR points.</p>
+				<div class="mt-3 space-y-2">
+					<select class="w-full rounded bg-slate-800 px-3 py-2 text-sm" bind:value={manualAttendeeUserId}>
+						<option value="">Select member...</option>
+						{#each data.members as member}
+							<option value={member.id}>{member.label}</option>
+						{/each}
+					</select>
+					<input
+						class="w-full rounded bg-slate-800 px-3 py-2 text-sm"
+						placeholder="Reason (optional)"
+						bind:value={manualReason}
+						maxlength="300"
+					/>
+					<button
+						class="rounded bg-sky-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+						disabled={!manualAttendeeUserId || manualSaving}
+						onclick={submitManualCheckIn}
+					>
+						{manualSaving ? 'Saving...' : 'Manual Check-In'}
+					</button>
+					{#if manualMessage}<p class="text-xs text-emerald-300">{manualMessage}</p>{/if}
+					{#if manualError}<p class="text-xs text-red-300">{manualError}</p>{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
 </section>

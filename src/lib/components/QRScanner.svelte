@@ -1,12 +1,23 @@
 <script lang="ts">
 	import { BrowserMultiFormatReader } from '@zxing/browser';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	let { onDecoded }: { onDecoded: (value: string) => void } = $props();
 	let videoEl: HTMLVideoElement;
+	let reader: BrowserMultiFormatReader | null = null;
+	let controls: { stop: () => void } | null = null;
+
+	const stopCamera = () => {
+		controls?.stop();
+		controls = null;
+		const stream = videoEl?.srcObject;
+		if (stream instanceof MediaStream) {
+			for (const track of stream.getTracks()) track.stop();
+		}
+		if (videoEl) videoEl.srcObject = null;
+	};
 
 	onMount(() => {
-		const reader = new BrowserMultiFormatReader();
-		let controls: { stop: () => void } | null = null;
+		reader = new BrowserMultiFormatReader();
 		reader
 			.decodeFromVideoDevice(undefined, videoEl, (result) => {
 				if (result) onDecoded(result.getText());
@@ -14,7 +25,11 @@
 			.then((c) => {
 				controls = c;
 			});
-		return () => controls?.stop();
+		return stopCamera;
+	});
+
+	onDestroy(() => {
+		stopCamera();
 	});
 </script>
 

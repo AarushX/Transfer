@@ -1,14 +1,111 @@
 @import 'tailwindcss';
 
+:root {
+	--app-bg: #0b1220;
+	--app-surface: #121a2b;
+	--app-surface-alt: #1a2438;
+	--app-border: #2a3754;
+	--app-text: #e6edf7;
+	--app-text-muted: #9fb0cc;
+	--app-accent: #8b5cf6;
+	--app-accent-text: #ffffff;
+	--app-success: #22c55e;
+	--app-warning: #f59e0b;
+	--app-danger: #f43f5e;
+	--app-info: #06b6d4;
+	--app-link: #60a5fa;
+	--app-link-hover: #3b82f6;
+	--app-input-bg: #111a2e;
+	--app-input-text: #e6edf7;
+	--app-table-header-bg: #1a2438;
+	--app-table-row-hover: #182136;
+	--app-overlay-scrim: #020617;
+	--app-focus-ring: #a78bfa;
+	--app-button-secondary-bg: #1a2438;
+	--app-button-secondary-text: #d6e2f5;
+	--app-button-secondary-border: #334766;
+}
+
 html,
 body {
 	height: 100%;
-	background-color: #020617;
+	background-color: var(--app-bg);
+	color: var(--app-text);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 body {
 	overflow-y: auto;
 	overscroll-behavior-y: auto;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--app-accent) 35%, transparent);
+	color: var(--app-text);
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--app-text-muted) 55%, transparent) transparent;
+}
+
+main a {
+	color: var(--app-link);
+}
+
+main a:hover {
+	color: var(--app-link-hover);
+}
+
+input,
+select,
+textarea {
+	background-color: var(--app-input-bg);
+	color: var(--app-input-text);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+	outline: 2px solid var(--app-focus-ring);
+	outline-offset: 2px;
+}
+
+/* Tokenize common legacy button color patterns across routes/components. */
+button[class~='bg-yellow-400'],
+a[class~='bg-yellow-400'],
+button[class~='bg-amber-400'],
+a[class~='bg-amber-400'],
+button[class~='bg-amber-300'],
+a[class~='bg-amber-300'] {
+	background: var(--app-accent) !important;
+	color: var(--app-accent-text) !important;
+}
+
+button[class~='bg-sky-600'],
+a[class~='bg-sky-600'] {
+	background: var(--app-info) !important;
+	color: #ffffff !important;
+}
+
+button[class~='bg-red-600'],
+a[class~='bg-red-600'] {
+	background: var(--app-danger) !important;
+	color: #ffffff !important;
+}
+
+button[class*='border-slate-7'],
+a[class*='border-slate-7'] {
+	border-color: var(--app-button-secondary-border) !important;
+	color: var(--app-button-secondary-text) !important;
+}
+
+button[class*='hover:bg-slate-8']:hover,
+a[class*='hover:bg-slate-8']:hover {
+	background: color-mix(in srgb, var(--app-button-secondary-bg) 80%, white 20%) !important;
 }
 
 @media (min-width: 768px) {

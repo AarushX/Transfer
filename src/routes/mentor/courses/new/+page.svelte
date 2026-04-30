@@ -1,9 +1,23 @@
 <script lang="ts">
 	let { data, form } = $props();
+	const selectableCategories = $derived(
+		(data.trainingCategories as Array<any>).filter((c) => c.parent_id != null)
+	);
 	const v = (key: string, fallback: string | number = ''): string | number => {
 		const values = form?.values as unknown as Record<string, string | number> | undefined;
 		return values?.[key] ?? fallback;
 	};
+	const teamsByGroup = $derived.by(() => {
+		const groups = new Map<string, { name: string; teams: Array<any> }>();
+		for (const team of data.teams as any[]) {
+			const groupSlug = String(team.team_groups?.slug ?? 'other');
+			const groupName = String(team.team_groups?.name ?? 'Other');
+			const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
+			bucket.teams.push(team);
+			groups.set(groupSlug, bucket);
+		}
+		return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
+	});
 </script>
 
 <section class="space-y-4">
@@ -45,30 +59,45 @@
 				placeholder="drill-press-basics (auto from title if blank)"
 			/>
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Subteam</span>
-			<select class="rounded bg-slate-800 px-2 py-2" name="subteam_id" required>
-				<option value="">Select subteam…</option>
-				{#each data.subteams as team}
-					<option value={team.id} selected={team.id === v('subteamId', '')}>{team.name}</option>
+		<div class="space-y-2 text-sm md:col-span-2">
+			<p class="text-slate-300">Team mapping (FTC/FRC + divisions)</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each teamsByGroup as group (group.slug)}
+					<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+						<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
+						<div class="space-y-1">
+							{#each group.teams as team (team.id)}
+								<label class="inline-flex items-center gap-2 text-sm">
+									<input type="checkbox" name="team_ids" value={team.id} />
+									{team.name}
+								</label>
+							{/each}
+						</div>
+					</div>
 				{/each}
-			</select>
-		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Video URL</span>
-			<input
-				class="rounded bg-slate-800 px-2 py-2"
-				name="video_url"
-				value={v('videoUrl')}
-				placeholder="https://www.youtube.com/..."
-			/>
-		</label>
+			</div>
+		</div>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Description</span>
 			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"
 				>{v('description')}</textarea
 			>
 		</label>
+		<fieldset class="md:col-span-2 rounded border border-slate-800 p-3">
+			<legend class="px-1 text-xs uppercase tracking-wide text-slate-400">Category mapping</legend>
+			<p class="mb-2 text-xs text-slate-500">
+				Optional but recommended for taxonomy and color-coded dashboards. Core paths (FTC/FRC basics, technical, business,
+				leadership) are seeded by migrations.
+			</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each selectableCategories as category}
+					<label class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/50 p-2 text-sm">
+						<input type="checkbox" name="category_ids" value={category.id} class="accent-yellow-400" />
+						<span>{category.name}</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
 		<div class="flex justify-end gap-2 md:col-span-2">
 			<a href="/mentor/courses" class="rounded border border-slate-800 px-4 py-2 text-sm">Cancel</a>
 			<button
