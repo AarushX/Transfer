@@ -74,6 +74,11 @@ a:focus-visible {
 	outline-offset: 2px;
 }
 
+.search-field-control input:focus {
+	outline: none;
+	outline-offset: 0;
+}
+
 /* Tokenize common legacy button color patterns across routes/components. */
 button[class~='bg-yellow-400'],
 a[class~='bg-yellow-400'],

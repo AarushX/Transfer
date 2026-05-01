@@ -437,10 +437,11 @@ const hasPartialProgress = (nodeId: string) => {
 };
 </script>
 
-<section class="-mx-6 space-y-0 md:-mx-10">
+<section>
 	<div class="space-y-0 divide-y divide-slate-800/80">
 		{#if data.profile?.is_parent_guardian}
-			<div class="bg-slate-950/30 px-6 py-5 md:px-10">
+			<div class="py-6 first:pt-0 md:py-8">
+				<div class="rounded-xl border border-slate-800/80 bg-slate-950/30 p-4 sm:p-5">
 				<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<div>
@@ -491,11 +492,13 @@ const hasPartialProgress = (nodeId: string) => {
 						{/each}
 					</div>
 				</div>
+				</div>
 			</div>
 		{/if}
 
 		{#if needsOnboarding}
-			<div class="bg-amber-950/20 px-6 py-5 md:px-10">
+			<div class="py-6 first:pt-0 md:py-8">
+			<div class="rounded-xl border border-amber-800/25 bg-amber-950/20 p-4 sm:p-5">
 				<p class="text-sm font-semibold text-amber-100">Finish onboarding</p>
 				<p class="mt-1 text-xs text-amber-200/90">
 					Choose your team and subteam to unlock the right course path.
@@ -507,13 +510,14 @@ const hasPartialProgress = (nodeId: string) => {
 					Start onboarding
 				</a>
 			</div>
+			</div>
 		{/if}
 
 		{#if !needsOnboarding}
-			<div class="bg-slate-950/40 px-6 pb-5 pt-3 md:px-10">
-				<div class="flex flex-wrap items-center gap-3">
-					<div class="mr-auto flex items-center gap-2">
-						<h2 class="text-lg font-semibold">My Courses</h2>
+			<div class="space-y-6 py-6 first:pt-0 md:py-8">
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+					<div class="flex min-w-0 flex-wrap items-center gap-2">
+						<h2 class="text-lg font-semibold tracking-tight">My Courses</h2>
 						<button
 							type="button"
 							onclick={() => {
@@ -529,24 +533,23 @@ const hasPartialProgress = (nodeId: string) => {
 							All courses
 						</button>
 					</div>
-					<div class="w-full md:w-80">
+					<div class="w-full min-w-0 sm:max-w-sm">
 						<SearchField
 							bind:value={filter}
 							placeholder="Search courses..."
 							fieldClass="rounded-xl px-3 py-2.5"
-							fieldStyle="background: color-mix(in srgb, #0f172a 88%, transparent); border-color: #334155;"
+							fieldStyle="background-color: rgb(15 23 42); border-color: rgb(51 65 85);"
 						/>
 					</div>
 				</div>
-			</div>
 			{#if scopeCards.some((card) => card.key !== 'all')}
-				<div class="px-6 py-5 md:px-10">
-					<div class="flex gap-3 overflow-x-auto pb-1">
+				<div>
+					<div class="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
 						{#each scopeCards.filter((card) => card.key !== 'all') as card (card.key)}
 							<button
 								type="button"
 								onclick={() => {
-									activeCourseScope = card.key;
+									activeCourseScope = activeCourseScope === card.key ? 'all' : card.key;
 									showCompletedCourses = false;
 								}}
 								class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition ${
@@ -587,12 +590,12 @@ const hasPartialProgress = (nodeId: string) => {
 			{/if}
 
 			{#if filtered.length === 0}
-				<p class="px-6 py-6 text-sm text-slate-400 md:px-10">No courses match your filter.</p>
+				<p class="py-2 text-sm text-slate-400">No courses match your filter.</p>
 			{/if}
 
 			<div class="flex flex-col">
 				<div
-					class={`flex flex-col gap-4 px-6 py-5 md:px-10 ${completedPrimary.length === 0 ? 'pb-8' : 'pb-20'}`}
+					class={`flex flex-col gap-4 ${completedPrimary.length === 0 ? 'pb-8' : 'pb-24 md:pb-28'}`}
 				>
 					<div class="space-y-4">
 						{#if inProgressPrimary.length > 0}
@@ -660,44 +663,40 @@ const hasPartialProgress = (nodeId: string) => {
 				</div>
 
 				{#if completedPrimary.length > 0}
-					<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
-						<div class="mx-auto w-full max-w-screen-2xl border-t border-slate-800/80 bg-slate-950/95 px-6 py-4 backdrop-blur md:px-10">
-						{#if showCompletedCourses}
-							<div class="absolute inset-x-0 bottom-full mb-2 px-6 md:px-10">
-								<div class="max-h-[45vh] overflow-y-auto rounded-t-xl border border-slate-800/80 border-b-0 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
-									<div class="grid gap-2">
-										{#each completedPrimary as node (node.id)}
-											{@const status = effectiveStatusFor(node.id)}
-											<a
-												href={`/learn/${node.slug}`}
-												class="group block rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-slate-200 transition duration-150 hover:border-slate-700 hover:bg-slate-900/70"
-											>
-												<div class="flex items-start justify-between gap-3">
-													<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
-													<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
-														{linkedTeamLabelForNode(node.id)}
-													</span>
-												</div>
-											</a>
-										{/each}
-									</div>
+					<div
+						class="fixed right-0 bottom-0 left-0 z-30 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur md:left-64"
+					>
+						<div class="mx-auto w-full max-w-6xl px-6 md:px-10">
+							{#if showCompletedCourses}
+								<div class="max-h-[45vh] divide-y divide-slate-800/80 overflow-y-auto">
+									{#each completedPrimary as node (node.id)}
+										<a
+											href={`/learn/${node.slug}`}
+											class="group flex items-start justify-between gap-3 py-2.5 text-slate-200 transition duration-150 hover:bg-slate-900/50"
+										>
+											<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
+											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+												{linkedTeamLabelForNode(node.id)}
+											</span>
+										</a>
+									{/each}
 								</div>
-							</div>
-						{/if}
-						<button
-							type="button"
-							class="flex w-full items-center justify-between text-left"
-							onclick={() => (showCompletedCourses = !showCompletedCourses)}
-						>
-							<span class="text-sm font-semibold text-slate-200">
-								Completed courses ({completedPrimary.length})
-							</span>
-							<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
-						</button>
+							{/if}
+							<button
+								type="button"
+								class={`flex w-full items-center justify-between py-4 text-left ${showCompletedCourses ? 'border-t border-slate-800/80' : ''}`}
+								onclick={() => (showCompletedCourses = !showCompletedCourses)}
+							>
+								<span class="text-sm font-semibold text-slate-200">
+									Completed courses ({completedPrimary.length})
+								</span>
+								<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
+							</button>
 						</div>
 					</div>
 				{/if}
 
+			</div>
 			</div>
 		{/if}
 	</div>

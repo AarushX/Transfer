@@ -108,10 +108,16 @@ export const actions: Actions = {
 		if (new Set(selectedTeamIds).size !== selectedTeamIds.length) {
 			return fail(400, { error: 'Each required category must use a different subteam.' });
 		}
-		const { data: selectedTeams } = await locals.supabase
-			.from('teams')
-			.select('id,team_group_id,category_slug')
-			.in('id', selectedTeamIds);
+		const [{ data: selectedTeams }, { data: links, error: linksError }] = await Promise.all([
+			locals.supabase.from('teams').select('id,category_slug').in('id', selectedTeamIds),
+			locals.supabase
+				.from('team_group_subteam_links')
+				.select('team_group_id,team_id')
+				.eq('team_group_id', primaryTeamGroupId)
+				.in('team_id', selectedTeamIds)
+		]);
+		if (linksError) return fail(400, { error: linksError.message });
+		const linkedTeamIds = new Set((links ?? []).map((row: any) => String(row.team_id)));
 		const inserts: {
 			user_id: string;
 			team_group_id: string;
@@ -122,13 +128,14 @@ export const actions: Actions = {
 			const categorySlug = String(category.slug);
 			const selectedTeamId = String(form.get(`team_id_${categorySlug}`) ?? '').trim();
 			if (!selectedTeamId) return fail(400, { error: `Select a ${String(category.name).toLowerCase()} subteam.` });
-			const selected = (selectedTeams ?? []).find(
-				(row: any) => row.id === selectedTeamId && String(row.category_slug ?? '') === categorySlug
-			);
+			const selected = (selectedTeams ?? []).find((row: any) => row.id === selectedTeamId && String(row.category_slug ?? '') === categorySlug);
 			if (!selected) return fail(400, { error: `Selection for ${String(category.name).toLowerCase()} is invalid.` });
+			if (!linkedTeamIds.has(String(selectedTeamId))) {
+				return fail(400, { error: `Selected ${categorySlug} subteam is not linked to the chosen main team.` });
+			}
 			inserts.push({
 				user_id: userId,
-				team_group_id: selected.team_group_id,
+				team_group_id: primaryTeamGroupId,
 				team_id: selected.id,
 				category_slug: categorySlug
 			});
