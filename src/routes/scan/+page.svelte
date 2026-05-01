@@ -65,9 +65,9 @@
 				}
 				status = 'denied';
 				message =
+					body?.error ??
 					checkoffBody?.error ??
 					attendanceBody?.error ??
-					body?.error ??
 					'Not authorized.';
 				machine = body?.machine ?? null;
 				return;
