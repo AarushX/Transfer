@@ -38,6 +38,46 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	if (!node) throw error(404, 'Module not found');
 
+	if (!previewBypass) {
+		const [{ data: nodeTeamTargets }, { data: nodeGroupTargets }, { data: profileTeamRows }] =
+			await Promise.all([
+				locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id),
+				locals.supabase.from('node_team_group_targets').select('team_group_id').eq('node_id', node.id),
+				locals.supabase.from('profile_teams').select('team_id,team_group_id').eq('user_id', user.id)
+			]);
+		const hasTeamTargets = (nodeTeamTargets?.length ?? 0) > 0;
+		const hasGroupTargets = (nodeGroupTargets?.length ?? 0) > 0;
+		if (!hasTeamTargets && !hasGroupTargets) {
+			throw error(403, 'This module is not assigned to a team yet.');
+		}
+		const userTeamIds = new Set(
+			(profileTeamRows ?? []).map((r: { team_id: string }) => String(r.team_id)).filter(Boolean)
+		);
+		const userGroupIds = new Set(
+			(profileTeamRows ?? [])
+				.map((r: { team_group_id: string }) => String(r.team_group_id))
+				.filter(Boolean)
+		);
+		let allowed = false;
+		for (const r of nodeTeamTargets ?? []) {
+			if (userTeamIds.has(String((r as { team_id: string }).team_id))) {
+				allowed = true;
+				break;
+			}
+		}
+		if (!allowed) {
+			for (const r of nodeGroupTargets ?? []) {
+				if (userGroupIds.has(String((r as { team_group_id: string }).team_group_id))) {
+					allowed = true;
+					break;
+				}
+			}
+		}
+		if (!allowed) {
+			throw error(403, 'You do not have access to this module.');
+		}
+	}
+
 	const [
 		{ data: assessment },
 		{ data: cert },

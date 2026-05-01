@@ -167,8 +167,8 @@ let { data, form } = $props();
 		const targetGroups = targetTeamGroupIdsByNode.get(String(node.id));
 		const hasTeamTargets = Boolean(target && target.size > 0);
 		const hasGroupTargets = Boolean(targetGroups && targetGroups.size > 0);
-		if (!hasTeamTargets && !hasGroupTargets) return true;
-		if (userTeamIds.size === 0 && userTeamGroupIds.size === 0) return true;
+		if (!hasTeamTargets && !hasGroupTargets) return false;
+		if (userTeamIds.size === 0 && userTeamGroupIds.size === 0) return false;
 		for (const teamId of userTeamIds) {
 			if (target?.has(teamId)) return true;
 		}
@@ -188,6 +188,7 @@ let { data, form } = $props();
 		const cards: Array<{
 			key: string;
 			label: string;
+			subLabel?: string;
 			courseCount: number;
 			completedCount: number;
 			progressPct: number;
@@ -207,6 +208,44 @@ let { data, form } = $props();
 			leftCount: Math.max(0, allTotal - allCompleted)
 		});
 
+		const teamGroupsRows =
+			(data.teamGroups as Array<{ id: string; name?: string | null; color_hex?: string | null }>) ?? [];
+		const teamGroupMeta = new Map(
+			teamGroupsRows.map((row) => [
+				String(row.id),
+				{ name: String(row.name ?? 'Team'), color: String(row.color_hex ?? '') }
+			])
+		);
+
+		const seenTeamWideGroup = new Set<string>();
+		for (const row of (data.profileTeams as ProfileTeam[]) ?? []) {
+			const teamGroupId = String(row.team_group_id ?? '');
+			if (!teamGroupId || seenTeamWideGroup.has(teamGroupId)) continue;
+			seenTeamWideGroup.add(teamGroupId);
+			const meta = teamGroupMeta.get(teamGroupId);
+			const groupName = meta?.name ?? 'Team';
+			const groupColor = meta?.color ?? '';
+			const teamWideNodes = primaryNodes.filter((node) => {
+				const teamTargets = targetTeamIdsByNode.get(String(node.id));
+				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
+				if (!groupTargets?.has(teamGroupId)) return false;
+				return !teamTargets || teamTargets.size === 0;
+			});
+			const twCompleted = teamWideNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
+			const twTotal = teamWideNodes.length;
+			cards.push({
+				key: `teamwide:${teamGroupId}`,
+				label: groupName,
+				subLabel: 'Team-wide',
+				courseCount: twTotal,
+				completedCount: twCompleted,
+				progressPct: twTotal ? Math.round((twCompleted / twTotal) * 100) : 0,
+				leftCount: Math.max(0, twTotal - twCompleted),
+				teamGroupId,
+				color: groupColor || teamGroupColorById.get(teamGroupId) || ''
+			});
+		}
+
 		const seen = new Set<string>();
 		for (const row of (data.profileTeams as ProfileTeam[]) ?? []) {
 			const teamId = String(row.team_id);
@@ -216,10 +255,7 @@ let { data, form } = $props();
 			const teamGroupId = String(row.team_group_id ?? '');
 			const teamNodes = primaryNodes.filter((node) => {
 				const teamTargets = targetTeamIdsByNode.get(String(node.id));
-				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
-				if (teamTargets?.has(teamId)) return true;
-				if (teamGroupId && groupTargets?.has(teamGroupId)) return true;
-				return !teamTargets?.size && !groupTargets?.size;
+				return teamTargets?.has(teamId) ?? false;
 			});
 			const completed = teamNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
 			const total = teamNodes.length;
@@ -239,14 +275,20 @@ let { data, form } = $props();
 	});
 	const scopedNodes = $derived.by(() => {
 		if (activeCourseScope === 'all') return primaryNodes;
+		if (activeCourseScope.startsWith('teamwide:')) {
+			const teamGroupId = activeCourseScope.slice('teamwide:'.length);
+			return primaryNodes.filter((node) => {
+				const teamTargets = targetTeamIdsByNode.get(String(node.id));
+				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
+				if (!groupTargets?.has(teamGroupId)) return false;
+				return !teamTargets || teamTargets.size === 0;
+			});
+		}
 		const selected = scopeCards.find((card) => card.key === activeCourseScope);
 		if (!selected?.teamId) return primaryNodes;
 		return primaryNodes.filter((node) => {
 			const teamTargets = targetTeamIdsByNode.get(String(node.id));
-			const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
-			if (teamTargets?.has(selected.teamId!)) return true;
-			if (selected.teamGroupId && groupTargets?.has(selected.teamGroupId)) return true;
-			return !teamTargets?.size && !groupTargets?.size;
+			return teamTargets?.has(selected.teamId!) ?? false;
 		});
 	});
 	const takeableStatuses = ['available', 'video_pending', 'quiz_pending'];
@@ -462,7 +504,7 @@ const hasPartialProgress = (nodeId: string) => {
 		{/if}
 
 		{#if !needsOnboarding}
-			<div class="bg-slate-950/40 px-6 py-5 md:px-10">
+			<div class="bg-slate-950/40 px-6 pb-5 pt-3 md:px-10">
 				<div class="flex flex-wrap items-center gap-3">
 					<div class="mr-auto flex items-center gap-2">
 						<h2 class="text-lg font-semibold">My Courses</h2>
@@ -485,7 +527,7 @@ const hasPartialProgress = (nodeId: string) => {
 						<SearchField
 							bind:value={filter}
 							placeholder="Search courses..."
-							fieldClass="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5"
+							fieldClass="rounded-xl px-3 py-2.5"
 						/>
 					</div>
 				</div>
@@ -508,6 +550,9 @@ const hasPartialProgress = (nodeId: string) => {
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
 									<p class="truncate text-sm font-semibold">{card.label}</p>
+									{#if card.subLabel}
+										<p class="truncate text-xs text-slate-500">{card.subLabel}</p>
+									{/if}
 								</div>
 								<span
 									class="rounded-full px-2 py-0.5 text-[11px]"

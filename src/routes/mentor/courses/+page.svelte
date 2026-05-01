@@ -19,7 +19,7 @@
 			.map((teamId) => teamsById.get(teamId))
 			.filter(Boolean)
 			.map((team: any) => String(team.name));
-		return labels.length > 0 ? labels : ['All teams'];
+		return labels.length > 0 ? labels : ['No team targets'];
 	};
 </script>
 
