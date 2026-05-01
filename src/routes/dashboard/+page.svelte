@@ -250,31 +250,6 @@ let { data, form } = $props();
 			});
 		}
 
-		const seen = new Set<string>();
-		for (const row of (data.profileTeams as ProfileTeam[]) ?? []) {
-			const teamId = String(row.team_id);
-			if (!teamId || seen.has(teamId)) continue;
-			seen.add(teamId);
-			const teamName = String(teamById.get(teamId)?.name ?? 'Team');
-			const teamGroupId = String(row.team_group_id ?? '');
-			const teamNodes = primaryNodes.filter((node) => {
-				const teamTargets = targetTeamIdsByNode.get(String(node.id));
-				return teamTargets?.has(teamId) ?? false;
-			});
-			const completed = teamNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
-			const total = teamNodes.length;
-			cards.push({
-				key: `team:${teamId}`,
-				label: teamName,
-				courseCount: total,
-				completedCount: completed,
-				progressPct: total ? Math.round((completed / total) * 100) : 0,
-				leftCount: Math.max(0, total - completed),
-				teamId,
-				teamGroupId: teamGroupId || undefined,
-				color: accentColorForNode(teamNodes[0]?.id ?? '') || teamColorById.get(teamId) || ''
-			});
-		}
 		return cards;
 	});
 	const scopedNodes = $derived.by(() => {
