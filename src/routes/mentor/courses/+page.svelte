@@ -3,6 +3,9 @@
 	const teamsById = $derived(
 		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
 	);
+	const teamGroupsById = $derived(
+		new Map((data.teamGroups as any[]).map((group) => [String(group.id), group]))
+	);
 	let selectedTemplateId = $state((data.templates?.[0]?.id as string | undefined) ?? '');
 	let newTitle = $state('');
 	let newSlug = $state('');
@@ -12,13 +15,26 @@
 		if (!newTitle && selectedTemplate) newTitle = String(selectedTemplate.title ?? '');
 	});
 	const teamNamesForNode = (nodeId: string) => {
+		const labelsSet = new Set<string>();
 		const teamIds = (data.nodeTargets as Array<{ node_id: string; team_id: string }>)
 			.filter((row) => String(row.node_id) === String(nodeId))
 			.map((row) => String(row.team_id));
-		const labels = teamIds
-			.map((teamId) => teamsById.get(teamId))
-			.filter(Boolean)
-			.map((team: any) => String(team.name));
+		for (const teamId of teamIds) {
+			const team = teamsById.get(teamId);
+			if (!team) continue;
+			const group = teamGroupsById.get(String(team.team_group_id ?? ''));
+			const label = group?.name ? `${group.name}: ${team.name}` : String(team.name);
+			labelsSet.add(label);
+		}
+		const groupIds = (data.nodeGroupTargets as Array<{ node_id: string; team_group_id: string }>)
+			.filter((row) => String(row.node_id) === String(nodeId))
+			.map((row) => String(row.team_group_id));
+		for (const groupId of groupIds) {
+			const group = teamGroupsById.get(groupId);
+			if (!group) continue;
+			labelsSet.add(`${String(group.name)} (all subteams)`);
+		}
+		const labels = Array.from(labelsSet);
 		return labels.length > 0 ? labels : ['No team targets'];
 	};
 </script>
@@ -103,7 +119,9 @@
 				<option value="">All teams</option>
 				{#each (data.teams as any[]) as team}
 					<option value={team.id} selected={team.id === data.filter.team}>
-						{team.team_groups?.name ? `${team.team_groups.name}: ` : ''}{team.name}
+						{teamGroupsById.get(String(team.team_group_id ?? ''))?.name
+							? `${teamGroupsById.get(String(team.team_group_id ?? ''))?.name}: `
+							: ''}{team.name}
 					</option>
 				{/each}
 			</select>

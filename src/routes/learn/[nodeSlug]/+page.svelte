@@ -556,7 +556,7 @@ let videoActionMessage = $state('');
 					{:else}
 						{@const c = activeBlock.config}
 						{#if c.directions}
-							<p class="text-sm text-slate-300">{c.directions}</p>
+							<p class="text-sm whitespace-pre-wrap text-slate-300">{c.directions}</p>
 						{/if}
 						{#if Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
 							<div class="rounded bg-slate-900/60 p-3">
@@ -697,7 +697,9 @@ let videoActionMessage = $state('');
 										By {data.reviewMentor.full_name || data.reviewMentor.email}
 									</p>
 								{/if}
-								<p class="mt-1 text-slate-300">{data.review.mentor_notes || 'No notes yet.'}</p>
+								<p class="mt-1 whitespace-pre-wrap text-slate-300">
+									{data.review.mentor_notes || 'No notes yet.'}
+								</p>
 								{#if data.review.status === 'needs_review'}
 									<p class="mt-2 text-xs text-amber-200">
 										Mentor requested updates. Your current submission stays saved; update

@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const { data: teams } = await locals.supabase
 		.from('teams')
-		.select('id,name,slug,team_groups(name,slug)')
+		.select('id,name,slug,team_group_id')
 		.order('name');
 
 	let query = locals.supabase
@@ -28,9 +28,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	if (q) query = query.ilike('title', `%${q}%`);
 
-	const [{ data: nodes }, { data: nodeTargets }, { data: templates }] = await Promise.all([
+	const [{ data: nodes }, { data: nodeTargets }, { data: nodeGroupTargets }, { data: teamGroups }, { data: templates }] = await Promise.all([
 		query,
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
+		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
+		locals.supabase.from('team_groups').select('id,name,slug'),
 		locals.supabase
 			.from('course_templates')
 			.select('id,name,title,description,team_ids,category_ids,prereq_ids,blocks_json')
@@ -50,8 +52,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	return {
 		teams: teams ?? [],
+		teamGroups: teamGroups ?? [],
 		nodes: filteredNodes,
 		nodeTargets: nodeTargets ?? [],
+		nodeGroupTargets: nodeGroupTargets ?? [],
 		templates: templates ?? [],
 		filter: { team: teamFilter, q }
 	};

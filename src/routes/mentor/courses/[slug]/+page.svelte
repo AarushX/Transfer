@@ -41,6 +41,7 @@
 		evidence_mode: 'none' | 'photo_optional' | 'photo_required';
 		mentor_checklist: string[];
 		resource_links: string[];
+		show_mentor_checklist_to_students: boolean;
 	};
 
 type ReadingConfig = {
@@ -149,7 +150,10 @@ const teamsByGroup = $derived.by(() => {
 								: [],
 							resource_links: Array.isArray(cfg.resource_links)
 								? cfg.resource_links.map((v: unknown) => String(v))
-								: []
+								: [],
+							show_mentor_checklist_to_students: Boolean(
+								cfg.show_mentor_checklist_to_students ?? false
+							)
 						}
 					} as Block;
 				})
@@ -245,7 +249,8 @@ const teamsByGroup = $derived.by(() => {
 					directions: '',
 					evidence_mode: 'none',
 					mentor_checklist: [],
-					resource_links: []
+					resource_links: [],
+					show_mentor_checklist_to_students: false
 				}
 			});
 		}
@@ -504,53 +509,12 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 			<span class="text-slate-300">Slug</span>
 			<input class="rounded bg-slate-800 px-2 py-2" name="slug" value={data.node.slug} required />
 		</label>
-		<div class="space-y-2 text-sm md:col-span-2">
-			<p class="text-slate-300">Team mapping (FTC/FRC + divisions)</p>
-			<div class="grid gap-2 md:grid-cols-2">
-				{#each teamsByGroup as group (group.slug)}
-					<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
-						<p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
-						<div class="space-y-1">
-							{#each group.teams as team (team.id)}
-								<label class="inline-flex items-center gap-2 text-sm">
-									<input
-										type="checkbox"
-										name="team_ids"
-										value={team.id}
-										checked={selectedNodeTeamIds.has(team.id)}
-									/>
-									{team.name}
-								</label>
-							{/each}
-						</div>
-					</div>
-				{/each}
-			</div>
-		</div>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
 			<span class="text-slate-300">Description</span>
 			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"
 				>{data.node.description ?? ''}</textarea
 			>
 		</label>
-		<fieldset class="md:col-span-2 rounded border border-slate-800 p-3">
-			<legend class="px-1 text-xs uppercase tracking-wide text-slate-400">Category mapping</legend>
-			<p class="mb-2 text-xs text-slate-500">Used for dashboard grouping and color coding.</p>
-			<div class="grid gap-2 md:grid-cols-2">
-				{#each selectableCategories as category}
-					<label class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/50 p-2 text-sm">
-						<input
-							type="checkbox"
-							name="category_ids"
-							value={category.id}
-							checked={selectedNodeCategoryIds.has(category.id)}
-							class="accent-yellow-400"
-						/>
-						<span>{category.name}</span>
-					</label>
-				{/each}
-			</div>
-		</fieldset>
 		<div class="flex justify-end md:col-span-2">
 			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
 				Save details
@@ -606,7 +570,10 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		<div class="space-y-2">
 			{#each blocks as block, i (block.id ?? i)}
 				<div class="rounded border p-3 {blockStyles(block.type)} {blockErrors[i] ? 'ring-1 ring-red-500' : ''}">
-					<div class="flex flex-wrap items-center gap-2">
+					<div
+						class="flex cursor-pointer flex-wrap items-center gap-2"
+						onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
+					>
 						<span class="inline-flex items-center rounded bg-slate-900/50 px-2 py-0.5 text-xs font-semibold">
 							{i + 1}. {blockLabel(block.type)}
 						</span>
@@ -616,7 +583,10 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 								type="button"
 								class="rounded border border-slate-800 px-2 py-0.5 text-xs disabled:opacity-40"
 								disabled={i === 0}
-								onclick={() => moveBlock(i, -1)}
+								onclick={(event) => {
+									event.stopPropagation();
+									moveBlock(i, -1);
+								}}
 								title="Move up"
 								aria-label="Move up"
 							>▲</button>
@@ -624,21 +594,30 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 								type="button"
 								class="rounded border border-slate-800 px-2 py-0.5 text-xs disabled:opacity-40"
 								disabled={i === blocks.length - 1}
-								onclick={() => moveBlock(i, 1)}
+								onclick={(event) => {
+									event.stopPropagation();
+									moveBlock(i, 1);
+								}}
 								title="Move down"
 								aria-label="Move down"
 							>▼</button>
 							<button
 								type="button"
 								class="rounded border border-slate-800 px-2 py-0.5 text-xs"
-								onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
+								onclick={(event) => {
+									event.stopPropagation();
+									expandedIndex = expandedIndex === i ? null : i;
+								}}
 							>
 								{expandedIndex === i ? 'Collapse' : 'Edit'}
 							</button>
 							<button
 								type="button"
 								class="rounded border border-red-700/60 px-2 py-0.5 text-xs text-red-200"
-								onclick={() => removeBlock(i)}
+								onclick={(event) => {
+									event.stopPropagation();
+									removeBlock(i);
+								}}
 							>Remove</button>
 						</div>
 					</div>
@@ -1003,6 +982,18 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 											<option value="photo_optional">Photo optional</option>
 											<option value="photo_required">Photo required</option>
 										</select>
+									</label>
+									<label class="flex items-center gap-2 text-xs text-slate-300">
+										<input
+											type="checkbox"
+											class="accent-yellow-400"
+											checked={Boolean(block.config.show_mentor_checklist_to_students)}
+											onchange={(event) =>
+												(block.config.show_mentor_checklist_to_students = (
+													event.currentTarget as HTMLInputElement
+												).checked)}
+										/>
+										Show mentor checklist to students
 									</label>
 								</div>
 

@@ -232,10 +232,8 @@ let { data, form } = $props();
 			const groupName = meta?.name ?? 'Team';
 			const groupColor = meta?.color ?? '';
 			const teamWideNodes = primaryNodes.filter((node) => {
-				const teamTargets = targetTeamIdsByNode.get(String(node.id));
 				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
-				if (!groupTargets?.has(teamGroupId)) return false;
-				return !teamTargets || teamTargets.size === 0;
+				return groupTargets?.has(teamGroupId) ?? false;
 			});
 			const twCompleted = teamWideNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length;
 			const twTotal = teamWideNodes.length;
@@ -284,10 +282,8 @@ let { data, form } = $props();
 		if (activeCourseScope.startsWith('teamwide:')) {
 			const teamGroupId = activeCourseScope.slice('teamwide:'.length);
 			return primaryNodes.filter((node) => {
-				const teamTargets = targetTeamIdsByNode.get(String(node.id));
 				const groupTargets = targetTeamGroupIdsByNode.get(String(node.id));
-				if (!groupTargets?.has(teamGroupId)) return false;
-				return !teamTargets || teamTargets.size === 0;
+				return groupTargets?.has(teamGroupId) ?? false;
 			});
 		}
 		const selected = scopeCards.find((card) => card.key === activeCourseScope);
@@ -322,7 +318,7 @@ let { data, form } = $props();
 			.slice()
 			.sort(byPriority)
 	);
-const normalPrimary = $derived([...takeablePrimary, ...lockedPrimary]);
+const normalPrimary = $derived([...takeablePrimary]);
 	const completedPrimary = $derived(
 		scopedNodes
 			.filter((n) => effectiveStatusFor(n.id) === 'completed')
@@ -351,7 +347,7 @@ const normalPrimary = $derived([...takeablePrimary, ...lockedPrimary]);
 
 const courseCardClass = (status: string) => {
 	const base =
-		'group block rounded-2xl border p-4 transition duration-150 hover:border-slate-500 hover:bg-slate-800/80';
+		'group relative block overflow-hidden rounded-2xl border p-4 transition duration-150 hover:border-slate-500 hover:bg-slate-800/80';
 	if (status === 'available' || status === 'video_pending' || status === 'quiz_pending') {
 		return `${base} border-slate-700 bg-slate-900/70 text-slate-100`;
 	}
@@ -364,6 +360,9 @@ const courseCardClass = (status: string) => {
 	}
 	if (status === 'completed') {
 		return `${base} border-slate-700 bg-slate-900/60 text-slate-200`;
+	}
+	if (status === 'locked') {
+		return `${base} border-slate-800 bg-slate-900/40 text-slate-300`;
 	}
 	return `${base} border-slate-700 bg-slate-900/65 text-slate-200`;
 };
@@ -602,10 +601,17 @@ const hasPartialProgress = (nodeId: string) => {
 							<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 								{#each inProgressPrimary as node (node.id)}
 									{@const status = effectiveStatusFor(node.id)}
+									{@const locked = status === 'locked'}
 									<a
 										href={`/learn/${node.slug}`}
-										class={courseCardClass(status)}
+										class={`${courseCardClass(status)} text-inherit`}
 									>
+										{#if locked}
+											<div
+												class="pointer-events-none absolute inset-0 opacity-70"
+												style="background: repeating-linear-gradient(-45deg, rgba(148,163,184,0.18) 0px, rgba(148,163,184,0.18) 10px, rgba(15,23,42,0.0) 10px, rgba(15,23,42,0.0) 20px);"
+											></div>
+										{/if}
 										<div class="flex items-start justify-between gap-3">
 											<div class="min-w-0 flex-1">
 												<p class="truncate text-base font-semibold">{node.title}</p>
@@ -615,7 +621,7 @@ const hasPartialProgress = (nodeId: string) => {
 											</span>
 										</div>
 										<div class="mt-3 flex items-center justify-between text-xs">
-											{#if status !== 'available'}
+											{#if status !== 'available' && status !== 'locked'}
 												<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 											{/if}
 										</div>
@@ -634,10 +640,17 @@ const hasPartialProgress = (nodeId: string) => {
 							<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 								{#each normalPrimary as node (node.id)}
 									{@const status = effectiveStatusFor(node.id)}
+									{@const locked = status === 'locked'}
 									<a
 										href={`/learn/${node.slug}`}
-										class={courseCardClass(status)}
+										class={`${courseCardClass(status)} text-inherit`}
 									>
+										{#if locked}
+											<div
+												class="pointer-events-none absolute inset-0 opacity-70"
+												style="background: repeating-linear-gradient(-45deg, rgba(148,163,184,0.18) 0px, rgba(148,163,184,0.18) 10px, rgba(15,23,42,0.0) 10px, rgba(15,23,42,0.0) 20px);"
+											></div>
+										{/if}
 										<div class="flex items-start justify-between gap-3">
 											<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
 											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
@@ -645,9 +658,44 @@ const hasPartialProgress = (nodeId: string) => {
 											</span>
 										</div>
 										<div class="mt-3 flex items-center justify-between text-xs">
-											{#if status !== 'available'}
+											{#if status !== 'available' && status !== 'locked'}
 												<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 											{/if}
+										</div>
+										<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+											<div
+												class="h-full rounded-full transition-all duration-300"
+												style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
+											></div>
+										</div>
+									</a>
+								{/each}
+							</div>
+						{/if}
+
+						{#if lockedPrimary.length > 0}
+							<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+								{#each lockedPrimary as node (node.id)}
+									{@const status = effectiveStatusFor(node.id)}
+									{@const locked = status === 'locked'}
+									<a
+										href={`/learn/${node.slug}`}
+										class={`${courseCardClass(status)} text-inherit`}
+									>
+										{#if locked}
+											<div
+												class="pointer-events-none absolute inset-0 opacity-70"
+												style="background: repeating-linear-gradient(-45deg, rgba(148,163,184,0.18) 0px, rgba(148,163,184,0.18) 10px, rgba(15,23,42,0.0) 10px, rgba(15,23,42,0.0) 20px);"
+											></div>
+										{/if}
+										<div class="flex items-start justify-between gap-3">
+											<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+											<span
+												class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200"
+												style={teamChipStyleForNode(node.id)}
+											>
+												{linkedTeamLabelForNode(node.id)}
+											</span>
 										</div>
 										<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
 											<div
@@ -672,7 +720,7 @@ const hasPartialProgress = (nodeId: string) => {
 									{#each completedPrimary as node (node.id)}
 										<a
 											href={`/learn/${node.slug}`}
-											class="group flex items-start justify-between gap-3 py-2.5 text-slate-200 transition duration-150 hover:bg-slate-900/50"
+											class="group flex items-start justify-between gap-3 py-2.5 text-slate-200 transition duration-150 hover:bg-slate-900/50 text-inherit"
 										>
 											<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
 											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
