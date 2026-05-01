@@ -41,7 +41,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			locals.supabase.from('node_categories').select('node_id,category_id'),
 			computeUserRanks(locals.supabase, [userId]),
 			locals.supabase.from('team_groups').select('id,name,sort_order').order('sort_order'),
-			locals.supabase.from('teams').select('id,name,category_slug,team_group_id,sort_order').order('sort_order'),
+			locals.supabase
+				.from('teams')
+				.select('id,name,slug,category_slug,team_group_id,sort_order')
+				.order('sort_order'),
 			locals.supabase
 				.from('subteam_categories')
 				.select('slug,name,is_required_onboarding,sort_order')

@@ -2,11 +2,13 @@
 	let {
 		value = $bindable(''),
 		placeholder = 'Search...',
-		fieldClass = 'rounded-md border px-3 py-2'
+		fieldClass = 'rounded-md border px-3 py-2',
+		fieldStyle = ''
 	}: {
 		value?: string;
 		placeholder?: string;
 		fieldClass?: string;
+		fieldStyle?: string;
 	} = $props();
 </script>
 
@@ -14,7 +16,7 @@
 	<span class="sr-only">{placeholder}</span>
 	<div
 		class={`flex items-center gap-2 focus-within:ring-2 ${fieldClass}`}
-		style="border-color: var(--app-border); background: color-mix(in srgb, var(--app-input-bg) 80%, transparent); --tw-ring-color: var(--app-focus-ring);"
+		style={`border-color: var(--app-border); background: color-mix(in srgb, var(--app-input-bg) 80%, transparent); --tw-ring-color: var(--app-focus-ring); ${fieldStyle}`}
 	>
 		<svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4" style="color: var(--app-text-muted);" aria-hidden="true">
 			<path

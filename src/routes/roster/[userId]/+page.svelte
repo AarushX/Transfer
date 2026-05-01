@@ -103,13 +103,13 @@
 				{#each data.requiredCategories as category}
 					{@const categorySlug = String(category.slug)}
 					<label class="flex flex-col gap-1 text-xs">
-						<span>{category.name} subteam</span>
+						<span>{categorySlug} subteam</span>
 						<select class="rounded bg-slate-800 px-2 py-1.5" name={`team_id_${categorySlug}`} required>
-							<option value="">Select {String(category.name).toLowerCase()} subteam</option>
+							<option value="">Select {categorySlug} subteam</option>
 							{#each data.subteams as subteam}
 								{#if String(subteam.category_slug ?? '') === categorySlug}
 									<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === String(subteam.id)}>
-										{subteam.name}
+										{subteam.slug || subteam.name}
 									</option>
 								{/if}
 							{/each}

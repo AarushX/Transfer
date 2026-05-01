@@ -72,9 +72,12 @@ let { data, form } = $props();
 	);
 	const userTeamGroupIds = $derived(
 		new Set(
-			((data.profileTeamGroups as ProfileTeamGroup[]) ?? []).map((row) =>
-				String(row.team_group_id)
-			)
+			[
+				...((data.profileTeamGroups as ProfileTeamGroup[]) ?? []).map((row) =>
+					String(row.team_group_id)
+				),
+				String((data as any).primaryTeamGroupId ?? '')
+			].filter(Boolean)
 		)
 	);
 	const onboardingRequiredDesignators = $derived(
@@ -218,8 +221,11 @@ let { data, form } = $props();
 		);
 
 		const seenTeamWideGroup = new Set<string>();
-		for (const row of (data.profileTeams as ProfileTeam[]) ?? []) {
-			const teamGroupId = String(row.team_group_id ?? '');
+		const teamWideGroupIds = new Set<string>([
+			...((data.profileTeams as ProfileTeam[]) ?? []).map((row) => String(row.team_group_id ?? '')),
+			String((data as any).primaryTeamGroupId ?? '')
+		]);
+		for (const teamGroupId of teamWideGroupIds) {
 			if (!teamGroupId || seenTeamWideGroup.has(teamGroupId)) continue;
 			seenTeamWideGroup.add(teamGroupId);
 			const meta = teamGroupMeta.get(teamGroupId);
@@ -528,54 +534,57 @@ const hasPartialProgress = (nodeId: string) => {
 							bind:value={filter}
 							placeholder="Search courses..."
 							fieldClass="rounded-xl px-3 py-2.5"
+							fieldStyle="background: color-mix(in srgb, #0f172a 88%, transparent); border-color: #334155;"
 						/>
 					</div>
 				</div>
 			</div>
-			<div class="bg-slate-950/10 px-6 py-5 md:px-10">
-				<div class="flex gap-3 overflow-x-auto pb-1">
-					{#each scopeCards.filter((card) => card.key !== 'all') as card (card.key)}
-						<button
-							type="button"
-							onclick={() => {
-								activeCourseScope = card.key;
-								showCompletedCourses = false;
-							}}
-							class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition ${
-								activeCourseScope === card.key
-									? 'border-slate-500 bg-slate-900'
-									: 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/80'
-							}`}
-						>
-							<div class="flex items-start justify-between gap-2">
-								<div class="min-w-0">
-									<p class="truncate text-sm font-semibold">{card.label}</p>
-									{#if card.subLabel}
-										<p class="truncate text-xs text-slate-500">{card.subLabel}</p>
-									{/if}
+			{#if scopeCards.some((card) => card.key !== 'all')}
+				<div class="px-6 py-5 md:px-10">
+					<div class="flex gap-3 overflow-x-auto pb-1">
+						{#each scopeCards.filter((card) => card.key !== 'all') as card (card.key)}
+							<button
+								type="button"
+								onclick={() => {
+									activeCourseScope = card.key;
+									showCompletedCourses = false;
+								}}
+								class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition ${
+									activeCourseScope === card.key
+										? 'border-slate-500 bg-slate-900'
+										: 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/80'
+								}`}
+							>
+								<div class="flex items-start justify-between gap-2">
+									<div class="min-w-0">
+										<p class="truncate text-sm font-semibold">{card.label}</p>
+										{#if card.subLabel}
+											<p class="truncate text-xs text-slate-500">{card.subLabel}</p>
+										{/if}
+									</div>
+									<span
+										class="rounded-full px-2 py-0.5 text-[11px]"
+										style={card.color
+											? `background: color-mix(in srgb, ${card.color} 22%, transparent); color: color-mix(in srgb, ${card.color} 35%, #f8fafc);`
+											: 'background:#1e293b;color:#cbd5e1;'}
+									>
+										{card.leftCount} left
+									</span>
 								</div>
-								<span
-									class="rounded-full px-2 py-0.5 text-[11px]"
-									style={card.color
-										? `background: color-mix(in srgb, ${card.color} 22%, transparent); color: color-mix(in srgb, ${card.color} 35%, #f8fafc);`
-										: 'background:#1e293b;color:#cbd5e1;'}
-								>
-									{card.leftCount} left
-								</span>
-							</div>
-							<p class="mt-1 text-xs text-slate-400">
-								{card.completedCount}/{card.courseCount} complete
-							</p>
-							<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
-								<div
-									class="h-full rounded-full transition-all duration-300"
-									style={`width:${card.progressPct}%; background:${card.color || '#64748b'};`}
-								></div>
-							</div>
-						</button>
-					{/each}
+								<p class="mt-1 text-xs text-slate-400">
+									{card.completedCount}/{card.courseCount} complete
+								</p>
+								<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+									<div
+										class="h-full rounded-full transition-all duration-300"
+										style={`width:${card.progressPct}%; background:${card.color || '#64748b'};`}
+									></div>
+								</div>
+							</button>
+						{/each}
+					</div>
 				</div>
-			</div>
+			{/if}
 
 			{#if filtered.length === 0}
 				<p class="px-6 py-6 text-sm text-slate-400 md:px-10">No courses match your filter.</p>
