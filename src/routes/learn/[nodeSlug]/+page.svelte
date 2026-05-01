@@ -558,7 +558,7 @@ let videoActionMessage = $state('');
 						{#if c.directions}
 							<p class="text-sm whitespace-pre-wrap text-slate-300">{c.directions}</p>
 						{/if}
-						{#if Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
+						{#if c.show_mentor_checklist_to_students && Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
 							<div class="rounded bg-slate-900/60 p-3">
 								<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
 									Mentor checklist

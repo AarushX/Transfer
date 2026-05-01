@@ -61,6 +61,31 @@
 			.slice()
 			.sort((a, b) => a.name.localeCompare(b.name))
 	);
+	const quickAccessOptions = $derived.by(() => {
+		const options: Array<{ key: string; teamId: string; subteamId: string; label: string }> = [];
+		for (const subteam of subteams) {
+			const subteamId = String(subteam.id);
+			const linkedGroupIds = linkedGroupIdsBySubteam.get(subteamId) ?? new Set<string>();
+			for (const groupId of linkedGroupIds) {
+				const group = teamGroups.find((row) => String(row.id) === String(groupId));
+				if (!group) continue;
+				options.push({
+					key: `${group.id}:${subteam.id}`,
+					teamId: String(group.id),
+					subteamId,
+					label: `${group.name}: ${subteam.name}`
+				});
+			}
+		}
+		return options.sort((a, b) => a.label.localeCompare(b.label));
+	});
+	const applyQuickAccess = (value: string) => {
+		if (!value) return;
+		const selected = quickAccessOptions.find((row) => row.key === value);
+		if (!selected) return;
+		selectedTeamId = selected.teamId;
+		selectedSubteamId = selected.subteamId;
+	};
 
 	$effect(() => {
 		if (selectedTeamId) return;
@@ -243,7 +268,7 @@
 			onTeamChange={setSelectedTeamId}
 			onSubteamChange={setSelectedSubteamId}
 		/>
-		<div class="flex flex-wrap gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			{#each sectionTabs as tab}
 				<button
 					type="button"
@@ -257,6 +282,16 @@
 					{tab.label}
 				</button>
 			{/each}
+			<select
+				class="ml-auto w-full rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-200 md:w-auto md:min-w-[260px]"
+				value=""
+				onchange={(event) => applyQuickAccess((event.currentTarget as HTMLSelectElement).value)}
+			>
+				<option value="">Quick access</option>
+				{#each quickAccessOptions as option}
+					<option value={option.key}>{option.label}</option>
+				{/each}
+			</select>
 		</div>
 		{#if sectionTabs.find((tab) => tab.id === activeSection)?.helper}
 			<p class="text-xs text-slate-400">{sectionTabs.find((tab) => tab.id === activeSection)?.helper}</p>

@@ -20,6 +20,17 @@
 		(data.userTeamRows as Array<{ team_id: string; category_slug?: string | null }>)
 			.find((row) => String(row.category_slug ?? '') === categorySlug)
 			?.team_id ?? '';
+	const teamGroupNameById = new Map(
+		((data.teamGroups as Array<{ id: string; name?: string | null }>) ?? []).map((row) => [
+			String(row.id),
+			String(row.name ?? '')
+		])
+	);
+	const teamOptionLabel = (subteam: { name?: string | null; team_group_id?: string | null }) => {
+		const groupName = teamGroupNameById.get(String(subteam.team_group_id ?? '')) ?? '';
+		const teamName = String(subteam.name ?? '').trim();
+		return groupName ? `${groupName}: ${teamName}` : teamName;
+	};
 </script>
 
 <section class="space-y-6">
@@ -109,7 +120,7 @@
 							{#each data.subteams as subteam}
 								{#if String(subteam.category_slug ?? '') === categorySlug}
 									<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === String(subteam.id)}>
-										{subteam.slug || subteam.name}
+										{teamOptionLabel(subteam)}
 									</option>
 								{/if}
 							{/each}

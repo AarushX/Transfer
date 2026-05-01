@@ -150,9 +150,9 @@
 						<td class="px-3 py-2 font-medium">{node.title}</td>
 						<td class="px-3 py-2 text-slate-400">{node.slug}</td>
 						<td class="px-3 py-2">
-							<div class="flex flex-wrap gap-1">
+							<div class="flex max-w-[28rem] flex-nowrap gap-1 overflow-x-auto pb-1 whitespace-nowrap">
 								{#each teamNamesForNode(node.id) as label}
-									<span class="rounded bg-slate-800 px-2 py-0.5 text-xs">{label}</span>
+									<span class="shrink-0 rounded bg-slate-800 px-2 py-0.5 text-xs">{label}</span>
 								{/each}
 							</div>
 						</td>

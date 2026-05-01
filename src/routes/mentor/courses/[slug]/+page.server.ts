@@ -257,7 +257,15 @@ function normalizeCheckoffConfig(raw: any) {
 	const resource_links = Array.isArray(raw?.resource_links)
 		? raw.resource_links.map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
-	return { title, directions, evidence_mode, mentor_checklist, resource_links };
+	const show_mentor_checklist_to_students = Boolean(raw?.show_mentor_checklist_to_students ?? false);
+	return {
+		title,
+		directions,
+		evidence_mode,
+		mentor_checklist,
+		resource_links,
+		show_mentor_checklist_to_students
+	};
 }
 
 function normalizeReadingConfig(raw: any) {
