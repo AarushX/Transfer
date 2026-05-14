@@ -30,8 +30,11 @@
 	});
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Roster Dashboard</h1>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Team</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Roster Dashboard</span></h1>
+	</div>
 
 	{#if form?.error}
 		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -54,16 +57,16 @@
 			{/each}
 		</ul>
 	</GlassCard>
-	<div class="overflow-x-auto rounded-xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<div class="fade-up overflow-x-auto rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<table class="min-w-full text-sm">
-			<thead class="text-left" style="background: var(--app-surface-alt);">
+			<thead class="text-left" style="background: var(--app-table-header-bg);">
 				<tr>
-					<th class="p-2" style="color: var(--app-text);">Name</th>
-					<th class="p-2" style="color: var(--app-text);">Role</th>
-					<th class="p-2" style="color: var(--app-text);">Progress</th>
-					<th class="p-2" style="color: var(--app-text);">Pending Checkoffs</th>
+					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Name</th>
+					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Role</th>
+					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Progress</th>
+					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Pending Checkoffs</th>
 					{#if data.canManageUsers}
-						<th class="p-2" style="color: var(--app-text);">Access</th>
+						<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Access</th>
 					{/if}
 				</tr>
 			</thead>
@@ -83,8 +86,8 @@
 							</div>
 						</td>
 						<td class="p-2" style="color: var(--app-text-muted);">{row.role}</td>
-						<td class="p-2" style="color: var(--app-text-muted);">{row.progressPercent}%</td>
-						<td class="p-2" style="color: var(--app-text-muted);">{row.pendingCheckoffs}</td>
+						<td class="p-2"><span class="mono" style="color: var(--app-text-muted);">{row.progressPercent}%</span></td>
+						<td class="p-2"><span class="mono" style="color: var(--app-text-muted);">{row.pendingCheckoffs}</span></td>
 						{#if data.canManageUsers}
 							<td class="p-2">
 								<form method="POST" action="?/setRole" class="flex items-center gap-2">

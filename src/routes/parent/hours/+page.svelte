@@ -14,11 +14,11 @@
 </script>
 
 <section class="space-y-5">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Volunteer Hours</h1>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Volunteer Hours</span></h1>
 		{#if data.season}
-			<p class="text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
 		{/if}
 	</header>
 
@@ -38,7 +38,7 @@
 		</GlassCard>
 	{:else}
 		<!-- Summary -->
-		<div class="grid gap-3 sm:grid-cols-2">
+		<div class="fade-up grid gap-3 sm:grid-cols-2" style="animation-delay: 0.05s;">
 			<GlassCard compact>
 				<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Total Logged</p>
 				<p class="mt-1 text-xl font-semibold" style="color: var(--app-text);">{totalHours} <span class="text-sm font-normal" style="color: var(--app-text-muted);">hours</span></p>

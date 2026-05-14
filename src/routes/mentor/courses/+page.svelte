@@ -43,12 +43,13 @@
 </script>
 
 <section class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="fade-up flex items-center justify-between">
 		<div>
 			<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
-			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Courses</h1>
-			<p class="text-sm" style="color: var(--app-text-muted);">
-				{data.nodes.length} module{data.nodes.length === 1 ? '' : 's'} in the catalog.
+			<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
+			<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Courses</span></h1>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
+				<span class="mono">{data.nodes.length}</span> module{data.nodes.length === 1 ? '' : 's'} in the catalog.
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -97,8 +98,8 @@
 
 	<form
 		method="GET"
-		class="flex flex-wrap items-end gap-2 rounded-xl border p-3 backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+		class="fade-up flex flex-wrap items-end gap-2 rounded-2xl border p-3 backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;"
 	>
 		<label class="flex flex-1 flex-col gap-1 text-xs" style="color: var(--app-text-muted);">
 			<span>Search title</span>

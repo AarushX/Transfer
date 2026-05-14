@@ -20,11 +20,12 @@
 </script>
 
 <section class="space-y-5">
-	<div class="flex items-center justify-between">
+	<div class="fade-up flex items-center justify-between">
 		<div>
 			<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
-			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Surveys</h1>
-			<p class="text-sm" style="color: var(--app-text-muted);">
+			<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
+			<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Surveys</span></h1>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
 				Separate from modules, with module prerequisites and visibility windows.
 			</p>
 		</div>

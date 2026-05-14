@@ -8,9 +8,9 @@
 </script>
 
 <section class="space-y-4">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Forms</h1>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Forms</span></h1>
 	</header>
 	<form method="GET" class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
 		<label class="text-sm">

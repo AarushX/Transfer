@@ -32,122 +32,138 @@
 </script>
 
 <section class="mx-auto max-w-3xl space-y-6">
-	<header>
-		<p class="text-[11px] font-medium uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Profile</p>
-		<h1 class="mt-1 text-3xl font-semibold tracking-tight" style="color: var(--app-text);">Your profile</h1>
+	<header class="fade-up">
+		<p class="eyebrow-label">Profile</p>
+		<h1 class="gradient-text mt-1 text-3xl font-semibold tracking-tight">Your profile</h1>
 		<p class="mt-2 text-sm" style="color: var(--app-text-muted);">
 			How teammates and mentors see you across Transfer.
 		</p>
 	</header>
 
 	{#if form?.error}
-		<div class="rounded-xl border p-3 text-sm" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); color: color-mix(in srgb, var(--app-danger) 60%, white);">{form.error}</div>
+		<div class="fade-up rounded-2xl border p-3 text-sm" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); color: color-mix(in srgb, var(--app-danger) 60%, white);">{form.error}</div>
 	{/if}
 	{#if form?.ok}
-		<div class="rounded-xl border p-3 text-sm" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); border-color: color-mix(in srgb, var(--app-success) 40%, transparent); color: color-mix(in srgb, var(--app-success) 60%, white);">
+		<div class="fade-up rounded-2xl border p-3 text-sm" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); border-color: color-mix(in srgb, var(--app-success) 40%, transparent); color: color-mix(in srgb, var(--app-success) 60%, white);">
 			{successText}
 		</div>
 	{/if}
 
-	<div class="overflow-hidden rounded-xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
-		<div class="flex items-center gap-4 border-b px-5 py-4" style="background: var(--app-glass-bg-hover); border-color: var(--app-glass-border);">
-			<Avatar
-				name={fullName || data.profile?.email}
-				email={data.profile?.email}
-				url={avatarUrl}
-				size="xl"
-			/>
-			<div class="min-w-0">
-				<p class="truncate text-base font-semibold" style="color: var(--app-text);">{fullName || data.profile?.email}</p>
-				<p class="truncate text-xs uppercase tracking-wider" style="color: var(--app-text-muted);">
-					{roleLabel}
-				</p>
-				<p class="mt-1 truncate text-xs" style="color: var(--app-text-muted);">{data.profile?.email}</p>
+	<!-- Profile card with avatar aurora accent -->
+	<div class="fade-up" style="animation-delay: 0.05s">
+		<div class="overflow-hidden rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+
+			<!-- Avatar header with aurora accent -->
+			<div class="relative flex items-center gap-4 border-b px-5 py-5" style="border-color: var(--app-glass-border);">
+				<div class="aurora-border rounded-full" style="border-radius: 9999px; padding: 2px;">
+					<div style="border-radius: 9999px; overflow: hidden;">
+						<Avatar
+							name={fullName || data.profile?.email}
+							email={data.profile?.email}
+							url={avatarUrl}
+							size="xl"
+						/>
+					</div>
+				</div>
+				<div class="min-w-0">
+					<p class="truncate text-base font-semibold" style="color: var(--app-text);">{fullName || data.profile?.email}</p>
+					<div class="mt-1 flex flex-wrap gap-1.5">
+						{#each roleBadgeParts(data.profile) as role}
+							<span class="chip-violet inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium">{role}</span>
+						{/each}
+					</div>
+					<p class="mt-1 truncate text-xs" style="color: var(--app-text-dim);">{data.profile?.email}</p>
+				</div>
 			</div>
+
+			<!-- Profile form with glass inputs -->
+			<form method="POST" action="?/save" use:enhance={refreshOnSuccess} class="relative space-y-4 p-5">
+				<label class="block space-y-1.5">
+					<span class="eyebrow-label">Display name</span>
+					<input
+						name="full_name"
+						required
+						bind:value={fullName}
+						class="block w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+						placeholder="Your name"
+					/>
+				</label>
+
+				<label class="block space-y-1.5">
+					<span class="eyebrow-label">Avatar URL</span>
+					<input
+						name="avatar_url"
+						bind:value={avatarUrl}
+						type="url"
+						class="block w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+						placeholder="https://…"
+					/>
+					<span class="text-[11px]" style="color: var(--app-text-dim);">
+						Optional. Leave blank to use initials. Square images look best.
+					</span>
+				</label>
+
+				<label class="block space-y-1.5">
+					<span class="eyebrow-label">Bio</span>
+					<textarea
+						name="bio"
+						rows="4"
+						maxlength="500"
+						bind:value={bio}
+						class="block w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+						placeholder="A short intro, interests, or what you're focusing on this season."
+					></textarea>
+				</label>
+
+				<div class="flex justify-end">
+					<Button variant="primary" type="submit">
+						Save profile
+					</Button>
+				</div>
+			</form>
 		</div>
-
-		<form method="POST" action="?/save" use:enhance={refreshOnSuccess} class="space-y-4 p-5">
-			<label class="block space-y-1">
-				<span class="text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">
-					Display name
-				</span>
-				<input
-					name="full_name"
-					required
-					bind:value={fullName}
-					class="block w-full rounded-lg border px-3 py-2 text-sm backdrop-blur-sm"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-					placeholder="Your name"
-				/>
-			</label>
-
-			<label class="block space-y-1">
-				<span class="text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">
-					Avatar URL
-				</span>
-				<input
-					name="avatar_url"
-					bind:value={avatarUrl}
-					type="url"
-					class="block w-full rounded-lg border px-3 py-2 text-sm backdrop-blur-sm"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-					placeholder="https://…"
-				/>
-				<span class="text-[11px]" style="color: var(--app-text-muted);">
-					Optional. Leave blank to use initials. Square images look best.
-				</span>
-			</label>
-
-			<label class="block space-y-1">
-				<span class="text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">Bio</span>
-				<textarea
-					name="bio"
-					rows="4"
-					maxlength="500"
-					bind:value={bio}
-					class="block w-full rounded-lg border px-3 py-2 text-sm backdrop-blur-sm"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-					placeholder="A short intro, interests, or what you're focusing on this season."
-				></textarea>
-			</label>
-
-			<div class="flex justify-end">
-				<Button variant="secondary" type="submit">
-					Save profile
-				</Button>
-			</div>
-		</form>
 	</div>
 
-	<GlassCard>
-		<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Access</p>
-		<p class="mt-2 text-sm" style="color: var(--app-text-muted);">Generate a temporary code so a parent can link to this account in the Parent Portal.</p>
-		<form method="POST" action="?/generateParentLinkCode" use:enhance={refreshOnSuccess} class="mt-3">
-			<Button variant="primary" type="submit">Generate parent link code</Button>
-		</form>
-		{#if data.activeParentLinkCode}
-			<div class="mt-3 rounded-xl border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-				<p class="text-xs" style="color: var(--app-text-muted);">Active code (expires soon)</p>
-				<p class="mt-1 text-xl font-bold tracking-widest" style="color: var(--app-text);">{data.activeParentLinkCode.code}</p>
-				<p class="text-xs" style="color: var(--app-text-muted);">Expires {new Date(data.activeParentLinkCode.expires_at).toLocaleString()}</p>
-			</div>
-		{/if}
-		<div class="mt-4 space-y-2">
-			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Linked parents</p>
-			{#each data.parentLinks as link}
-				<div class="flex items-center justify-between rounded-xl border p-2 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-					<div>
-						<p style="color: var(--app-text);">{link.parent?.full_name || link.parent?.email || 'Parent'}</p>
-						<p class="text-xs" style="color: var(--app-text-muted);">{link.parent?.email}</p>
+	<!-- Parent access glass card -->
+	<div class="fade-up" style="animation-delay: 0.1s">
+		<GlassCard>
+			<p class="eyebrow-label">Parent Access</p>
+			<p class="mt-2 text-sm" style="color: var(--app-text-muted);">Generate a temporary code so a parent can link to this account in the Parent Portal.</p>
+			<form method="POST" action="?/generateParentLinkCode" use:enhance={refreshOnSuccess} class="mt-3">
+				<Button variant="primary" type="submit">Generate parent link code</Button>
+			</form>
+			{#if data.activeParentLinkCode}
+				<div class="mt-4 relative overflow-hidden rounded-2xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+					<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+					<div class="relative">
+						<p class="eyebrow-label">Active code (expires soon)</p>
+						<p class="mono mt-2 text-2xl font-bold tracking-widest" style="color: var(--app-text);">{data.activeParentLinkCode.code}</p>
+						<p class="mt-1 text-xs" style="color: var(--app-text-dim);">Expires {new Date(data.activeParentLinkCode.expires_at).toLocaleString()}</p>
 					</div>
-					<form method="POST" action="?/revokeParentLink" use:enhance={refreshOnSuccess}>
-						<input type="hidden" name="link_id" value={link.id} />
-						<Button variant="danger" size="sm" type="submit">Revoke</Button>
-					</form>
 				</div>
-			{:else}
-				<p class="text-sm" style="color: var(--app-text-muted);">No parent accounts linked yet.</p>
-			{/each}
-		</div>
-	</GlassCard>
+			{/if}
+			<div class="mt-5 space-y-2">
+				<p class="eyebrow-label">Linked parents</p>
+				{#each data.parentLinks as link, i}
+					<div class="fade-up relative flex items-center justify-between overflow-hidden rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: {0.05 * (i + 1)}s">
+						<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+						<div class="relative">
+							<p class="text-sm font-medium" style="color: var(--app-text);">{link.parent?.full_name || link.parent?.email || 'Parent'}</p>
+							<p class="text-xs" style="color: var(--app-text-dim);">{link.parent?.email}</p>
+						</div>
+						<form method="POST" action="?/revokeParentLink" use:enhance={refreshOnSuccess} class="relative">
+							<input type="hidden" name="link_id" value={link.id} />
+							<Button variant="danger" size="sm" type="submit">Revoke</Button>
+						</form>
+					</div>
+				{:else}
+					<p class="text-sm" style="color: var(--app-text-dim);">No parent accounts linked yet.</p>
+				{/each}
+			</div>
+		</GlassCard>
+	</div>
 </section>

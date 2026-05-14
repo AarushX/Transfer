@@ -8,10 +8,10 @@
 </script>
 
 <section class="space-y-4">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Course</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">WRT 2026-27 Parent Application Course</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">This is a parent-only course track with content, video, quiz checks, and a final application submission for admin approval.</p>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Course</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Parent Application Course</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">This is a parent-only course track with content, video, quiz checks, and a final application submission for admin approval.</p>
 	</header>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -19,7 +19,7 @@
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<form method="POST" action="?/submitForApproval" class="space-y-4 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/submitForApproval" class="fade-up space-y-4 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<div class="rounded-lg border p-3" style="border-color: var(--app-glass-border); background: var(--app-surface-alt);">
 			<p class="text-sm font-semibold" style="color: var(--app-text);">Module 1 · Parent Letter & Expectations</p>
 			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Parental involvement is essential; participation is required for team acceptance and continued participation.</p>

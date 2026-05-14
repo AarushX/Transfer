@@ -4,11 +4,11 @@
 	let { data, form } = $props();
 
 	const categoryTone = (slug: string) => {
-		if (slug === 'technical') return 'bg-sky-900/30 text-sky-100 border-sky-700/50';
-		if (slug === 'business') return 'bg-amber-900/30 text-amber-100 border-amber-700/50';
-		if (slug.startsWith('frc')) return 'bg-blue-900/30 text-blue-100 border-blue-700/50';
-		if (slug.startsWith('ftc')) return 'bg-indigo-900/30 text-indigo-100 border-indigo-700/50';
-		return 'text-slate-200';
+		if (slug === 'technical') return 'chip-cyan';
+		if (slug === 'business') return 'chip-amber';
+		if (slug.startsWith('frc')) return 'chip-violet';
+		if (slug.startsWith('ftc')) return 'chip-emerald';
+		return 'chip-rose';
 	};
 	const statusLabel = (status: string) =>
 		({
@@ -36,10 +36,11 @@
 </script>
 
 <section class="space-y-6">
-	<div>
+	<div class="fade-up">
 		<a href="/roster" class="text-xs" style="color: var(--app-text-muted);">← Back to roster</a>
-		<h1 class="mt-1 text-2xl font-semibold" style="color: var(--app-text);">{data.member.full_name || data.member.email}</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">{data.member.email} · {data.member.role}</p>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Member Profile</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">{data.member.full_name || data.member.email}</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.member.email} · {data.member.role}</p>
 	</div>
 	{#if form?.error}
 		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -47,24 +48,24 @@
 		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<div class="grid gap-4 md:grid-cols-3">
+	<div class="fade-up grid gap-4 md:grid-cols-3" style="animation-delay: 0.05s;">
 		<GlassCard>
-			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Rank</p>
+			<p class="eyebrow-label">Rank</p>
 			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.rank?.name ?? 'Rookie'}</p>
 			<p class="text-sm" style="color: var(--app-text-muted);">{data.rankSummary?.rank?.medal_label ?? 'Bronze Medal'}</p>
-			<p class="mt-2 text-xs" style="color: var(--app-text-muted);">{data.rankSummary?.totalPoints ?? 0} total points</p>
-			<p class="text-xs" style="color: var(--app-text-muted);">
+			<p class="mono mt-2 text-xs" style="color: var(--app-text-muted);">{data.rankSummary?.totalPoints ?? 0} total points</p>
+			<p class="mono text-xs" style="color: var(--app-text-muted);">
 				Courses {data.rankSummary?.coursePoints ?? 0} + Attendance {data.rankSummary?.attendancePoints ?? 0}
 			</p>
 		</GlassCard>
 		<GlassCard>
-			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Completions</p>
-			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.courseCompletions ?? 0}</p>
+			<p class="eyebrow-label">Completions</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-text);">{data.rankSummary?.courseCompletions ?? 0}</p>
 			<p class="text-xs" style="color: var(--app-text-muted);">Completed courses</p>
 		</GlassCard>
 		<GlassCard>
-			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Attendance</p>
-			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.attendanceDays ?? 0}</p>
+			<p class="eyebrow-label">Attendance</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-text);">{data.rankSummary?.attendanceDays ?? 0}</p>
 			<p class="text-xs" style="color: var(--app-text-muted);">Distinct attendance days</p>
 		</GlassCard>
 	</div>
@@ -87,7 +88,7 @@
 						</p>
 						<div class="mt-2 flex flex-wrap gap-1">
 							{#each course.categories as category}
-								<span class={`rounded border px-2 py-0.5 text-[11px] ${categoryTone(category.slug)}`}>
+								<span class={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${categoryTone(category.slug)}`}>
 									{category.name}
 								</span>
 							{/each}

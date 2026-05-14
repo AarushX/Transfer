@@ -29,11 +29,12 @@
 </script>
 
 <section class="space-y-5">
-	<div>
+	<div class="fade-up">
 		<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">&larr; Mentor home</a>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Hours Verification</h1>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Hours Verification</span></h1>
 		{#if data.season}
-			<p class="text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
 		{/if}
 	</div>
 

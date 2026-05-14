@@ -9,16 +9,16 @@
 </script>
 
 <section class="space-y-4">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Parent Dashboard</h1>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Parent Dashboard</span></h1>
 	</header>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
-	<div class="grid gap-4 md:grid-cols-3">
+	<div class="fade-up grid gap-4 md:grid-cols-3" style="animation-delay: 0.05s;">
 		<GlassCard>
 			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Course</p>
 			<p class="mt-2 text-sm" style="color: var(--app-text);">WRT 2026-27 Parent Application Course</p>

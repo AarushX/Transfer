@@ -90,7 +90,6 @@
 	});
 
 	const onDecodedForCheckoff = async (token: string) => {
-		// First try direct checkoff-approval QR tokens.
 		const approveRes = await fetch('/api/mentor/checkoff', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -107,7 +106,6 @@
 			return;
 		}
 
-		// Fallback to passport scan flow.
 		const res = await fetch('/api/mentor/resolve-qr', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -173,26 +171,33 @@
 
 </script>
 
-<section class="space-y-4">
+<section class="space-y-5">
 	<PageHeader title="Pending Checkoffs" description="Review submissions, evidence, and send actionable feedback.">
 		<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2">
+				<span class="live-dot" style="color: var(--app-success);"></span>
+				<span class="text-xs font-medium" style="color: var(--app-text-muted);">Live</span>
+			</div>
 			<Button variant="secondary" href="/scan">Scan hub</Button>
-			<Button variant="secondary" href="/mentor/courses">Manage courses →</Button>
+			<Button variant="secondary" href="/mentor/courses">Manage courses</Button>
 		</div>
 	</PageHeader>
+
 	{#if data.error || actionError}
-		<div class="rounded-xl border p-3 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
+		<div class="fade-up rounded-2xl border p-4 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
 			{data.error || actionError}
 		</div>
 	{/if}
-	<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-		<form method="GET" class="flex flex-wrap items-center gap-2">
-			<label for="scope" class="text-xs" style="color: var(--app-text-muted);">Scope</label>
-			<select id="scope" name="scope" class="rounded-lg border px-2 py-1.5 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+
+	<div class="fade-up rounded-2xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+		<form method="GET" class="relative flex flex-wrap items-center gap-3">
+			<p class="eyebrow-label">Scope</p>
+			<select id="scope" name="scope" class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
 				<option value="mine" selected={data.scope === 'mine'}>My teams</option>
 				<option value="all" selected={data.scope === 'all'}>All teams</option>
 			</select>
-			<select name="team" class="rounded-lg border px-2 py-1.5 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+			<select name="team" class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
 				<option value="">All course teams</option>
 				{#each data.subteams as team}
 					<option value={team.id} selected={team.id === data.selectedTeamId}>{team.name}</option>
@@ -203,27 +208,34 @@
 			<a href="/teams" class="ml-auto text-xs underline" style="color: var(--app-link);">Edit team preferences</a>
 		</form>
 		{#if data.scope === 'mine' && data.mentorTeamIds?.length === 0}
-			<p class="mt-2 text-xs" style="color: var(--app-warning);">
+			<p class="relative mt-2 text-xs" style="color: var(--app-warning);">
 				No mentor teams selected yet, so "My teams" currently shows all checkoffs.
 			</p>
 		{/if}
 	</div>
-	<div class="grid gap-2 md:grid-cols-3">
+
+	<div class="fade-up grid gap-3 md:grid-cols-3" style="animation-delay: 0.05s;">
 		<MetricCard label="Pending" value={summary.total} tone="info" />
 		<MetricCard label="With evidence" value={summary.withEvidence} tone="success" />
 		<MetricCard label="Missing required evidence" value={summary.needsEvidence} tone="warning" />
 	</div>
-	<SurfaceCard compact={true}>
-		<SearchField bind:value={queueSearch} placeholder="Search by student, course, or team..." />
-	</SurfaceCard>
+
+	<div class="fade-up" style="animation-delay: 0.1s;">
+		<GlassCard compact={true}>
+			<SearchField bind:value={queueSearch} placeholder="Search by student, course, or team..." />
+		</GlassCard>
+	</div>
+
 	{#if !filteredQueue.length}
-		<p style="color: var(--app-text-muted);">No students are waiting for checkoff.</p>
+		<div class="fade-up rounded-2xl border p-8 text-center backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.15s;">
+			<p class="text-sm" style="color: var(--app-text-muted);">No students are waiting for checkoff.</p>
+		</div>
 	{:else}
-		<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+		<div class="fade-up grid gap-4 md:grid-cols-2 xl:grid-cols-3" style="animation-delay: 0.15s;">
 			{#each filteredQueue as item}
 				<div
-					class="glass-queue-card space-y-2 rounded-xl border p-3 backdrop-blur-xl transition"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					class="queue-card group relative overflow-hidden rounded-2xl border p-4 backdrop-blur-xl transition duration-200"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 					role="button"
 					tabindex="0"
 					onclick={() => (selectedItem = item)}
@@ -234,124 +246,139 @@
 						}
 					}}
 				>
-					<div class="flex items-start justify-between gap-2">
-						<div class="min-w-0">
-							<p class="truncate font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
-							<p class="truncate text-xs" style="color: var(--app-text-muted);">{item.node?.title}</p>
+					<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+					<div class="relative space-y-3">
+						<div class="flex items-start justify-between gap-2">
+							<div class="min-w-0">
+								<p class="truncate text-[15px] font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
+								<p class="truncate text-xs" style="color: var(--app-text-muted);">{item.node?.title}</p>
+								{#if item.node?.subteam?.name}
+									<span class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium chip-violet">
+										{item.node.subteam.name}
+									</span>
+								{/if}
+							</div>
+							<StatusChip label="Pending" tone="info" />
 						</div>
-						<StatusChip label="Pending" tone="info" />
-					</div>
-					{#if photosFor(item.submission).length}
-						<div class="grid grid-cols-3 gap-1">
-							{#each photosFor(item.submission).slice(0, 3) as photo}
-								<button
-									type="button"
-									onclick={(event) => {
-										event.stopPropagation();
-										selectedImage = photo;
-									}}
-								>
-									<img src={photo} alt="Evidence" class="h-14 w-full rounded object-cover" />
-								</button>
-							{/each}
+						{#if photosFor(item.submission).length}
+							<div class="grid grid-cols-3 gap-1.5">
+								{#each photosFor(item.submission).slice(0, 3) as photo}
+									<button
+										type="button"
+										class="overflow-hidden rounded-lg transition duration-200 hover:opacity-80"
+										onclick={(event) => {
+											event.stopPropagation();
+											selectedImage = photo;
+										}}
+									>
+										<img src={photo} alt="Evidence" class="h-16 w-full rounded-lg object-cover" />
+									</button>
+								{/each}
+							</div>
+						{/if}
+						<div class="flex gap-2 pt-1">
+							<button
+								class="queue-btn-approve flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-200"
+								onclick={(event) => {
+									event.stopPropagation();
+									onApprove(item);
+								}}
+							>
+								Accept
+							</button>
+							<button
+								class="queue-btn-reject flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-200"
+								onclick={(event) => {
+									event.stopPropagation();
+									onResetQuiz(item);
+								}}
+							>
+								Reject/Reset
+							</button>
 						</div>
-					{/if}
-					<div class="flex gap-2 pt-1">
-						<button
-							class="flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition"
-							style="background: var(--app-success); color: white;"
-							onclick={(event) => {
-								event.stopPropagation();
-								onApprove(item);
-							}}
-						>
-							Accept
-						</button>
-						<button
-							class="flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition"
-							style="background: var(--app-warning); color: white;"
-							onclick={(event) => {
-								event.stopPropagation();
-								onResetQuiz(item);
-							}}
-						>
-							Reject/Reset
-						</button>
 					</div>
 				</div>
 			{/each}
 		</div>
 	{/if}
 
-	<GlassCard>
-		<div class="mb-2 flex items-center justify-between">
-			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Past Checkoffs</h2>
-			<span class="text-xs" style="color: var(--app-text-muted);">
-				Most recent first · {data.historyTotal} total · page {data.historyPage} of {data.historyTotalPages}
-			</span>
-		</div>
-		<ul class="space-y-2 text-sm">
-			{#each data.history as h}
-				<li class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);">
-					<div class="flex items-center justify-between gap-2">
-						<p style="color: var(--app-text);">
-							<span class="font-medium">{h.user?.full_name || h.user?.email}</span>
-							· {h.node?.title}
-						</p>
-						<span class="text-xs" style="color: var(--app-text-muted);">{new Date(h.updated_at).toLocaleString()}</span>
-					</div>
-					<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
-						{h.kind === 'approved'
-							? 'Approved'
-							: h.kind === 'blocked'
-								? 'Blocked'
-								: h.kind === 'needs_review'
-									? 'Requested checkoff retry'
-									: 'Status update'}
-					</p>
-					{#if getHistoryNotes(h)}
-						<p class="mt-1 text-xs" style="color: var(--app-text);">{getHistoryNotes(h)}</p>
-					{/if}
-				</li>
-			{:else}
-				<li style="color: var(--app-text-muted);">No past checkoffs yet.</li>
-			{/each}
-		</ul>
-		{#if data.historyTotalPages > 1}
-			<div class="mt-3 flex items-center justify-end gap-2 text-sm">
-				<a
-					href={historyHref(Math.max(1, data.historyPage - 1))}
-					aria-disabled={data.historyPage <= 1}
-					class={`rounded-lg border px-3 py-1.5 transition ${
-						data.historyPage <= 1
-							? 'pointer-events-none opacity-40'
-							: ''
-					}`}
-					style="border-color: var(--app-glass-border); color: var(--app-text);"
-				>
-					Previous
-				</a>
-				<span class="text-xs" style="color: var(--app-text-muted);">{data.historyPage} / {data.historyTotalPages}</span>
-				<a
-					href={historyHref(Math.min(data.historyTotalPages, data.historyPage + 1))}
-					aria-disabled={data.historyPage >= data.historyTotalPages}
-					class={`rounded-lg border px-3 py-1.5 transition ${
-						data.historyPage >= data.historyTotalPages
-							? 'pointer-events-none opacity-40'
-							: ''
-					}`}
-					style="border-color: var(--app-glass-border); color: var(--app-text);"
-				>
-					Next
-				</a>
+	<div class="fade-up" style="animation-delay: 0.2s;">
+		<GlassCard>
+			<div class="mb-3 flex items-center justify-between">
+				<div>
+					<p class="eyebrow-label" style="margin-bottom: 4px;">History</p>
+					<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">Past Checkoffs</h2>
+				</div>
+				<span class="mono text-xs" style="color: var(--app-text-dim);">
+					{data.historyTotal} total · page {data.historyPage}/{data.historyTotalPages}
+				</span>
 			</div>
-		{/if}
-	</GlassCard>
+			<ul class="space-y-2 text-sm">
+				{#each data.history as h}
+					<li class="history-row rounded-xl border p-3 transition duration-200" style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);">
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center gap-2 min-w-0">
+								<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium {h.kind === 'approved' ? 'chip-emerald' : h.kind === 'blocked' ? 'chip-rose' : 'chip-amber'}">
+									{h.kind === 'approved'
+										? 'Approved'
+										: h.kind === 'blocked'
+											? 'Blocked'
+											: h.kind === 'needs_review'
+												? 'Retry'
+												: 'Update'}
+								</span>
+								<p class="truncate" style="color: var(--app-text);">
+									<span class="font-medium">{h.user?.full_name || h.user?.email}</span>
+									<span style="color: var(--app-text-dim);">·</span>
+									<span style="color: var(--app-text-muted);">{h.node?.title}</span>
+								</p>
+							</div>
+							<span class="mono shrink-0 text-[11px]" style="color: var(--app-text-dim);">{new Date(h.updated_at).toLocaleString()}</span>
+						</div>
+						{#if getHistoryNotes(h)}
+							<p class="mt-1.5 text-xs" style="color: var(--app-text-muted);">{getHistoryNotes(h)}</p>
+						{/if}
+					</li>
+				{:else}
+					<li class="py-4 text-center text-sm" style="color: var(--app-text-dim);">No past checkoffs yet.</li>
+				{/each}
+			</ul>
+			{#if data.historyTotalPages > 1}
+				<div class="mt-4 flex items-center justify-end gap-2 text-sm">
+					<a
+						href={historyHref(Math.max(1, data.historyPage - 1))}
+						aria-disabled={data.historyPage <= 1}
+						class={`pagination-link rounded-xl border px-4 py-2 text-sm font-medium transition duration-200 ${
+							data.historyPage <= 1
+								? 'pointer-events-none opacity-40'
+								: ''
+						}`}
+						style="border-color: var(--app-glass-border); color: var(--app-text); background: var(--app-glass-bg);"
+					>
+						Previous
+					</a>
+					<span class="mono text-xs" style="color: var(--app-text-dim);">{data.historyPage} / {data.historyTotalPages}</span>
+					<a
+						href={historyHref(Math.min(data.historyTotalPages, data.historyPage + 1))}
+						aria-disabled={data.historyPage >= data.historyTotalPages}
+						class={`pagination-link rounded-xl border px-4 py-2 text-sm font-medium transition duration-200 ${
+							data.historyPage >= data.historyTotalPages
+								? 'pointer-events-none opacity-40'
+								: ''
+						}`}
+						style="border-color: var(--app-glass-border); color: var(--app-text); background: var(--app-glass-bg);"
+					>
+						Next
+					</a>
+				</div>
+			{/if}
+		</GlassCard>
+	</div>
 
 	{#if selectedItem}
 		<div
 			class="fixed inset-0 z-40 flex items-center justify-center p-4"
-			style="background: var(--app-overlay-scrim); background-color: color-mix(in srgb, var(--app-overlay-scrim) 70%, transparent);"
+			style="background-color: color-mix(in srgb, var(--app-overlay-scrim) 80%, transparent);"
 			role="button"
 			tabindex="0"
 			onclick={() => (selectedItem = null)}
@@ -360,35 +387,42 @@
 			}}
 		>
 			<div
-				class="max-h-[95vh] w-full max-w-4xl overflow-auto rounded-xl border p-4 backdrop-blur-xl"
+				class="modal-panel relative max-h-[95vh] w-full max-w-4xl overflow-auto rounded-2xl border p-5 backdrop-blur-xl"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 				onclick={(event) => event.stopPropagation()}
 			>
-				<div class="mb-3 flex items-center justify-between">
-					<h2 class="text-lg font-semibold" style="color: var(--app-text);">Full Review</h2>
-					<Button
-						variant="secondary"
-						size="sm"
-						onclick={(event) => {
-							event.stopPropagation();
-							selectedItem = null;
-						}}
-					>Close</Button>
+				<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+				<div class="relative">
+					<div class="mb-4 flex items-center justify-between">
+						<div>
+							<p class="eyebrow-label" style="margin-bottom: 4px;">Review</p>
+							<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">Full Review</h2>
+						</div>
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={(event) => {
+								event.stopPropagation();
+								selectedItem = null;
+							}}
+						>Close</Button>
+					</div>
+					<CheckoffCard
+						item={selectedItem}
+						{onApprove}
+						onReview={onResetQuiz}
+						onOpen={() => {}}
+						onImageOpen={(url: string) => (selectedImage = url)}
+					/>
 				</div>
-				<CheckoffCard
-					item={selectedItem}
-					{onApprove}
-					onReview={onResetQuiz}
-					onOpen={() => {}}
-					onImageOpen={(url: string) => (selectedImage = url)}
-				/>
 			</div>
 		</div>
 	{/if}
 
 	{#if selectedImage}
 		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4"
+			style="background-color: color-mix(in srgb, black 92%, transparent);"
 			role="button"
 			tabindex="0"
 			onclick={() => (selectedImage = null)}
@@ -399,18 +433,45 @@
 			<img
 				src={selectedImage}
 				alt="Submission evidence full screen"
-				class="max-h-full max-w-full object-contain"
+				class="max-h-full max-w-full rounded-xl object-contain"
 			/>
 		</div>
 	{/if}
 </section>
 
 <style>
-	.glass-queue-card {
-		transition: background 0.2s ease, border-color 0.2s ease;
+	.queue-card {
+		cursor: pointer;
 	}
-	.glass-queue-card:hover {
-		background: var(--app-glass-bg-hover);
-		border-color: var(--app-glass-border-hover);
+	.queue-card:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.queue-btn-approve {
+		background: var(--aurora);
+		color: white;
+	}
+	.queue-btn-approve:hover {
+		filter: brightness(1.15);
+	}
+	.queue-btn-reject {
+		background: color-mix(in srgb, var(--app-danger) 20%, transparent);
+		border: 1px solid color-mix(in srgb, var(--app-danger) 40%, transparent);
+		color: color-mix(in srgb, var(--app-danger) 80%, white);
+	}
+	.queue-btn-reject:hover {
+		background: color-mix(in srgb, var(--app-danger) 35%, transparent);
+		border-color: color-mix(in srgb, var(--app-danger) 60%, transparent);
+	}
+	.history-row:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.pagination-link:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.modal-panel {
+		animation: fadeUp 0.25s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 	}
 </style>

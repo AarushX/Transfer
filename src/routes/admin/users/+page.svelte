@@ -7,14 +7,18 @@
 	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">User Role Management</h1>
-	<p class="text-sm" style="color: var(--app-text-muted);">Set base role, then toggle mentor and lead permissions.</p>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Administration</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">User Role Management</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Set base role, then toggle mentor and lead permissions.</p>
+	</div>
 
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{/if}
 
+	<div class="fade-up" style="animation-delay: 0.05s;">
 	<GlassTable>
 		<thead>
 			<tr>
@@ -52,4 +56,5 @@
 			{/each}
 		</tbody>
 	</GlassTable>
+	</div>
 </section>

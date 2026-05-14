@@ -25,10 +25,13 @@
 </script>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-5 p-4">
-	<PageHeader
-		title="Lettering Progress"
-		description={season ? season.label : ''}
-	/>
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Season Tracking</p>
+		<PageHeader
+			title="Lettering Progress"
+			description={season ? season.label : ''}
+		/>
+	</div>
 
 	{#if !season}
 		<GlassCard>

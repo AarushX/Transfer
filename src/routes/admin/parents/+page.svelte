@@ -3,24 +3,27 @@
 	let { data, form } = $props();
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Parent Application Approvals</h1>
-	<p class="text-sm" style="color: var(--app-text-muted);">Approve parent onboarding course submissions before they can link students and access forms/carpool.</p>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Administration</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Parent Application Approvals</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Approve parent onboarding course submissions before they can link students and access forms/carpool.</p>
+	</div>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
-	<div class="space-y-3">
+	<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
 		{#each data.applications as app}
-			<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+			<div class="rounded-2xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 				<div class="flex flex-wrap items-center justify-between gap-2">
 					<div>
 						<p class="font-semibold" style="color: var(--app-text);">{app.parent?.full_name || app.parent?.email || app.parent_user_id}</p>
 						<p class="text-xs" style="color: var(--app-text-muted);">{app.parent?.email} · {app.relationship || '—'} · {app.phone || '—'}</p>
 					</div>
 					<div class="flex items-center gap-2">
-						<span class="rounded-lg border px-2 py-1 text-xs uppercase" style="border-color: var(--app-glass-border); color: var(--app-text);">{app.status}</span>
+						<span class="rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider" style="border-color: var(--app-glass-border); color: var(--app-text);">{app.status}</span>
 					</div>
 				</div>
 				<div class="mt-3 rounded-lg border p-2" style="border-color: var(--app-glass-border); background: var(--app-surface-alt);">

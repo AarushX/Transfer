@@ -60,15 +60,16 @@
 	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
-<section class="space-y-4">
-	<div>
+<section class="space-y-5">
+	<div class="fade-up">
 		<a href="/mentor/surveys" class="text-xs" style="color: var(--app-text-muted);">← Surveys</a>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">New Survey</h1>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Create</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">New Survey</span></h1>
 	</div>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{/if}
-	<form method="POST" action="?/createSurvey" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/createSurvey" class="fade-up space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		{#if (data.templates ?? []).length > 0}
 			<div class="rounded-lg border p-3 text-xs" style="border-color: var(--app-glass-border); background: var(--app-surface-alt); color: var(--app-text);">
 				{data.templates.length} saved template{data.templates.length === 1 ? '' : 's'} available for future expansion.

@@ -55,9 +55,12 @@
 	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
-<section class="max-w-2xl space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Workspace Settings</h1>
-	<p class="text-sm" style="color: var(--app-text-muted);">Controls workspace name plus global app theme colors.</p>
+<section class="max-w-2xl space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Settings</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Workspace Settings</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Controls workspace name plus global app theme colors.</p>
+	</div>
 
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -66,7 +69,7 @@
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Settings saved.</p>
 	{/if}
 
-	<form bind:this={settingsForm} method="POST" action="?/save" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form bind:this={settingsForm} method="POST" action="?/save" class="fade-up space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<label class="flex flex-col gap-1 text-sm">
 			<span class="flex items-center justify-between" style="color: var(--app-text);">
 				<span>Organization name</span>

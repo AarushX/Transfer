@@ -419,11 +419,23 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		return `${c.title || 'Skills Check'} · ${evidenceLabel}`;
 	}
 
-	function blockStyles(type: BlockType) {
-		if (type === 'video') return 'border-sky-700/60 bg-sky-950/30';
-		if (type === 'quiz') return 'border-yellow-700/60 bg-yellow-950/20';
-		if (type === 'reading') return 'border-violet-700/60 bg-violet-950/20';
-		return 'border-emerald-700/60 bg-emerald-950/20';
+	function blockChipClass(type: BlockType) {
+		if (type === 'video') return 'chip-cyan';
+		if (type === 'quiz') return 'chip-amber';
+		if (type === 'reading') return 'chip-violet';
+		return 'chip-emerald';
+	}
+	function blockAccentVar(type: BlockType) {
+		if (type === 'video') return '#06b6d4';
+		if (type === 'quiz') return '#fbbf24';
+		if (type === 'reading') return '#8b5cf6';
+		return '#34d399';
+	}
+	function blockIcon(type: BlockType) {
+		if (type === 'video') return '&#9654;';
+		if (type === 'quiz') return '&#10067;';
+		if (type === 'reading') return '&#128214;';
+		return '&#9989;';
 	}
 	function blockLabel(type: BlockType) {
 		if (type === 'video') return 'Video';
@@ -445,32 +457,27 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		return null;
 	});
 	let templateName = $state('');
-
-	const glassInput = "rounded-lg border px-2 py-2 backdrop-blur-sm";
-	const glassInputStyle = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
-	const glassLabelColor = "color: var(--app-text-muted);";
-	const glassFormCard = "rounded-xl border p-4 backdrop-blur-xl";
-	const glassFormCardStyle = "background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);";
 </script>
 
-<section class="space-y-6">
+<section class="space-y-6 fade-up">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<a href="/mentor/courses" class="text-xs" style="color: var(--app-text-muted);">← All courses</a>
-			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">{data.node.title}</h1>
-			<p class="text-xs" style="color: var(--app-text-muted);">
-				<code class="rounded-lg px-1 py-0.5" style="background: var(--app-surface-alt);">{data.node.slug}</code>
+			<a href="/mentor/courses" class="eyebrow-label inline-flex items-center gap-1 no-underline" style="color: var(--app-text-dim); text-decoration: none;">
+				<span style="font-size: 14px;">&#8592;</span> All courses
+			</a>
+			<h1 class="gradient-text mt-1 text-2xl font-bold tracking-tight">{data.node.title}</h1>
+			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+				<code class="mono rounded-lg px-1.5 py-0.5" style="background: var(--app-surface-alt); color: var(--app-text-dim);">{data.node.slug}</code>
 			</p>
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			<Button variant="secondary" href={`/learn/${data.node.slug}`}>Preview as student</Button>
 			<form method="POST" action="?/deleteNode" onsubmit={handleDeleteSubmit}>
 				<Button variant="danger" type="submit">Delete</Button>
 			</form>
 			<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
 				<input
-					class={glassInput + " text-xs"}
-					style={glassInputStyle}
+					class="glass-input text-xs"
 					name="template_name"
 					bind:value={templateName}
 					placeholder="Template name"
@@ -483,7 +490,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 
 	{#if message}
 		<div
-			class="rounded-xl border p-3 text-sm"
+			class="rounded-2xl border p-3 text-sm"
 			style={message.tone === 'error'
 				? 'border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);'
 				: 'border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);'}
@@ -495,21 +502,20 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 	<form
 		method="POST"
 		action="?/updateNode"
-		class="grid gap-3 {glassFormCard} md:grid-cols-2"
-		style={glassFormCardStyle}
+		class="glass-card grid gap-4 rounded-2xl p-5 md:grid-cols-2"
 	>
 		<h2 class="text-lg font-semibold md:col-span-2" style="color: var(--app-text);">Details</h2>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span style="color: var(--app-text);">Title</span>
-			<input class={glassInput} style={glassInputStyle} name="title" value={data.node.title} required />
+		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
+			<span class="eyebrow-label">Title</span>
+			<input class="glass-input" name="title" value={data.node.title} required />
 		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span style="color: var(--app-text);">Slug</span>
-			<input class={glassInput} style={glassInputStyle} name="slug" value={data.node.slug} required />
+		<label class="flex flex-col gap-1.5 text-sm">
+			<span class="eyebrow-label">Slug</span>
+			<input class="glass-input mono" name="slug" value={data.node.slug} required />
 		</label>
-		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span style="color: var(--app-text);">Description</span>
-			<textarea class={glassInput} style={glassInputStyle} name="description" rows="3"
+		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
+			<span class="eyebrow-label">Description</span>
+			<textarea class="glass-input" name="description" rows="3"
 				>{data.node.description ?? ''}</textarea
 			>
 		</label>
@@ -521,10 +527,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 	<form
 		method="POST"
 		action="?/saveBlocks"
-		class="space-y-4 {glassFormCard}"
-		style={glassFormCardStyle}
+		class="glass-card space-y-5 rounded-2xl p-5"
 	>
-		<div class="flex flex-wrap items-center justify-between gap-2">
+		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<h2 class="text-lg font-semibold" style="color: var(--app-text);">Course Builder</h2>
 				<p class="text-xs" style="color: var(--app-text-muted);">
@@ -534,511 +539,508 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 			<div class="flex flex-wrap gap-2">
 				<button
 					type="button"
-					class="rounded-lg border border-sky-700/60 bg-sky-950/40 px-3 py-1 text-sm hover:bg-sky-900/30"
+					class="add-block-chip chip-cyan"
 					onclick={() => addBlock('video')}
 				>
-					+ Video
+					<span class="add-block-icon">&#9654;</span> Video
 				</button>
 				<button
 					type="button"
-					class="rounded-lg border border-yellow-700/60 bg-yellow-950/40 px-3 py-1 text-sm hover:bg-yellow-900/40"
+					class="add-block-chip chip-amber"
 					onclick={() => addBlock('quiz')}
 				>
-					+ Quiz
+					<span class="add-block-icon">&#10067;</span> Quiz
 				</button>
 				<button
 					type="button"
-					class="rounded-lg border border-violet-700/60 bg-violet-950/40 px-3 py-1 text-sm hover:bg-violet-900/30"
+					class="add-block-chip chip-violet"
 					onclick={() => addBlock('reading')}
 				>
-					+ Reading
+					<span class="add-block-icon">&#128214;</span> Reading
 				</button>
 				<button
 					type="button"
-					class="rounded-lg border border-emerald-700/60 bg-emerald-950/40 px-3 py-1 text-sm hover:bg-emerald-900/30"
+					class="add-block-chip chip-emerald"
 					onclick={() => addBlock('checkoff')}
 				>
-					+ Skills Check
+					<span class="add-block-icon">&#9989;</span> Skills Check
 				</button>
 			</div>
 		</div>
 		<input type="hidden" name="blocks_json" value={blocksJson} />
 
-		<div class="space-y-2">
+		<div class="block-list">
 			{#each blocks as block, i (block.id ?? i)}
-				<div class="rounded-lg border p-3 {blockStyles(block.type)} {blockErrors[i] ? 'ring-1 ring-red-500' : ''}">
-					<div
-						class="flex cursor-pointer flex-wrap items-center gap-2"
-						onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
-					>
-						<span class="inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-semibold" style="background: color-mix(in srgb, var(--app-surface) 70%, transparent); color: var(--app-text);">
-							{i + 1}. {blockLabel(block.type)}
-						</span>
-						<p class="truncate text-sm" style="color: var(--app-text);">{blockSummary(block)}</p>
-						<div class="ml-auto flex items-center gap-1">
-							<button
-								type="button"
-								class="rounded-lg border px-2 py-0.5 text-xs disabled:opacity-40"
-								style="border-color: var(--app-glass-border);"
-								disabled={i === 0}
-								onclick={(event) => {
-									event.stopPropagation();
-									moveBlock(i, -1);
-								}}
-								title="Move up"
-								aria-label="Move up"
-							>▲</button>
-							<button
-								type="button"
-								class="rounded-lg border px-2 py-0.5 text-xs disabled:opacity-40"
-								style="border-color: var(--app-glass-border);"
-								disabled={i === blocks.length - 1}
-								onclick={(event) => {
-									event.stopPropagation();
-									moveBlock(i, 1);
-								}}
-								title="Move down"
-								aria-label="Move down"
-							>▼</button>
-							<button
-								type="button"
-								class="rounded-lg border px-2 py-0.5 text-xs"
-								style="border-color: var(--app-glass-border);"
-								onclick={(event) => {
-									event.stopPropagation();
-									expandedIndex = expandedIndex === i ? null : i;
-								}}
-							>
-								{expandedIndex === i ? 'Collapse' : 'Edit'}
-							</button>
-							<button
-								type="button"
-								class="rounded-lg border px-2 py-0.5 text-xs"
-								style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
-								onclick={(event) => {
-									event.stopPropagation();
-									removeBlock(i);
-								}}
-							>Remove</button>
-						</div>
+				<div class="block-row" style="--block-accent: {blockAccentVar(block.type)};">
+					<div class="block-spine">
+						<div class="block-spine-dot"></div>
+						{#if i < blocks.length - 1}
+							<div class="block-spine-line"></div>
+						{/if}
 					</div>
+					<div class="block-card {blockErrors[i] ? 'block-card-error' : ''}">
+						<div
+							class="flex cursor-pointer flex-wrap items-center gap-2"
+							onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
+						>
+							<span class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-0.5 text-xs font-semibold {blockChipClass(block.type)}">
+								{i + 1}. {blockLabel(block.type)}
+							</span>
+							<p class="truncate text-sm" style="color: var(--app-text);">{blockSummary(block)}</p>
+							<div class="ml-auto flex items-center gap-1">
+								<button
+									type="button"
+									class="block-action-btn"
+									disabled={i === 0}
+									onclick={(event) => {
+										event.stopPropagation();
+										moveBlock(i, -1);
+									}}
+									title="Move up"
+									aria-label="Move up"
+								>&#9650;</button>
+								<button
+									type="button"
+									class="block-action-btn"
+									disabled={i === blocks.length - 1}
+									onclick={(event) => {
+										event.stopPropagation();
+										moveBlock(i, 1);
+									}}
+									title="Move down"
+									aria-label="Move down"
+								>&#9660;</button>
+								<button
+									type="button"
+									class="block-action-btn"
+									onclick={(event) => {
+										event.stopPropagation();
+										expandedIndex = expandedIndex === i ? null : i;
+									}}
+								>
+									{expandedIndex === i ? 'Collapse' : 'Edit'}
+								</button>
+								<button
+									type="button"
+									class="block-action-btn block-action-btn-danger"
+									onclick={(event) => {
+										event.stopPropagation();
+										removeBlock(i);
+									}}
+								>Remove</button>
+							</div>
+						</div>
 
-					{#if expandedIndex === i}
-						<div class="mt-3 space-y-3 rounded-lg p-3" style="background: color-mix(in srgb, var(--app-surface) 60%, transparent);">
-							{#if blockErrors[i]}
-								<p class="rounded-lg border p-2 text-xs" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
-									{blockErrors[i]}
-								</p>
-							{/if}
-							{#if block.type === 'video'}
-								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Title (shown to students)</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="e.g. Intro to Pneumatics" />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>YouTube URL</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.video_url} placeholder="https://www.youtube.com/watch?v=..." />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Start time (mm:ss)</span>
-										<input
-											class={glassInput + " text-sm"}
-											style={glassInputStyle}
-											value={formatClock(block.config.start_seconds)}
-											onchange={(e) => (block.config.start_seconds = parseClock((e.currentTarget as HTMLInputElement).value))}
-										/>
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>End time (mm:ss, optional)</span>
-										<input
-											class={glassInput + " text-sm"}
-											style={glassInputStyle}
-											placeholder="e.g. 12:30"
-											value={block.config.end_seconds == null ? '' : formatClock(block.config.end_seconds)}
-											onchange={(e) => {
-												const raw = (e.currentTarget as HTMLInputElement).value.trim();
-												block.config.end_seconds = raw ? parseClock(raw) : null;
-											}}
-										/>
-									</label>
-								</div>
-							{:else if block.type === 'quiz'}
-								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Title</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="Quiz name (optional)" />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Passing score (%)</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="100" bind:value={block.config.passing_score} />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Min seconds between attempts</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Max attempts (optional)</span>
-										<input
-											class={glassInput + " text-sm"}
-											style={glassInputStyle}
-											type="number"
-											min="1"
-											max="1000"
-											placeholder="Unlimited"
-											value={block.config.max_attempts ?? ''}
-											oninput={(e) => {
-												const raw = (e.currentTarget as HTMLInputElement).value.trim();
-												block.config.max_attempts = raw ? Number(raw) : null;
-											}}
-										/>
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Failed-attempt window (minutes)</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Max failed in window</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="200" bind:value={block.config.max_failed_in_window} />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Short answer min / max chars</span>
-										<div class="flex gap-2">
-											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} type="number" min="0" max="5000" bind:value={block.config.short_answer_min_chars} />
-											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="5000" bind:value={block.config.short_answer_max_chars} />
-										</div>
-									</label>
-								</div>
-
-								<div class="space-y-2">
-									<div class="flex items-center justify-between">
-										<p class="text-xs font-semibold" style="color: var(--app-text);">Questions</p>
-										<button type="button" class="rounded-lg border px-2 py-1 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addQuizQuestion(block)}>+ Add question</button>
+						{#if expandedIndex === i}
+							<div class="block-expanded-body">
+								{#if blockErrors[i]}
+									<p class="rounded-xl border p-2 text-xs" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
+										{blockErrors[i]}
+									</p>
+								{/if}
+								{#if block.type === 'video'}
+									<div class="grid gap-3 md:grid-cols-2">
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Title (shown to students)</span>
+											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="e.g. Intro to Pneumatics" />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">YouTube URL</span>
+											<input class="glass-input text-sm" bind:value={block.config.video_url} placeholder="https://www.youtube.com/watch?v=..." />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Start time (mm:ss)</span>
+											<input
+												class="glass-input text-sm mono"
+												value={formatClock(block.config.start_seconds)}
+												onchange={(e) => (block.config.start_seconds = parseClock((e.currentTarget as HTMLInputElement).value))}
+											/>
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">End time (mm:ss, optional)</span>
+											<input
+												class="glass-input text-sm mono"
+												placeholder="e.g. 12:30"
+												value={block.config.end_seconds == null ? '' : formatClock(block.config.end_seconds)}
+												onchange={(e) => {
+													const raw = (e.currentTarget as HTMLInputElement).value.trim();
+													block.config.end_seconds = raw ? parseClock(raw) : null;
+												}}
+											/>
+										</label>
 									</div>
-									{#each block.config.questions as q, qIdx (qIdx)}
-										<div class="space-y-2 rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-											<div class="flex items-center justify-between">
-												<span class="text-xs" style="color: var(--app-text-muted);">Q{qIdx + 1}</span>
-												<button type="button" class="text-xs" style="color: var(--app-danger);" onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button>
+								{:else if block.type === 'quiz'}
+									<div class="grid gap-3 md:grid-cols-2">
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Title</span>
+											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="Quiz name (optional)" />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Passing score (%)</span>
+											<input class="glass-input text-sm" type="number" min="1" max="100" bind:value={block.config.passing_score} />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Min seconds between attempts</span>
+											<input class="glass-input text-sm" type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Max attempts (optional)</span>
+											<input
+												class="glass-input text-sm"
+												type="number"
+												min="1"
+												max="1000"
+												placeholder="Unlimited"
+												value={block.config.max_attempts ?? ''}
+												oninput={(e) => {
+													const raw = (e.currentTarget as HTMLInputElement).value.trim();
+													block.config.max_attempts = raw ? Number(raw) : null;
+												}}
+											/>
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Failed-attempt window (minutes)</span>
+											<input class="glass-input text-sm" type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Max failed in window</span>
+											<input class="glass-input text-sm" type="number" min="1" max="200" bind:value={block.config.max_failed_in_window} />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Short answer min / max chars</span>
+											<div class="flex gap-2">
+												<input class="glass-input w-full text-sm" type="number" min="0" max="5000" bind:value={block.config.short_answer_min_chars} />
+												<input class="glass-input w-full text-sm" type="number" min="1" max="5000" bind:value={block.config.short_answer_max_chars} />
 											</div>
-											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} placeholder="Question prompt" bind:value={q.prompt} />
-											<div class="flex items-center gap-2">
-												<select class={glassInput + " text-sm"} style={glassInputStyle} bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
-													<option value="mc">Multiple choice</option>
-													<option value="ms">Multiple select</option>
-													<option value="tf">True / False</option>
-													<option value="short">Short answer</option>
-													<option value="matrix">Matrix (table)</option>
-													<option value="matrix_ms">Matrix (multi-select table)</option>
-													<option value="short_grid">Short Answer Grid</option>
-												</select>
-											</div>
-											{#if q.type === 'mc'}
-												<div class="space-y-1">
-													{#each q.options ?? [] as _opt, oi (oi)}
-														<div class="flex items-center gap-2">
-															<input
-																type="radio"
-																name={`correct-${i}-${qIdx}`}
-																checked={typeof q.correct === 'string' && q.correct !== '' && q.correct === q.options![oi]}
-																onchange={() => (q.correct = q.options![oi])}
-															/>
-															<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
-														</div>
-													{/each}
-													<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
-														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
-														Randomize option order for students
-													</label>
-													<div class="flex gap-2 pt-1">
-														<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
-													</div>
+										</label>
+									</div>
+
+									<div class="space-y-3">
+										<div class="flex items-center justify-between">
+											<p class="eyebrow-label">Questions</p>
+											<button type="button" class="block-action-btn" onclick={() => addQuizQuestion(block)}>+ Add question</button>
+										</div>
+										{#each block.config.questions as q, qIdx (qIdx)}
+											<div class="question-card">
+												<div class="flex items-center justify-between">
+													<span class="text-xs font-semibold" style="color: var(--app-text-dim);">Q{qIdx + 1}</span>
+													<button type="button" class="text-xs font-medium" style="color: var(--app-danger);" onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button>
 												</div>
-											{:else if q.type === 'ms'}
-												<div class="space-y-1">
-													{#each q.options ?? [] as _opt, oi (oi)}
-														<div class="flex items-center gap-2">
+												<input class="glass-input w-full text-sm" placeholder="Question prompt" bind:value={q.prompt} />
+												<div class="flex items-center gap-2">
+													<select class="glass-input text-sm" bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
+														<option value="mc">Multiple choice</option>
+														<option value="ms">Multiple select</option>
+														<option value="tf">True / False</option>
+														<option value="short">Short answer</option>
+														<option value="matrix">Matrix (table)</option>
+														<option value="matrix_ms">Matrix (multi-select table)</option>
+														<option value="short_grid">Short Answer Grid</option>
+													</select>
+												</div>
+												{#if q.type === 'mc'}
+													<div class="space-y-1.5">
+														{#each q.options ?? [] as _opt, oi (oi)}
+															<div class="flex items-center gap-2">
+																<input
+																	type="radio"
+																	name={`correct-${i}-${qIdx}`}
+																	checked={typeof q.correct === 'string' && q.correct !== '' && q.correct === q.options![oi]}
+																	onchange={() => (q.correct = q.options![oi])}
+																/>
+																<input class="glass-input flex-1 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+															</div>
+														{/each}
+														<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
+															<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+															Randomize option order for students
+														</label>
+														<div class="flex gap-2 pt-1">
+															<button type="button" class="block-action-btn" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+														</div>
+													</div>
+												{:else if q.type === 'ms'}
+													<div class="space-y-1.5">
+														{#each q.options ?? [] as _opt, oi (oi)}
+															<div class="flex items-center gap-2">
+																<input
+																	type="checkbox"
+																	checked={Array.isArray(q.correct) && q.correct.includes(q.options![oi])}
+																	onchange={(e) => {
+																		const option = q.options![oi];
+																		const current = Array.isArray(q.correct) ? q.correct : [];
+																		const checked = (e.currentTarget as HTMLInputElement).checked;
+																		q.correct = checked
+																			? Array.from(new Set([...current, option]))
+																			: current.filter((value) => value !== option);
+																	}}
+																/>
+																<input class="glass-input flex-1 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+															</div>
+														{/each}
+														<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
+															<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+															Randomize option order for students
+														</label>
+														<label class="mt-1 flex items-center gap-2 text-xs" style="color: var(--app-text);">
+															<span>Max selections (optional)</span>
+															<input
+																type="number"
+																min="1"
+																max={Math.max(1, (q.options ?? []).length)}
+																class="glass-input w-24 py-1 text-xs"
+																value={q.max_select ?? ''}
+																oninput={(e) => {
+																	const raw = (e.currentTarget as HTMLInputElement).value.trim();
+																	q.max_select = raw
+																		? Math.max(1, Math.min(Number(raw) || 1, (q.options ?? []).length))
+																		: undefined;
+																	if (Array.isArray(q.correct) && q.max_select && q.correct.length > q.max_select) {
+																		q.correct = q.correct.slice(0, q.max_select);
+																	}
+																}}
+																placeholder="No limit"
+															/>
+														</label>
+														<div class="flex gap-2 pt-1">
+															<button type="button" class="block-action-btn" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+														</div>
+													</div>
+												{:else if q.type === 'tf'}
+													<div class="inline-flex overflow-hidden rounded-xl border" style="border-color: var(--app-glass-border);">
+														<button type="button" class="px-4 py-1 text-sm transition" style={q.correct === 'true' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'true')}>True</button>
+														<button type="button" class="px-4 py-1 text-sm transition" style={q.correct === 'false' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'false')}>False</button>
+													</div>
+												{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
+													<div class="space-y-2">
+														<div class="grid gap-2 md:grid-cols-2">
+															<div class="inner-glass-panel">
+																<div class="mb-1 flex items-center justify-between">
+																	<p class="eyebrow-label">Rows</p>
+																	<button type="button" class="block-action-btn" onclick={() => (q.rows = [...(q.rows ?? []), ''])}>+ Row</button>
+																</div>
+																{#each q.rows ?? [] as _row, ri (ri)}
+																	<div class="mb-1 flex items-center gap-1">
+																		<input class="glass-input flex-1 py-1 text-sm" bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
+																		<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>x</button>
+																	</div>
+																{/each}
+															</div>
+															<div class="inner-glass-panel">
+																<div class="mb-1 flex items-center justify-between">
+																	<p class="eyebrow-label">Columns</p>
+																	<button type="button" class="block-action-btn" onclick={() => (q.columns = [...(q.columns ?? []), ''])}>+ Column</button>
+																</div>
+																{#each q.columns ?? [] as _col, ci (ci)}
+																	<div class="mb-1 flex items-center gap-1">
+																		<input class="glass-input flex-1 py-1 text-sm" bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
+																		<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>x</button>
+																	</div>
+																{/each}
+															</div>
+														</div>
+														{#if q.type !== 'short_grid'}
+															<div class="inner-glass-panel">
+																<p class="eyebrow-label mb-2">Optional answer key per row</p>
+																{#each (q.rows ?? []).filter((row) => String(row).trim().length > 0) as row}
+																	{#if q.type === 'matrix'}
+																		<div class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]">
+																			<span style="color: var(--app-text);">{row}</span>
+																			<select
+																				class="glass-input text-xs"
+																				value={q.correct_map?.[row] ?? ''}
+																				onchange={(e) => {
+																					const value = (e.currentTarget as HTMLSelectElement).value;
+																					const next = { ...(q.correct_map ?? {}) };
+																					if (value) next[row] = value;
+																					else delete next[row];
+																					q.correct_map = next;
+																				}}
+																			>
+																				<option value="">No key (completion-only)</option>
+																				{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
+																					<option value={col}>{col}</option>
+																				{/each}
+																			</select>
+																		</div>
+																	{:else}
+																		<div class="inner-glass-panel mb-2 text-xs">
+																			<p class="mb-1" style="color: var(--app-text);">{row}</p>
+																			<div class="grid gap-1 md:grid-cols-2">
+																				{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
+																					<label class="inline-flex items-center gap-1" style="color: var(--app-text);">
+																						<input
+																							type="checkbox"
+																							checked={Array.isArray(q.correct_map_multi?.[row]) && q.correct_map_multi![row].includes(col)}
+																							onchange={(e) => {
+																								const checked = (e.currentTarget as HTMLInputElement).checked;
+																								const next = { ...(q.correct_map_multi ?? {}) };
+																								const current = Array.isArray(next[row]) ? [...next[row]] : [];
+																								next[row] = checked
+																									? Array.from(new Set([...current, col]))
+																									: current.filter((v) => v !== col);
+																								q.correct_map_multi = next;
+																							}}
+																						/>
+																						{col}
+																					</label>
+																				{/each}
+																			</div>
+																		</div>
+																	{/if}
+																{/each}
+														</div>
+														{:else}
+															<p class="text-xs" style="color: var(--app-text-muted);">Each row/column cell will render as a short answer input.</p>
+														{/if}
+													</div>
+												{:else}
+													<input
+														class="glass-input w-full text-sm"
+														placeholder="Expected answer"
+														value={Array.isArray(q.correct) ? (q.correct[0] ?? '') : q.correct}
+														oninput={(e) => (q.correct = (e.currentTarget as HTMLInputElement).value)}
+													/>
+													<div class="flex flex-wrap gap-4 text-xs" style="color: var(--app-text);">
+														<label class="inline-flex items-center gap-2">
 															<input
 																type="checkbox"
-																checked={Array.isArray(q.correct) && q.correct.includes(q.options![oi])}
-																onchange={(e) => {
-																	const option = q.options![oi];
-																	const current = Array.isArray(q.correct) ? q.correct : [];
-																	const checked = (e.currentTarget as HTMLInputElement).checked;
-																	q.correct = checked
-																		? Array.from(new Set([...current, option]))
-																		: current.filter((value) => value !== option);
-																}}
+																checked={q.short_required ?? true}
+																onchange={(e) => (q.short_required = (e.currentTarget as HTMLInputElement).checked)}
 															/>
-															<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
-														</div>
-													{/each}
-													<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
-														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
-														Randomize option order for students
-													</label>
-													<label class="mt-1 flex items-center gap-2 text-xs" style="color: var(--app-text);">
-														<span>Max selections (optional)</span>
-														<input
-															type="number"
-															min="1"
-															max={Math.max(1, (q.options ?? []).length)}
-															class={"w-24 " + glassInput + " py-1 text-xs"}
-															style={glassInputStyle}
-															value={q.max_select ?? ''}
-															oninput={(e) => {
-																const raw = (e.currentTarget as HTMLInputElement).value.trim();
-																q.max_select = raw
-																	? Math.max(1, Math.min(Number(raw) || 1, (q.options ?? []).length))
-																	: undefined;
-																if (Array.isArray(q.correct) && q.max_select && q.correct.length > q.max_select) {
-																	q.correct = q.correct.slice(0, q.max_select);
-																}
-															}}
-															placeholder="No limit"
-														/>
-													</label>
-													<div class="flex gap-2 pt-1">
-														<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+															Required response
+														</label>
+														<label class="inline-flex items-center gap-2">
+															<input
+																type="checkbox"
+																checked={q.short_ignore_case ?? true}
+																onchange={(e) => (q.short_ignore_case = (e.currentTarget as HTMLInputElement).checked)}
+															/>
+															Ignore capitalization
+														</label>
+														<label class="inline-flex items-center gap-2">
+															<input
+																type="checkbox"
+																checked={q.short_ignore_punctuation ?? false}
+																onchange={(e) =>
+																	(q.short_ignore_punctuation = (e.currentTarget as HTMLInputElement).checked)}
+															/>
+															Ignore periods/punctuation
+														</label>
+														<label class="inline-flex items-center gap-2">
+															<input
+																type="checkbox"
+																checked={q.short_requires_mentor_checkoff ?? false}
+																onchange={(e) =>
+																	(q.short_requires_mentor_checkoff = (e.currentTarget as HTMLInputElement).checked)}
+															/>
+															Require mentor checkoff (any valid answer earns quiz credit; mentor confirms during checkoff)
+														</label>
 													</div>
-												</div>
-											{:else if q.type === 'tf'}
-												<div class="inline-flex overflow-hidden rounded-lg border" style="border-color: var(--app-glass-border);">
-													<button type="button" class="px-4 py-1 text-sm" style={q.correct === 'true' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'true')}>True</button>
-													<button type="button" class="px-4 py-1 text-sm" style={q.correct === 'false' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'false')}>False</button>
-												</div>
-											{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
-												<div class="space-y-2">
-													<div class="grid gap-2 md:grid-cols-2">
-														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-															<div class="mb-1 flex items-center justify-between">
-																<p class="text-xs font-semibold" style="color: var(--app-text);">Rows</p>
-																<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.rows = [...(q.rows ?? []), ''])}>+ Row</button>
-															</div>
-															{#each q.rows ?? [] as _row, ri (ri)}
-																<div class="mb-1 flex items-center gap-1">
-																	<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
-																	<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>x</button>
-																</div>
-															{/each}
-														</div>
-														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-															<div class="mb-1 flex items-center justify-between">
-																<p class="text-xs font-semibold" style="color: var(--app-text);">Columns</p>
-																<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.columns = [...(q.columns ?? []), ''])}>+ Column</button>
-															</div>
-															{#each q.columns ?? [] as _col, ci (ci)}
-																<div class="mb-1 flex items-center gap-1">
-																	<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
-																	<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>x</button>
-																</div>
-															{/each}
-														</div>
-													</div>
-													{#if q.type !== 'short_grid'}
-														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-															<p class="mb-1 text-xs font-semibold" style="color: var(--app-text);">Optional answer key per row</p>
-															{#each (q.rows ?? []).filter((row) => String(row).trim().length > 0) as row}
-																{#if q.type === 'matrix'}
-																	<div class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]">
-																		<span>{row}</span>
-																		<select
-																			class={glassInput + " text-xs"}
-																			style={glassInputStyle}
-																			value={q.correct_map?.[row] ?? ''}
-																			onchange={(e) => {
-																				const value = (e.currentTarget as HTMLSelectElement).value;
-																				const next = { ...(q.correct_map ?? {}) };
-																				if (value) next[row] = value;
-																				else delete next[row];
-																				q.correct_map = next;
-																			}}
-																		>
-																			<option value="">No key (completion-only)</option>
-																			{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
-																				<option value={col}>{col}</option>
-																			{/each}
-																		</select>
-																	</div>
-																{:else}
-																	<div class="mb-2 rounded-lg border p-2 text-xs" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-																		<p class="mb-1">{row}</p>
-																		<div class="grid gap-1 md:grid-cols-2">
-																			{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
-																				<label class="inline-flex items-center gap-1">
-																					<input
-																						type="checkbox"
-																						checked={Array.isArray(q.correct_map_multi?.[row]) && q.correct_map_multi![row].includes(col)}
-																						onchange={(e) => {
-																							const checked = (e.currentTarget as HTMLInputElement).checked;
-																							const next = { ...(q.correct_map_multi ?? {}) };
-																							const current = Array.isArray(next[row]) ? [...next[row]] : [];
-																							next[row] = checked
-																								? Array.from(new Set([...current, col]))
-																								: current.filter((v) => v !== col);
-																							q.correct_map_multi = next;
-																						}}
-																					/>
-																					{col}
-																				</label>
-																			{/each}
-																		</div>
-																	</div>
-																{/if}
-															{/each}
-													</div>
-													{:else}
-														<p class="text-xs" style="color: var(--app-text-muted);">Each row/column cell will render as a short answer input.</p>
-													{/if}
+													<p class="text-xs" style="color: var(--app-text-muted);">
+														Set expected answer to <code class="mono">acknowledged</code> to give credit for any non-empty response
+														without mentor review. Optional reference answer above is shown to mentors when checkoff is
+														required.
+													</p>
+												{/if}
+											</div>
+										{:else}
+											<p class="text-xs" style="color: var(--app-text-muted);">No questions yet.</p>
+										{/each}
+									</div>
+								{:else if block.type === 'reading'}
+									<div class="space-y-3">
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Title</span>
+											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="Reading title" />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Reading content</span>
+											<textarea class="glass-input text-sm" rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
+										</label>
+										<div class="inner-glass-panel">
+											<div class="mb-1 flex items-center justify-between">
+												<p class="eyebrow-label">Resource links</p>
+												<button type="button" class="block-action-btn" onclick={() => addReadingResourceLink(block)}>+ Link</button>
+											</div>
+											{#each block.config.resource_links as _link, idx (idx)}
+												<div class="flex items-center gap-1">
+													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
+													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeReadingResourceLink(block, idx)}>x</button>
 												</div>
 											{:else}
-												<input
-													class={"w-full " + glassInput + " text-sm"}
-													style={glassInputStyle}
-													placeholder="Expected answer"
-													value={Array.isArray(q.correct) ? (q.correct[0] ?? '') : q.correct}
-													oninput={(e) => (q.correct = (e.currentTarget as HTMLInputElement).value)}
-												/>
-												<div class="flex flex-wrap gap-4 text-xs" style="color: var(--app-text);">
-													<label class="inline-flex items-center gap-2">
-														<input
-															type="checkbox"
-															checked={q.short_required ?? true}
-															onchange={(e) => (q.short_required = (e.currentTarget as HTMLInputElement).checked)}
-														/>
-														Required response
-													</label>
-													<label class="inline-flex items-center gap-2">
-														<input
-															type="checkbox"
-															checked={q.short_ignore_case ?? true}
-															onchange={(e) => (q.short_ignore_case = (e.currentTarget as HTMLInputElement).checked)}
-														/>
-														Ignore capitalization
-													</label>
-													<label class="inline-flex items-center gap-2">
-														<input
-															type="checkbox"
-															checked={q.short_ignore_punctuation ?? false}
-															onchange={(e) =>
-																(q.short_ignore_punctuation = (e.currentTarget as HTMLInputElement).checked)}
-														/>
-														Ignore periods/punctuation
-													</label>
-													<label class="inline-flex items-center gap-2">
-														<input
-															type="checkbox"
-															checked={q.short_requires_mentor_checkoff ?? false}
-															onchange={(e) =>
-																(q.short_requires_mentor_checkoff = (e.currentTarget as HTMLInputElement).checked)}
-														/>
-														Require mentor checkoff (any valid answer earns quiz credit; mentor confirms during checkoff)
-													</label>
-												</div>
-												<p class="text-xs" style="color: var(--app-text-muted);">
-													Set expected answer to <code>acknowledged</code> to give credit for any non-empty response
-													without mentor review. Optional reference answer above is shown to mentors when checkoff is
-													required.
-												</p>
-											{/if}
+												<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
+											{/each}
 										</div>
-									{:else}
-										<p class="text-xs" style="color: var(--app-text-muted);">No questions yet.</p>
-									{/each}
-								</div>
-							{:else if block.type === 'reading'}
-								<div class="space-y-3">
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Title</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="Reading title" />
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Reading content</span>
-										<textarea class={glassInput + " text-sm"} style={glassInputStyle} rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
-									</label>
-									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold" style="color: var(--app-text);">Resource links</p>
-											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addReadingResourceLink(block)}>+ Link</button>
-										</div>
-										{#each block.config.resource_links as _link, idx (idx)}
-											<div class="flex items-center gap-1">
-												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeReadingResourceLink(block, idx)}>x</button>
-											</div>
-										{:else}
-											<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
-										{/each}
 									</div>
-								</div>
-							{:else}
-								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs md:col-span-2" style={glassLabelColor}>
-										<span>Section title</span>
-										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} />
-									</label>
-									<label class="flex flex-col gap-1 text-xs md:col-span-2" style={glassLabelColor}>
-										<span>Student directions</span>
-										<textarea class={glassInput + " text-sm"} style={glassInputStyle} rows="3" bind:value={block.config.directions} placeholder="Explain exactly what they must demo or submit..."></textarea>
-									</label>
-									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
-										<span>Photo evidence</span>
-										<select class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.evidence_mode}>
-											<option value="none">No photo</option>
-											<option value="photo_optional">Photo optional</option>
-											<option value="photo_required">Photo required</option>
-										</select>
-									</label>
-									<label class="flex items-center gap-2 text-xs" style="color: var(--app-text);">
-										<input
-											type="checkbox"
-											class="accent-yellow-400"
-											checked={Boolean(block.config.show_mentor_checklist_to_students)}
-											onchange={(event) =>
-												(block.config.show_mentor_checklist_to_students = (
-													event.currentTarget as HTMLInputElement
-												).checked)}
-										/>
-										Show mentor checklist to students
-									</label>
-								</div>
+								{:else}
+									<div class="grid gap-3 md:grid-cols-2">
+										<label class="flex flex-col gap-1.5 text-xs md:col-span-2" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Section title</span>
+											<input class="glass-input text-sm" bind:value={block.config.title} />
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs md:col-span-2" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Student directions</span>
+											<textarea class="glass-input text-sm" rows="3" bind:value={block.config.directions} placeholder="Explain exactly what they must demo or submit..."></textarea>
+										</label>
+										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+											<span class="eyebrow-label">Photo evidence</span>
+											<select class="glass-input text-sm" bind:value={block.config.evidence_mode}>
+												<option value="none">No photo</option>
+												<option value="photo_optional">Photo optional</option>
+												<option value="photo_required">Photo required</option>
+											</select>
+										</label>
+										<label class="flex items-center gap-2 text-xs" style="color: var(--app-text);">
+											<input
+												type="checkbox"
+												checked={Boolean(block.config.show_mentor_checklist_to_students)}
+												onchange={(event) =>
+													(block.config.show_mentor_checklist_to_students = (
+														event.currentTarget as HTMLInputElement
+													).checked)}
+											/>
+											Show mentor checklist to students
+										</label>
+									</div>
 
-								<div class="grid gap-3 md:grid-cols-2">
-									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold" style="color: var(--app-text);">Mentor checklist</p>
-											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addChecklistItem(block)}>+ Item</button>
-										</div>
-										{#each block.config.mentor_checklist as _item, idx (idx)}
-											<div class="flex items-center gap-1">
-												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.mentor_checklist[idx]} placeholder="e.g. Safety glasses worn" />
-												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeChecklistItem(block, idx)}>x</button>
+									<div class="grid gap-3 md:grid-cols-2">
+										<div class="inner-glass-panel">
+											<div class="mb-1 flex items-center justify-between">
+												<p class="eyebrow-label">Mentor checklist</p>
+												<button type="button" class="block-action-btn" onclick={() => addChecklistItem(block)}>+ Item</button>
 											</div>
-										{:else}
-											<p class="text-xs" style="color: var(--app-text-muted);">No checklist items yet.</p>
-										{/each}
-									</div>
-									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
-										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold" style="color: var(--app-text);">Resource links</p>
-											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addResourceLink(block)}>+ Link</button>
+											{#each block.config.mentor_checklist as _item, idx (idx)}
+												<div class="flex items-center gap-1">
+													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.mentor_checklist[idx]} placeholder="e.g. Safety glasses worn" />
+													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeChecklistItem(block, idx)}>x</button>
+												</div>
+											{:else}
+												<p class="text-xs" style="color: var(--app-text-muted);">No checklist items yet.</p>
+											{/each}
 										</div>
-										{#each block.config.resource_links as _link, idx (idx)}
-											<div class="flex items-center gap-1">
-												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeResourceLink(block, idx)}>x</button>
+										<div class="inner-glass-panel">
+											<div class="mb-1 flex items-center justify-between">
+												<p class="eyebrow-label">Resource links</p>
+												<button type="button" class="block-action-btn" onclick={() => addResourceLink(block)}>+ Link</button>
 											</div>
-										{:else}
-											<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
-										{/each}
+											{#each block.config.resource_links as _link, idx (idx)}
+												<div class="flex items-center gap-1">
+													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
+													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeResourceLink(block, idx)}>x</button>
+												</div>
+											{:else}
+												<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
+											{/each}
+										</div>
 									</div>
-								</div>
-							{/if}
-						</div>
-					{/if}
+								{/if}
+							</div>
+						{/if}
+					</div>
 				</div>
 			{:else}
-				<div class="rounded-xl border border-dashed p-6 text-center text-sm" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">
+				<div class="rounded-2xl border border-dashed p-8 text-center text-sm" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">
 					No blocks yet. Use the buttons above to add a video, quiz, reading, or skills check.
 				</div>
 			{/each}
@@ -1049,7 +1051,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		</div>
 	</form>
 
-	<form method="POST" action="?/savePrereqs" class="space-y-3 {glassFormCard}" style={glassFormCardStyle}>
+	<form method="POST" action="?/savePrereqs" class="glass-card space-y-4 rounded-2xl p-5">
 		<div>
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Prerequisites</h2>
 			<p class="text-xs" style="color: var(--app-text-muted);">
@@ -1059,15 +1061,14 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		<input
 			bind:value={prereqFilter}
 			placeholder="Filter by title or slug..."
-			class={"w-full " + glassInput + " text-sm"}
-			style={glassInputStyle}
+			class="glass-input w-full text-sm"
 		/>
 		<div class="grid max-h-80 gap-1 overflow-y-auto md:grid-cols-2">
 			{#each filteredNodes as n (n.id)}
-				<label class="glass-prereq-row flex items-center gap-2 rounded-lg border px-2 py-1 text-sm" style="border-color: var(--app-glass-border);">
+				<label class="glass-prereq-row flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm" style="border-color: var(--app-glass-border);">
 					<input type="checkbox" name="prereq_ids" value={n.id} checked={data.prereqIds.includes(n.id)} />
-					<span class="truncate">{n.title}</span>
-					<span class="ml-auto text-xs" style="color: var(--app-text-muted);">{n.slug}</span>
+					<span class="truncate" style="color: var(--app-text);">{n.title}</span>
+					<span class="mono ml-auto text-xs" style="color: var(--app-text-dim);">{n.slug}</span>
 				</label>
 			{:else}
 				<p class="text-sm" style="color: var(--app-text-muted);">No matching courses.</p>
@@ -1080,6 +1081,170 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 </section>
 
 <style>
+	.glass-card {
+		background: var(--app-glass-bg);
+		border: 1px solid var(--app-glass-border);
+		box-shadow: var(--app-glass-shadow);
+		backdrop-filter: blur(24px);
+		position: relative;
+	}
+	.glass-card::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		background: var(--app-glass-shine);
+		pointer-events: none;
+	}
+
+	.glass-input {
+		border-radius: 0.75rem;
+		border: 1px solid var(--app-glass-border);
+		background: var(--app-glass-bg);
+		color: var(--app-input-text);
+		padding: 0.5rem 0.75rem;
+		backdrop-filter: blur(8px);
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+	.glass-input:hover:not(:focus) {
+		border-color: var(--app-glass-border-hover);
+	}
+	.glass-input:focus {
+		outline: none;
+		border-color: var(--app-accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 15%, transparent);
+	}
+
+	.add-block-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		border-radius: 0.75rem;
+		border: 1px solid;
+		padding: 0.375rem 0.875rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: filter 0.15s ease, transform 0.1s ease;
+	}
+	.add-block-chip:hover {
+		filter: brightness(1.2);
+		transform: translateY(-1px);
+	}
+	.add-block-chip:active {
+		transform: translateY(0);
+	}
+	.add-block-icon {
+		font-size: 0.75rem;
+	}
+
+	.block-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.block-row {
+		display: flex;
+		gap: 0;
+		position: relative;
+	}
+
+	.block-spine {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 28px;
+		flex-shrink: 0;
+		padding-top: 14px;
+	}
+	.block-spine-dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: var(--block-accent);
+		box-shadow: 0 0 8px color-mix(in srgb, var(--block-accent) 50%, transparent);
+		flex-shrink: 0;
+		z-index: 1;
+	}
+	.block-spine-line {
+		width: 2px;
+		flex: 1;
+		background: color-mix(in srgb, var(--block-accent) 25%, transparent);
+		margin-top: 2px;
+	}
+
+	.block-card {
+		flex: 1;
+		border-radius: 1rem;
+		border: 1px solid var(--app-glass-border);
+		background: var(--app-glass-bg);
+		padding: 0.75rem 1rem;
+		margin-bottom: 0.5rem;
+		backdrop-filter: blur(16px);
+		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		border-left: 3px solid var(--block-accent);
+	}
+	.block-card:hover {
+		border-color: var(--app-glass-border-hover);
+	}
+	.block-card-error {
+		box-shadow: 0 0 0 1px var(--app-danger);
+	}
+
+	.block-expanded-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+		border-radius: 0.75rem;
+		padding: 0.875rem;
+		background: color-mix(in srgb, var(--app-surface) 60%, transparent);
+	}
+
+	.block-action-btn {
+		border-radius: 0.5rem;
+		border: 1px solid var(--app-glass-border);
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		color: var(--app-text);
+		background: transparent;
+		cursor: pointer;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+	.block-action-btn:hover {
+		background: var(--app-glass-bg-hover);
+		border-color: var(--app-glass-border-hover);
+	}
+	.block-action-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+	.block-action-btn-danger {
+		border-color: color-mix(in srgb, var(--app-danger) 40%, transparent);
+		color: color-mix(in srgb, var(--app-danger) 80%, white);
+	}
+	.block-action-btn-danger:hover {
+		background: color-mix(in srgb, var(--app-danger) 12%, transparent);
+	}
+
+	.question-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		border-radius: 0.75rem;
+		border: 1px solid var(--app-glass-border);
+		padding: 0.75rem;
+		background: color-mix(in srgb, var(--app-surface) 50%, transparent);
+	}
+
+	.inner-glass-panel {
+		border-radius: 0.75rem;
+		border: 1px solid var(--app-glass-border);
+		padding: 0.625rem;
+		background: color-mix(in srgb, var(--app-surface) 50%, transparent);
+	}
+
 	.glass-prereq-row {
 		transition: background 0.15s ease;
 	}

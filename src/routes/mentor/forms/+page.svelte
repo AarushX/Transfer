@@ -55,11 +55,12 @@
 </script>
 
 <section class="space-y-5">
-	<div class="flex items-center justify-between">
+	<div class="fade-up flex items-center justify-between">
 		<div>
 			<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
-			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Forms Management</h1>
-			<p class="text-sm" style="color: var(--app-text-muted);">Create forms and manage student submissions in one place.</p>
+			<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
+			<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Forms Management</span></h1>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Create forms and manage student submissions in one place.</p>
 		</div>
 	</div>
 
@@ -69,8 +70,8 @@
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<form method="POST" action="?/createForm" enctype="multipart/form-data" class="space-y-3 rounded-xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<div class="fade-up grid gap-4 lg:grid-cols-2" style="animation-delay: 0.05s;">
+		<form method="POST" action="?/createForm" enctype="multipart/form-data" class="space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Create Form</h2>
 			<label class="flex flex-col gap-1 text-sm"><span style="color: var(--app-text);">Name</span><input name="name" class={gi} style={gs} required /></label>
 			<label class="flex flex-col gap-1 text-sm"><span style="color: var(--app-text);">Slug (optional)</span><input name="slug" class={gi} style={gs} /></label>
@@ -86,7 +87,7 @@
 			<Button variant="primary" type="submit">Create form</Button>
 		</form>
 
-		<div class="rounded-xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="mb-2 text-lg font-semibold" style="color: var(--app-text);">Forms</h2>
 			<div class="space-y-2">
 				{#each data.forms as type (type.id)}

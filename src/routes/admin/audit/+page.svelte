@@ -3,8 +3,12 @@
 	let { data } = $props();
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Audit Log</h1>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Administration</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Audit Log</span></h1>
+	</div>
+	<div class="fade-up" style="animation-delay: 0.05s;">
 	<GlassTable>
 		<thead>
 			<tr>
@@ -27,4 +31,5 @@
 			{/each}
 		</tbody>
 	</GlassTable>
+	</div>
 </section>

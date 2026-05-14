@@ -122,34 +122,34 @@
 </script>
 
 <section class="space-y-6">
-	<header>
-		<p class="text-[11px] font-medium uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Admin</p>
-		<h1 class="mt-1 text-2xl font-semibold" style="color: var(--app-text);">Attendance</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Admin</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Attendance</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
 			Tracks daily check-in/check-out sessions plus individual scan events.
 		</p>
 	</header>
 
-	<div class="grid gap-3 md:grid-cols-4">
-		<div class="rounded-xl border p-3 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
-			<p class="text-xs" style="color: var(--app-text-muted);">Sessions</p>
-			<p class="text-xl font-semibold" style="color: var(--app-text);">{summary.sessions}</p>
+	<div class="fade-up grid gap-3 md:grid-cols-4" style="animation-delay: 0.05s;">
+		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<p class="eyebrow-label">Sessions</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-text);">{summary.sessions}</p>
 		</div>
-		<div class="rounded-xl border p-3 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
-			<p class="text-xs" style="color: var(--app-text-muted);">Checked in</p>
-			<p class="text-xl font-semibold" style="color: var(--app-success);">{summary.checkedIn}</p>
+		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<p class="eyebrow-label">Checked in</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-success);">{summary.checkedIn}</p>
 		</div>
-		<div class="rounded-xl border p-3 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
-			<p class="text-xs" style="color: var(--app-text-muted);">Checked out</p>
-			<p class="text-xl font-semibold" style="color: var(--app-info);">{summary.checkedOut}</p>
+		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<p class="eyebrow-label">Checked out</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-info);">{summary.checkedOut}</p>
 		</div>
-		<div class="rounded-xl border p-3 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
-			<p class="text-xs" style="color: var(--app-text-muted);">Still open</p>
-			<p class="text-xl font-semibold" style="color: var(--app-warning);">{summary.open}</p>
+		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<p class="eyebrow-label">Still open</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-warning);">{summary.open}</p>
 		</div>
 	</div>
 
-	<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+	<div class="fade-up rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.1s;">
 		<div class="grid gap-2 md:grid-cols-[1fr_auto_auto]">
 			<input
 				class={gi}
@@ -164,8 +164,8 @@
 		</div>
 	</div>
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<div class="rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<div class="fade-up grid gap-4 lg:grid-cols-2" style="animation-delay: 0.15s;">
+		<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Manual Kiosk Toggle</h2>
 			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Directly activate or deactivate the attendance display.</p>
 			<div class="mt-3 grid gap-2 md:grid-cols-2">
@@ -188,7 +188,7 @@
 			</div>
 		</div>
 
-		<div class="rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Manual Member Attendance</h2>
 			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Forced check-in/check-out actions for a selected member.</p>
 			<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr]">
@@ -215,7 +215,8 @@
 	{#if adminActionMessage}<p class="mt-2 text-xs" style="color: var(--app-success);">{adminActionMessage}</p>{/if}
 	{#if adminActionError}<p class="mt-2 text-xs" style="color: var(--app-danger);">{adminActionError}</p>{/if}
 
-	<div class="space-y-3">
+	<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
+		<p class="eyebrow-label">Member sessions</p>
 		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Member Sessions</h2>
 		{#each filteredSessions as row (row.id)}
 			<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">

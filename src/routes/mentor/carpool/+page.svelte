@@ -47,10 +47,11 @@
 </script>
 
 <section class="space-y-5">
-	<div>
+	<div class="fade-up">
 		<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Carpool Event Setup</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">Create day-by-day slot-based volunteer signup events.</p>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Carpool Event Setup</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Create day-by-day slot-based volunteer signup events.</p>
 	</div>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -70,7 +71,7 @@
 		</form>
 	{/if}
 
-	<form method="POST" action="?/createEvent" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/createEvent" class="fade-up space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Create Event</h2>
 		{#if (data.templates ?? []).length > 0}
 			<p class="text-xs" style="color: var(--app-text-muted);">{data.templates.length} saved template{data.templates.length === 1 ? '' : 's'} available.</p>

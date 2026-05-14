@@ -73,7 +73,8 @@
 </script>
 
 <div
-	class="space-y-2 rounded-lg border border-slate-800 bg-slate-900 p-3 transition hover:border-slate-500"
+	class="checkoff-card relative overflow-hidden space-y-3 rounded-2xl border p-4 backdrop-blur-xl transition duration-200"
+	style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 	role="button"
 	tabindex="0"
 	onclick={() => onOpen?.(item)}
@@ -84,108 +85,124 @@
 		}
 	}}
 >
-	<div class="flex items-start justify-between gap-3">
-		<div>
-			<p class="font-semibold">{item.profile?.full_name || item.profile?.email}</p>
-			<p class="text-xs text-slate-400">{item.profile?.email}</p>
+	<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+	<div class="relative space-y-3">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<p class="text-[15px] font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
+				<p class="text-xs" style="color: var(--app-text-dim);">{item.profile?.email}</p>
+			</div>
+			<StatusChip label={statusLabel} tone={
+				item.derivedCheckoffStatus === 'approved'
+					? 'success'
+					: item.derivedCheckoffStatus === 'needs_review'
+						? 'warning'
+						: item.derivedCheckoffStatus === 'blocked'
+							? 'danger'
+							: item.derivedCheckoffStatus === 'submitted'
+								? 'info'
+								: 'neutral'
+			} />
 		</div>
-		<StatusChip label={statusLabel} tone={
-			item.derivedCheckoffStatus === 'approved'
-				? 'success'
-				: item.derivedCheckoffStatus === 'needs_review'
-					? 'warning'
-					: item.derivedCheckoffStatus === 'blocked'
-						? 'danger'
-						: item.derivedCheckoffStatus === 'submitted'
-							? 'info'
-							: 'neutral'
-		} />
-	</div>
-	<div>
-		<p class="text-sm font-medium text-slate-200">{item.node?.title}</p>
-		<p class="mt-1 text-xs text-slate-500">
-			Student team: {item.profile?.subteam?.name ?? 'Unassigned'} · Course team: {item.node?.subteam?.name ??
-				'Unassigned'}
-		</p>
-		{#if item.requirement?.title || item.requirement?.directions}
-			<p class="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-				{item.requirement?.title || 'Physical checkoff'}
-			</p>
-			<p class="mt-1 rounded bg-slate-900/60 p-2 text-xs text-slate-300">
-				{item.requirement?.directions || 'No student directions provided.'}
-			</p>
-		{/if}
-		{#if (item.requirement?.mentor_checklist ?? []).length}
-			<div class="mt-2 space-y-1 text-xs text-slate-300">
-				<p class="font-semibold text-slate-400">Mentor checklist</p>
-				{#each item.requirement.mentor_checklist as c}
-					<label class="flex items-start gap-2 rounded px-2 py-1 hover:bg-slate-800">
-						<input
-							type="checkbox"
-							class="mt-0.5 accent-yellow-400"
-							checked={!!checklistStates[c]}
-							onchange={(event) =>
-								(checklistStates[c] = (event.currentTarget as HTMLInputElement).checked)}
-						/>
-						<span>{c}</span>
-					</label>
-				{/each}
-			</div>
-		{/if}
-		{#if item.submission}
-			<div class="mt-2 rounded border border-slate-800 bg-slate-900/40 p-2 text-xs">
-				<p class="font-semibold text-slate-200">Student submission</p>
-				<p class="mt-1 whitespace-pre-wrap text-slate-300">
-					{item.submission.notes || 'No notes submitted.'}
+
+		<div class="space-y-3">
+			<div>
+				<p class="text-sm font-semibold" style="color: var(--app-text);">{item.node?.title}</p>
+				<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
+					Student team: {item.profile?.subteam?.name ?? 'Unassigned'} · Course team: {item.node?.subteam?.name ?? 'Unassigned'}
 				</p>
-				{#if photosFor(item.submission).length}
-					<div class="mt-2">
-						<EvidenceGallery images={photosFor(item.submission)} maxPreview={6} onOpen={onImageOpen} />
-					</div>
-				{/if}
 			</div>
-		{:else if item.requirement?.evidence_mode === 'photo_required'}
-			<p class="mt-2 rounded border border-amber-700/60 bg-amber-900/30 p-2 text-xs text-amber-200">
-				Photo evidence is required but student has not submitted one yet.
-			</p>
-		{/if}
-		{#if item.review}
-			<p class="mt-2 text-[11px] text-slate-500">
-				Last review: {item.review.status} · {new Date(item.review.updated_at).toLocaleString()}
-			</p>
-		{/if}
-	</div>
-	<label class="flex flex-col gap-1 text-xs text-slate-400">
-		<span>Mentor feedback</span>
-		<textarea
-			class="rounded bg-slate-800 px-2 py-2 text-sm text-slate-100"
-			rows="2"
-			placeholder="Feedback for the student..."
-			bind:value={notes}
-			disabled={!!busy}
-		></textarea>
-	</label>
-	<div class="flex flex-wrap gap-2 pt-1">
-		<button
-			class="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60"
-			onclick={(event) => {
-				event.stopPropagation();
-				approve();
-			}}
-			disabled={!!busy}
-		>
-			{busy === 'approve' ? 'Approving…' : 'Approve'}
-		</button>
-		<button
-			class="rounded bg-amber-600 px-3 py-1 text-sm font-semibold hover:bg-amber-500 disabled:opacity-60"
-			onclick={(event) => {
-				event.stopPropagation();
-				showResetConfirm = true;
-			}}
-			disabled={!!busy}
-		>
-			{busy === 'review' ? 'Rejecting…' : 'Reject / Reset'}
-		</button>
+
+			{#if item.requirement?.title || item.requirement?.directions}
+				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+					<p class="eyebrow-label" style="margin-bottom: 6px;">
+						{item.requirement?.title || 'Physical checkoff'}
+					</p>
+					<p class="text-xs" style="color: var(--app-text-muted);">
+						{item.requirement?.directions || 'No student directions provided.'}
+					</p>
+				</div>
+			{/if}
+
+			{#if (item.requirement?.mentor_checklist ?? []).length}
+				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+					<p class="eyebrow-label" style="margin-bottom: 8px;">Mentor checklist</p>
+					<div class="space-y-1">
+						{#each item.requirement.mentor_checklist as c}
+							<label class="checklist-row flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition duration-150">
+								<input
+									type="checkbox"
+									class="checklist-check mt-0.5"
+									checked={!!checklistStates[c]}
+									onchange={(event) =>
+										(checklistStates[c] = (event.currentTarget as HTMLInputElement).checked)}
+								/>
+								<span style="color: var(--app-text-muted);">{c}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if item.submission}
+				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+					<p class="eyebrow-label" style="margin-bottom: 6px;">Student submission</p>
+					<p class="whitespace-pre-wrap text-xs" style="color: var(--app-text-muted);">
+						{item.submission.notes || 'No notes submitted.'}
+					</p>
+					{#if photosFor(item.submission).length}
+						<div class="mt-2">
+							<EvidenceGallery images={photosFor(item.submission)} maxPreview={6} onOpen={onImageOpen} />
+						</div>
+					{/if}
+				</div>
+			{:else if item.requirement?.evidence_mode === 'photo_required'}
+				<div class="rounded-xl border p-3 text-xs" style="background: color-mix(in srgb, var(--app-warning) 10%, transparent); border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); color: color-mix(in srgb, var(--app-warning) 60%, white);">
+					Photo evidence is required but student has not submitted one yet.
+				</div>
+			{/if}
+
+			{#if item.review}
+				<p class="text-[11px]" style="color: var(--app-text-dim);">
+					Last review: {item.review.status} · {new Date(item.review.updated_at).toLocaleString()}
+				</p>
+			{/if}
+		</div>
+
+		<label class="flex flex-col gap-1.5">
+			<span class="eyebrow-label">Mentor feedback</span>
+			<textarea
+				class="rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+				rows="2"
+				placeholder="Feedback for the student..."
+				bind:value={notes}
+				disabled={!!busy}
+			></textarea>
+		</label>
+
+		<div class="flex flex-wrap gap-2 pt-1">
+			<button
+				class="btn-approve rounded-xl px-4 py-2 text-sm font-semibold transition duration-200 disabled:opacity-60"
+				onclick={(event) => {
+					event.stopPropagation();
+					approve();
+				}}
+				disabled={!!busy}
+			>
+				{busy === 'approve' ? 'Approving...' : 'Approve'}
+			</button>
+			<button
+				class="btn-reject rounded-xl px-4 py-2 text-sm font-semibold transition duration-200 disabled:opacity-60"
+				onclick={(event) => {
+					event.stopPropagation();
+					showResetConfirm = true;
+				}}
+				disabled={!!busy}
+			>
+				{busy === 'review' ? 'Rejecting...' : 'Reject / Reset'}
+			</button>
+		</div>
 	</div>
 </div>
 
@@ -199,3 +216,32 @@
 	onCancel={() => (showResetConfirm = false)}
 	onConfirm={() => review()}
 />
+
+<style>
+	.checkoff-card:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.checklist-row:hover {
+		background: color-mix(in srgb, var(--app-glass-bg) 80%, transparent);
+	}
+	.checklist-check {
+		accent-color: var(--app-accent);
+	}
+	.btn-approve {
+		background: var(--aurora);
+		color: white;
+	}
+	.btn-approve:hover:not(:disabled) {
+		filter: brightness(1.15);
+	}
+	.btn-reject {
+		background: color-mix(in srgb, var(--app-danger) 20%, transparent);
+		border: 1px solid color-mix(in srgb, var(--app-danger) 40%, transparent);
+		color: color-mix(in srgb, var(--app-danger) 80%, white);
+	}
+	.btn-reject:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--app-danger) 35%, transparent);
+		border-color: color-mix(in srgb, var(--app-danger) 60%, transparent);
+	}
+</style>

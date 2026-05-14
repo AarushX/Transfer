@@ -30,42 +30,52 @@
 	};
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Machine Access</h1>
-	<p class="text-sm" style="color: var(--app-text-muted);">
-		Scan the machine QR before use. You must have completed all required training courses.
-	</p>
-	{#if error}<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
-			{error}
-		</p>{/if}
-	{#if success}<p
-			class="rounded border p-2 text-sm"
-			style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);"
-		>
-			{success}
-		</p>{/if}
+<section class="space-y-6">
+	<header class="fade-up">
+		<p class="eyebrow-label">Safety</p>
+		<h1 class="mt-1 text-3xl font-semibold tracking-tight gradient-text">Machine Access</h1>
+		<p class="mt-2 max-w-2xl text-sm" style="color: var(--app-text-muted);">
+			Scan the machine QR before use. You must have completed all required training courses.
+		</p>
+	</header>
 
-	<div class="grid gap-3 md:grid-cols-2">
-		<GlassCard>
-			<h2 class="mb-2 font-semibold" style="color: var(--app-text);">Scan machine QR</h2>
-			<QRScanner onDecoded={(v: string) => (token = v)} />
-		</GlassCard>
-		<GlassCard>
-			<div class="space-y-2">
-				<label class="flex flex-col gap-1 text-sm">
-					<span style="color: var(--app-text);">Machine token</span>
-					<input class="rounded px-2 py-2" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" bind:value={token} />
-				</label>
-				<Button variant="primary" onclick={useMachine}>
-					Authorize machine use
-				</Button>
-				{#if machine}
-					<div class="rounded p-2 text-sm" style="background: var(--app-glass-bg); backdrop-filter: blur(12px);">
-						<p class="font-semibold" style="color: var(--app-text);">{machine.name}</p>
-						<p style="color: var(--app-text-muted);">{machine.description || 'No description.'}</p>
-					</div>
-				{/if}
-			</div>
-		</GlassCard>
+	{#if error}
+		<div class="fade-up rounded-2xl border p-3 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 12%, transparent); color: color-mix(in srgb, var(--app-danger) 60%, white);">
+			{error}
+		</div>
+	{/if}
+	{#if success}
+		<div class="fade-up rounded-2xl border p-3 text-sm" style="border-color: color-mix(in srgb, var(--app-success) 40%, transparent); background: color-mix(in srgb, var(--app-success) 12%, transparent); color: color-mix(in srgb, var(--app-success) 60%, white);">
+			{success}
+		</div>
+	{/if}
+
+	<div class="grid gap-4 md:grid-cols-2">
+		<div class="fade-up" style="animation-delay: 60ms;">
+			<GlassCard>
+				<p class="eyebrow-label mb-3">Scan machine QR</p>
+				<QRScanner onDecoded={(v: string) => (token = v)} />
+			</GlassCard>
+		</div>
+		<div class="fade-up" style="animation-delay: 120ms;">
+			<GlassCard>
+				<div class="space-y-3">
+					<p class="eyebrow-label">Manual entry</p>
+					<label class="flex flex-col gap-1.5 text-sm">
+						<span style="color: var(--app-text);">Machine token</span>
+						<input class="rounded-xl px-3 py-2.5" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" bind:value={token} />
+					</label>
+					<Button variant="primary" onclick={useMachine}>
+						Authorize machine use
+					</Button>
+					{#if machine}
+						<div class="rounded-xl border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
+							<p class="font-semibold" style="color: var(--app-text);">{machine.name}</p>
+							<p class="mt-0.5 text-sm" style="color: var(--app-text-muted);">{machine.description || 'No description.'}</p>
+						</div>
+					{/if}
+				</div>
+			</GlassCard>
+		</div>
 	</div>
 </section>

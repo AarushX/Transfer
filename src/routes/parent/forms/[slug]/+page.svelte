@@ -8,17 +8,17 @@
 </script>
 
 <section class="space-y-4">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">{data.form.name}</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">Submitting for {data.selectedStudent.full_name || data.selectedStudent.email}</p>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">{data.form.name}</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Submitting for {data.selectedStudent.full_name || data.selectedStudent.email}</p>
 	</header>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Submitted.</p>
 	{/if}
-	<form method="POST" action="?/submitForm" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/submitForm" class="fade-up space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<input type="hidden" name="student_user_id" value={data.selectedStudent.id} />
 		<label class="block space-y-1 text-sm"><span style="color: var(--app-text);">Cloud link</span><input name="cloud_link" required class={gi} style={gs} placeholder="https://drive.google.com/..." /></label>
 		<label class="block space-y-1 text-sm"><span style="color: var(--app-text);">External links (one per line)</span><textarea name="external_doc_links" rows="3" class={gi} style={gs}></textarea></label>

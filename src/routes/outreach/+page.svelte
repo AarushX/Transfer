@@ -71,8 +71,9 @@
 </script>
 
 <section class="space-y-6">
-	<div>
+	<div class="fade-up">
 		<a href="/dashboard" class="text-xs" style="color: var(--app-text-muted);">← Dashboard</a>
+		<p class="eyebrow-label" style="margin-bottom: 4px; margin-top: 4px;">Community</p>
 		<PageHeader
 			title="Outreach"
 			description={data.season ? data.season.label : 'Browse outreach events, sign up, and log your hours.'}
@@ -91,7 +92,7 @@
 		{/if}
 
 		<!-- Hours Summary -->
-		<div class="grid gap-3 sm:grid-cols-2">
+		<div class="fade-up grid gap-3 sm:grid-cols-2" style="animation-delay: 0.05s;">
 			<GlassCard compact>
 				<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Verified Hours</p>
 				<p class="mt-1 text-2xl font-bold" style="color: var(--app-success);">{totalHours}</p>
@@ -103,7 +104,8 @@
 		</div>
 
 		<!-- Upcoming Events -->
-		<div class="space-y-3">
+		<div class="fade-up space-y-3" style="animation-delay: 0.1s;">
+			<p class="eyebrow-label">Events</p>
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Upcoming Events</h2>
 			{#if upcomingEvents.length === 0}
 				<p class="rounded border p-4 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">
@@ -200,7 +202,8 @@
 		{/if}
 
 		<!-- Log Hours -->
-		<div class="space-y-3">
+		<div class="fade-up space-y-3" style="animation-delay: 0.15s;">
+			<p class="eyebrow-label">Tracking</p>
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Log Hours</h2>
 			<GlassCard>
 				<form method="POST" action="?/logHours" class="space-y-3">
@@ -262,7 +265,8 @@
 		</div>
 
 		<!-- My Hours -->
-		<div class="space-y-3">
+		<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
+			<p class="eyebrow-label">History</p>
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">My Hours</h2>
 			{#if (data.myHours ?? []).length === 0}
 				<p class="rounded border p-4 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">

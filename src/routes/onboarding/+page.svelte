@@ -51,43 +51,81 @@
 		}
 		return '';
 	};
+
+	const totalSteps = $derived(requiredCategories.length + 1);
 </script>
 
-<section class="mx-auto max-w-xl space-y-4">
-	<GlassCard>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Onboarding</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">Choose your team and subteam to unlock your required courses.</p>
-	</GlassCard>
+<div class="flex min-h-[50vh] items-center justify-center px-4">
+	<div class="fade-up w-full max-w-xl space-y-5">
+		<!-- Header card -->
+		<div class="aurora-border">
+			<div class="relative overflow-hidden rounded-2xl border backdrop-blur-xl p-5" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+				<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+				<div class="relative space-y-2">
+					<p class="eyebrow-label">Getting Started</p>
+					<h1 class="gradient-text text-2xl font-bold tracking-tight">Onboarding</h1>
+					<p class="text-sm" style="color: var(--app-text-muted);">Choose your team and subteam to unlock your required courses.</p>
 
-	{#if form?.error}
-		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
-	{/if}
+					<!-- Step progress bar -->
+					<div class="pt-2">
+						<div class="aurora-progress">
+							<div class="aurora-progress-fill" style="width: {Math.max(10, (1 / totalSteps) * 100)}%;"></div>
+						</div>
+						<p class="mt-1.5 text-xs mono" style="color: var(--app-text-dim);">Step 1 of {totalSteps}</p>
+					</div>
+				</div>
+			</div>
+		</div>
 
-	<form method="POST" action="?/save" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
-		<label class="flex flex-col gap-1 text-sm">
-			<span style="color: var(--app-text-muted);">Main team</span>
-			<select class="rounded px-2 py-2" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name="primary_team_group_id" bind:value={selectedPrimaryTeamGroupId} required>
-				<option value="">Select main team</option>
-				{#each teamGroups as team}
-					<option value={team.id}>{team.name}</option>
+		{#if form?.error}
+			<div class="fade-up rounded-xl border p-3 text-sm" style="background: color-mix(in srgb, var(--app-danger) 12%, transparent); border-color: color-mix(in srgb, var(--app-danger) 30%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);">
+				{form.error}
+			</div>
+		{/if}
+
+		<!-- Form card -->
+		<div class="relative overflow-hidden rounded-2xl border backdrop-blur-xl p-5" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+			<form method="POST" action="?/save" class="relative space-y-4">
+				<label class="flex flex-col gap-1.5 text-sm">
+					<span class="eyebrow-label">Main team</span>
+					<select
+						class="w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+						name="primary_team_group_id"
+						bind:value={selectedPrimaryTeamGroupId}
+						required
+					>
+						<option value="">Select main team</option>
+						{#each teamGroups as team}
+							<option value={team.id}>{team.name}</option>
+						{/each}
+					</select>
+				</label>
+				{#each requiredCategories as category}
+					{@const categorySlug = String(category.slug)}
+					{@const options = subteamsByDesignator.get(categorySlug) ?? []}
+					<label class="flex flex-col gap-1.5 text-sm">
+						<span class="eyebrow-label">{category.name} subteam</span>
+						<select
+							class="w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+							style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+							name={`team_id_${categorySlug}`}
+							required
+						>
+							<option value="">Select {String(category.name).toLowerCase()} subteam</option>
+							{#each options as subteam}
+								<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === subteam.id}>
+									{subteam.name}
+								</option>
+							{/each}
+						</select>
+					</label>
 				{/each}
-			</select>
-		</label>
-		{#each requiredCategories as category}
-			{@const categorySlug = String(category.slug)}
-			{@const options = subteamsByDesignator.get(categorySlug) ?? []}
-			<label class="flex flex-col gap-1 text-sm">
-				<span style="color: var(--app-text-muted);">{category.name} subteam</span>
-				<select class="rounded px-2 py-2" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name={`team_id_${categorySlug}`} required>
-					<option value="">Select {String(category.name).toLowerCase()} subteam</option>
-					{#each options as subteam}
-						<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === subteam.id}>
-							{subteam.name}
-						</option>
-					{/each}
-				</select>
-			</label>
-		{/each}
-		<Button variant="primary" type="submit">Continue</Button>
-	</form>
-</section>
+				<div class="pt-1">
+					<Button variant="primary" type="submit" class="w-full" size="lg">Continue</Button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

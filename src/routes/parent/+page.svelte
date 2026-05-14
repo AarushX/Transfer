@@ -8,10 +8,10 @@
 </script>
 
 <section class="space-y-6">
-	<header>
-		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">WRT 2026-27 Parent Application Course</h1>
-		<p class="text-sm" style="color: var(--app-text-muted);">Complete this onboarding course application to register for Walton Robotics.</p>
+	<header class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Parent Application Course</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Complete this onboarding course application to register for Walton Robotics.</p>
 	</header>
 
 	{#if form?.error}
@@ -20,7 +20,7 @@
 		<p class="rounded-xl border p-3 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<form method="POST" action="?/submitApplication" class="space-y-4 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/submitApplication" class="fade-up space-y-4 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<div class="rounded-lg border p-3 text-sm" style="border-color: var(--app-glass-border); background: var(--app-surface-alt); color: var(--app-text);">
 			<p class="font-semibold">Parental involvement is essential. Parent commitment is required for Walton Robotics participation.</p>
 			<p class="mt-2 text-xs" style="color: var(--app-text-muted);">Coach Heather Guiendon letter and expectations are included in this application course. You must review and acknowledge before submission.</p>

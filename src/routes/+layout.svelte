@@ -25,6 +25,7 @@
 			? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }]
 			: []),
 		{ href: '/dashboard', label: 'Dashboard' },
+		{ href: '/graph', label: 'Skill Graph', match: (p) => p.startsWith('/graph') },
 		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
 		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },

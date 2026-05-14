@@ -63,9 +63,12 @@
 	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Machine Shop Admin</h1>
-	<p class="text-sm" style="color: var(--app-text);">Create machine entries with required completed training and print QR codes for shop access.</p>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Mentor Panel</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Machine Shop Admin</span></h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Create machine entries with required completed training and print QR codes for shop access.</p>
+	</div>
 	{#if error}<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{error}</p>{/if}
 	{#if success}<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">{success}</p>{/if}
 

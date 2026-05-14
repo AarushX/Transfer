@@ -158,22 +158,19 @@
 	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
-<section class="space-y-4">
-	<div>
+<section class="space-y-5">
+	<div class="fade-up">
 		<a href="/mentor/surveys" class="text-xs" style="color: var(--app-text-muted);">← Surveys</a>
-		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Edit Survey</h1>
-		<p class="text-xs" style="color: var(--app-text-muted);">{survey.slug}</p>
-		<p class="text-xs" style="color: var(--app-text-muted);">
-			Workflow:
-			{data.workflowKind === 'custom' ? 'Custom' : WORKFLOW_META[data.workflowKind]?.label ?? 'Custom'}
-		</p>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Edit Survey</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">{survey.title}</span></h1>
+		<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{survey.slug} · Workflow: {data.workflowKind === 'custom' ? 'Custom' : WORKFLOW_META[data.workflowKind]?.label ?? 'Custom'}</p>
 	</div>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
-	<form method="POST" action="?/saveSurvey" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<form method="POST" action="?/saveSurvey" class="fade-up space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<label class="flex flex-col gap-1 text-sm"><span style="color: var(--app-text);">Title</span><input class={gi} style={gs} name="title" value={survey.title} required /></label>
 		<label class="flex flex-col gap-1 text-sm"><span style="color: var(--app-text);">Description</span><textarea class={gi} style={gs} rows="3" name="description">{survey.description ?? ''}</textarea></label>
 		<label class="flex flex-col gap-1 text-sm md:max-w-xs"><span style="color: var(--app-text);">Max submissions per student</span><input type="number" min="1" class={gi} style={gs} name="max_submissions" value={Number(survey.max_submissions ?? 1)} required /></label>

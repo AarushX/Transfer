@@ -95,16 +95,19 @@
 	};
 </script>
 
-<section class="space-y-4">
-	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Admin Content & Templates</h1>
+<section class="space-y-5">
+	<div class="fade-up">
+		<p class="eyebrow-label" style="margin-bottom: 4px;">Administration</p>
+		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Content & Templates</span></h1>
+	</div>
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<div class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<div class="fade-up grid gap-4 lg:grid-cols-2" style="animation-delay: 0.05s;">
+		<div class="space-y-3 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="font-semibold" style="color: var(--app-text);">Checkbox Course Editor</h2>
 			<div class="grid gap-3 md:grid-cols-2">
 				<label class="space-y-1">
@@ -158,7 +161,7 @@
 			</div>
 		</div>
 
-		<div class="space-y-4 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div class="space-y-4 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<h2 class="font-semibold" style="color: var(--app-text);">Template Manager</h2>
 			<div class="space-y-3">
 				<div>
@@ -207,7 +210,7 @@
 		</div>
 	</div>
 
-	<div class="rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+	<div class="fade-up rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.1s;">
 		<h2 class="mb-2 font-semibold" style="color: var(--app-text);">Delete Courses</h2>
 		<ul class="space-y-1 text-sm">
 			{#each nodes as node}
