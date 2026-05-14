@@ -682,8 +682,7 @@ const inProgressCount = $derived(inProgressPrimary.length);
 				<p class="py-2 text-sm" style="color: var(--app-text-muted);">No courses match your filter.</p>
 			{/if}
 
-			<div class="flex flex-col">
-				<div class={`flex flex-col gap-4 ${completedPrimary.length === 0 ? 'pb-8' : 'pb-24 md:pb-28'}`}>
+			<div class="flex flex-col gap-4 pb-8">
 					{#if inProgressPrimary.length > 0}
 						<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 							{#each inProgressPrimary as node (node.id)}
@@ -763,48 +762,50 @@ const inProgressCount = $derived(inProgressPrimary.length);
 							{/each}
 						</div>
 					{/if}
-				</div>
 
-				{#if completedPrimary.length > 0}
-					<div
-						class="fixed right-0 bottom-0 left-0 z-30 border-t backdrop-blur-xl md:left-64"
-						style="border-color: var(--app-glass-border); background: color-mix(in srgb, var(--app-surface) 95%, transparent);"
-					>
-						<div class="mx-auto w-full max-w-6xl px-6 md:px-10">
-							{#if showCompletedCourses}
-								<div class="max-h-[45vh] divide-y overflow-y-auto" style="--tw-divide-opacity: 1;">
-									{#each completedPrimary as node (node.id)}
-										<a
-											href={`/learn/${node.slug}`}
-											class="completed-row group flex items-start justify-between gap-3 py-2.5 transition duration-150 text-inherit"
-											style="color: var(--app-text); border-color: var(--app-glass-border);"
-										>
-											<div class="flex items-center gap-2 min-w-0 flex-1">
-												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0" style="color: var(--app-success);"><polyline points="4 12 10 18 20 6"/></svg>
-												<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
-											</div>
-											<span class="shrink-0 rounded-full border px-2 py-1 text-xs" style={teamChipStyleForNode(node.id)}>
-												{linkedTeamLabelForNode(node.id)}
-											</span>
-										</a>
-									{/each}
-								</div>
-							{/if}
+					{#if completedPrimary.length > 0}
+						<div class="rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 							<button
 								type="button"
-								class={`flex w-full items-center justify-between py-4 text-left ${showCompletedCourses ? 'border-t' : ''}`}
-								style={showCompletedCourses ? `border-color: var(--app-glass-border);` : ''}
+								class="flex w-full items-center justify-between px-5 py-4 text-left"
 								onclick={() => (showCompletedCourses = !showCompletedCourses)}
 							>
-								<span class="text-sm font-semibold" style="color: var(--app-text);">
-									Completed courses ({completedPrimary.length})
+								<span class="flex items-center gap-2">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" style="color: var(--app-success);"><polyline points="4 12 10 18 20 6"/></svg>
+									<span class="text-sm font-semibold" style="color: var(--app-text);">
+										Completed courses ({completedPrimary.length})
+									</span>
 								</span>
-								<span class="text-xs" style="color: var(--app-text-muted);">{showCompletedCourses ? 'Hide' : 'Show'}</span>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+									class="h-4 w-4 transition-transform duration-200"
+									style="color: var(--app-text-muted); transform: rotate({showCompletedCourses ? '180' : '0'}deg);">
+									<polyline points="6 9 12 15 18 9"/>
+								</svg>
 							</button>
+							{#if showCompletedCourses}
+								<div class="border-t px-5 pb-3" style="border-color: var(--app-glass-border);">
+									<div class="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-3">
+										{#each completedPrimary as node (node.id)}
+											<a
+												href={`/learn/${node.slug}`}
+												class="completed-row group flex items-center justify-between gap-3 rounded-xl border p-3 text-inherit transition duration-150"
+												style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+											>
+												<div class="flex items-center gap-2 min-w-0 flex-1">
+													<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0" style="color: var(--app-success);"><polyline points="4 12 10 18 20 6"/></svg>
+													<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
+												</div>
+												<span class="shrink-0 rounded-full border px-2 py-1 text-xs" style={teamChipStyleForNode(node.id)}>
+													{linkedTeamLabelForNode(node.id)}
+												</span>
+											</a>
+										{/each}
+									</div>
+								</div>
+							{/if}
 						</div>
-					</div>
-				{/if}
-			</div>
+					{/if}
+				</div>
 		</div>
 	{/if}
 </section>

@@ -27,10 +27,7 @@
 		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/graph', label: 'Skill Graph', match: (p) => p.startsWith('/graph') },
 		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
-		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
-		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },
-		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') },
 		{ href: '/lettering', label: 'Lettering', match: (p) => p.startsWith('/lettering') },
 		{ href: '/outreach', label: 'Outreach', match: (p) => p.startsWith('/outreach') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
@@ -38,7 +35,6 @@
 	const parentPrimary: NavItem[] = [
 		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
 		{ href: '/parent/carpool', label: 'Carpool', match: (p) => p.startsWith('/parent/carpool') },
-		{ href: '/parent/forms', label: 'Forms', match: (p) => p.startsWith('/parent/forms') },
 		{ href: '/parent/hours', label: 'Volunteer Hours', match: (p) => p.startsWith('/parent/hours') }
 	];
 	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;

@@ -71,7 +71,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			'/roster',
 			'/admin',
 			'/ranked',
-			'/calendar',
 			'/surveys',
 			'/scan',
 			'/onboarding',
