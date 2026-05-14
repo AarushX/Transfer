@@ -1,60 +1,69 @@
 <script lang="ts">
-	import GlassTable from '$lib/components/ui/GlassTable.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	let { data, form } = $props();
 
-	const gi = "rounded-lg border px-2 py-1 backdrop-blur-sm";
-	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
+	let search = $state('');
+	const filtered = $derived(
+		(data.users ?? []).filter((u: any) =>
+			!search.trim() ||
+			(u.full_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+			(u.email ?? '').toLowerCase().includes(search.toLowerCase())
+		)
+	);
 </script>
 
-<section class="space-y-5">
-	<div class="fade-up">
-		<p class="eyebrow-label" style="margin-bottom: 4px;">Administration</p>
-		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">User Role Management</span></h1>
-		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Set base role, then toggle mentor and lead permissions.</p>
-	</div>
+<section class="space-y-4">
+	<header class="fade-up">
+		<p class="eyebrow-label">Admin</p>
+		<h1 class="mt-1 text-2xl font-bold tracking-tight" style="color: var(--app-text);">Users & Leadership</h1>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Assign team leads and subteam leads. Leaders can create pages on their team's Team Page.</p>
+	</header>
 
 	{#if form?.error}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
+	{:else if form?.ok}
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<div class="fade-up" style="animation-delay: 0.05s;">
-	<GlassTable>
-		<thead>
-			<tr>
-				<th class="px-3 py-2">Name</th>
-				<th class="px-3 py-2">Email</th>
-				<th class="px-3 py-2">Access</th>
-				<th class="px-3 py-2 text-right">Action</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each data.users as u (u.id)}
-				<tr>
-					<td class="px-3 py-2" style="color: var(--app-text);">{u.full_name || '—'}</td>
-					<td class="px-3 py-2" style="color: var(--app-text-muted);">{u.email}</td>
-					<td class="px-3 py-2">
-						<form method="POST" action="?/setRole" class="flex items-center gap-2">
-							<input type="hidden" name="user_id" value={u.id} />
-							<select class={gi} style={gs} name="base_role" value={u.base_role ?? 'member'}>
-								<option value="member">member</option>
-								<option value="admin">admin</option>
+	<input type="search" bind:value={search} placeholder="Search by name or email..." class="w-full rounded-xl border px-4 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+
+	<div class="space-y-2">
+		{#each filtered as u (u.id)}
+			<GlassCard compact>
+				<form method="POST" action="?/updateLeadership" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+					<input type="hidden" name="user_id" value={u.id} />
+					<div class="min-w-0 flex-1">
+						<p class="text-sm font-medium" style="color: var(--app-text);">{u.full_name || u.email}</p>
+						<p class="text-xs" style="color: var(--app-text-dim);">{u.email}</p>
+						<div class="mt-1 flex flex-wrap gap-1">
+							{#if u.role === 'admin' || u.base_role === 'admin'}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">admin</span>{/if}
+							{#if u.is_mentor}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent);">mentor</span>{/if}
+							{#if u.is_lead}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-info) 15%, transparent); color: var(--app-info);">lead</span>{/if}
+						</div>
+					</div>
+					<div class="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+						<div>
+							<label class="text-[10px]" style="color: var(--app-text-muted);">Lead of team</label>
+							<select name="lead_team_group_id" class="w-full rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+								<option value="">— none —</option>
+								{#each data.teamGroups as tg (tg.id)}<option value={tg.id} selected={u.lead_team_group_id === tg.id}>{tg.name}{tg.designator ? ` · ${tg.designator}` : ''}</option>{/each}
 							</select>
-							<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text);">
-								<input type="checkbox" name="is_mentor" checked={!!u.is_mentor || u.role === 'mentor'} />
-								Mentor
-							</label>
-							<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text);">
-								<input type="checkbox" name="is_lead" checked={!!u.is_lead || u.role === 'student_lead'} />
-								Lead
-							</label>
-							<Button variant="secondary" size="sm" type="submit">Save</Button>
-						</form>
-					</td>
-					<td class="px-3 py-2 text-right text-xs" style="color: var(--app-text-muted);">{u.id}</td>
-				</tr>
-			{/each}
-		</tbody>
-	</GlassTable>
+						</div>
+						<div>
+							<label class="text-[10px]" style="color: var(--app-text-muted);">Lead of subteam</label>
+							<select name="lead_subteam_id" class="w-full rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+								<option value="">— none —</option>
+								{#each data.subteams as st (st.id)}<option value={st.id} selected={u.lead_subteam_id === st.id}>{st.name}</option>{/each}
+							</select>
+						</div>
+						<Button variant="secondary" size="sm" type="submit">Save</Button>
+					</div>
+				</form>
+			</GlassCard>
+		{/each}
+		{#if filtered.length === 0}
+			<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">No users match your search.</p></GlassCard>
+		{/if}
 	</div>
 </section>

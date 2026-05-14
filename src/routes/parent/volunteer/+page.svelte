@@ -3,16 +3,14 @@
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	let { data, form } = $props();
 
-	let mainTab = $state<'dashboard' | 'events' | 'hours'>('dashboard');
+	let mainTab = $state<'dashboard' | 'events'>('dashboard');
 	let selectedEventId = $state('');
 	let showPledgeForm = $state(false);
 
 	const commitmentMap = $derived(new Map((data.commitments ?? []).map((c: any) => [c.category_id, c])));
 	const hasPledge = $derived((data.commitments ?? []).length > 0);
 	const yesCount = $derived((data.commitments ?? []).filter((c: any) => c.response === 'yes').length);
-	const categoriesMet = $derived((data.progress ?? []).filter((p: any) => p.target_met).length);
-	const totalVerified = $derived((data.progress ?? []).reduce((s: number, p: any) => s + Number(p.verified_amount ?? 0), 0));
-	const totalPending = $derived((data.hourLogs ?? []).filter((h: any) => h.verification_status === 'pending').reduce((s: number, h: any) => s + Number(h.amount ?? 0), 0));
+	const totalSignups = $derived((data.mySignups ?? []).filter((s: any) => s.status !== 'cancelled').length);
 
 	const selectedEvent = $derived((data.events ?? []).find((e: any) => e.id === selectedEventId) ?? null);
 	const eventOpps = $derived(
@@ -93,7 +91,7 @@
 	{:else}
 		<!-- Main tab bar -->
 		<div class="fade-up flex gap-1 rounded-xl border p-1" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-			{#each [{ key: 'dashboard', label: 'Dashboard' }, { key: 'events', label: 'Events' }, { key: 'hours', label: 'Log Hours' }] as tab (tab.key)}
+			{#each [{ key: 'dashboard', label: 'Dashboard' }, { key: 'events', label: 'Events' }] as tab (tab.key)}
 				<button type="button" onclick={() => { mainTab = tab.key as any; }} class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all" style={mainTab === tab.key ? 'background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);' : 'color: var(--app-text-muted);'}>{tab.label}</button>
 			{/each}
 		</div>
@@ -119,18 +117,14 @@
 			{/if}
 
 			<!-- Summary -->
-			<div class="fade-up grid gap-3 sm:grid-cols-3" style="animation-delay: 0.05s;">
+			<div class="fade-up grid gap-3 sm:grid-cols-2" style="animation-delay: 0.05s;">
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Pledged</p>
+					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Pledged categories</p>
 					<p class="mt-1 text-xl font-semibold" style="color: var(--app-text);">{yesCount} <span class="text-sm font-normal" style="color: var(--app-text-muted);">of {(data.categories ?? []).length}</span></p>
 				</GlassCard>
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Categories Met</p>
-					<p class="mt-1 text-xl font-semibold" style="color: var(--app-success);">{categoriesMet}</p>
-				</GlassCard>
-				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Verified</p>
-					<p class="mt-1 text-xl font-semibold" style="color: var(--app-accent);">{totalVerified}{#if totalPending > 0} <span class="text-sm font-normal" style="color: var(--app-warning);">+{totalPending} pending</span>{/if}</p>
+					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Active signups</p>
+					<p class="mt-1 text-xl font-semibold" style="color: var(--app-accent);">{totalSignups}</p>
 				</GlassCard>
 			</div>
 
@@ -175,25 +169,22 @@
 				</GlassCard>
 			{:else}
 				<div class="flex items-center justify-between">
-					<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Progress by Category</h2>
+					<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Your pledges</h2>
 					<Button variant="ghost" size="sm" onclick={() => { showPledgeForm = true; }}>Edit Pledge</Button>
 				</div>
 				<div class="fade-up grid gap-2">
-					{#each data.progress as prog (prog.category_id)}
-						{@const p = pct(Number(prog.verified_amount), Number(prog.target_value))}
+					{#each (data.commitments ?? []).filter((c: any) => c.response !== 'no') as com (com.id)}
+						{@const cat = (data.categories ?? []).find((c: any) => c.id === com.category_id)}
 						<GlassCard compact>
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0 flex-1">
 									<div class="flex items-center gap-2">
-										<p class="text-sm font-medium" style="color: var(--app-text);">{prog.category_name}</p>
-										{#if prog.pledge_response === 'yes'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">pledged</span>{/if}
-										{#if prog.pledge_response === 'maybe'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">maybe</span>{/if}
+										<p class="text-sm font-medium" style="color: var(--app-text);">{cat?.name ?? '—'}</p>
+										{#if com.response === 'yes'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">pledged</span>{/if}
+										{#if com.response === 'maybe'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">maybe</span>{/if}
 									</div>
-									<div class="mt-1.5 h-2 w-full overflow-hidden rounded-full" style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"><div class="h-full rounded-full transition-all" style="width: {p}%; background: {prog.target_met ? 'var(--app-success)' : 'var(--app-accent)'};"></div></div>
-									<p class="mt-1 text-xs" style="color: var(--app-text-dim);">{prog.verified_amount} / {prog.target_value} {prog.unit}{#if Number(prog.completed_amount) > Number(prog.verified_amount)} <span style="color: var(--app-warning);">({prog.completed_amount} submitted)</span>{/if}</p>
+									{#if com.notes}<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">{com.notes}</p>{/if}
 								</div>
-								{#if prog.target_met}<span class="shrink-0 text-lg" style="color: var(--app-success);">&#10003;</span>{/if}
-							</div>
 						</GlassCard>
 					{/each}
 				</div>
@@ -479,58 +470,6 @@
 				{/if}
 			{/if}
 
-		<!-- ═══════════════════════════ LOG HOURS ═══════════════════════════ -->
-		{:else if mainTab === 'hours'}
-			<GlassCard title="Log Volunteer Hours" subtitle="Self-report hours. A mentor will verify them.">
-				<form method="POST" action="?/logHours" class="space-y-3">
-					<div>
-						<label for="category_id" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Category</label>
-						<select name="category_id" id="category_id" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
-							<option value="">Select category...</option>
-							{#each data.categories as cat (cat.id)}<option value={cat.id}>{cat.name} ({cat.unit})</option>{/each}
-						</select>
-					</div>
-					<div class="grid gap-3 sm:grid-cols-2">
-						<div>
-							<label for="amount" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Amount</label>
-							<input type="number" name="amount" id="amount" step="0.5" min="0.5" required placeholder="e.g. 2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-						</div>
-						<div>
-							<label for="activity_date" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Date</label>
-							<input type="date" name="activity_date" id="activity_date" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-						</div>
-					</div>
-					<div>
-						<label for="description" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Description</label>
-						<textarea name="description" id="description" required rows="3" placeholder="Describe the volunteer activity..." class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"></textarea>
-					</div>
-					<Button variant="primary" type="submit">Log Hours</Button>
-				</form>
-			</GlassCard>
-
-			{#if (data.hourLogs ?? []).length > 0}
-				<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">My Hour Logs</h2>
-				<div class="space-y-2">
-					{#each data.hourLogs as entry (entry.id)}
-						<GlassCard compact>
-							<div class="flex items-center justify-between gap-3">
-								<div class="flex-1 space-y-0.5">
-									<p class="text-sm font-medium" style="color: var(--app-text);">{entry.amount} {entry.category?.unit ?? 'hours'} <span class="font-normal text-xs" style="color: var(--app-text-muted);">&middot; {entry.category?.name ?? ''} &middot; {fmtDate(entry.activity_date)}</span></p>
-									{#if entry.description}<p class="text-xs" style="color: var(--app-text);">{entry.description}</p>{/if}
-									{#if entry.rejection_reason}<p class="text-xs" style="color: var(--app-danger);">Reason: {entry.rejection_reason}</p>{/if}
-								</div>
-								{#if entry.verification_status === 'pending'}
-									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">pending</span>
-								{:else if entry.verification_status === 'verified'}
-									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">verified</span>
-								{:else}
-									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">rejected</span>
-								{/if}
-							</div>
-						</GlassCard>
-					{/each}
-				</div>
-			{/if}
 		{/if}
 	{/if}
 </section>

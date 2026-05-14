@@ -26,15 +26,18 @@
 			? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }]
 			: []),
 		{ href: '/dashboard', label: 'Dashboard' },
-		{ href: '/graph', label: 'Skill Graph', match: (p) => p.startsWith('/graph') },
-		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
-		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
-		{ href: '/lettering', label: 'Season', match: (p) => p.startsWith('/lettering') || p.startsWith('/outreach') },
+		{ href: '/clickup', label: 'ClickUp', match: (p) => p.startsWith('/clickup') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
+	const teamSection: NavItem[] = [
+		{ href: '/team', label: 'Team Page', match: (p) => p === '/team' || p.startsWith('/team/') && !p.startsWith('/team/manage') }
+	];
+	const leadSection: NavItem[] = (data.leadTeamName || data.leadSubteamName)
+		? [{ href: '/team/manage', label: 'Manage Pages', match: (p) => p.startsWith('/team/manage') }]
+		: [];
 	const parentPrimary: NavItem[] = [
 		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
-		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool') || p.startsWith('/parent/hours') }
+		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool') }
 	];
 	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;
 
@@ -43,7 +46,6 @@
 			label: 'Queue',
 			items: [
 				{ href: '/mentor', label: 'Checkoffs', match: (p) => p === '/mentor' },
-				{ href: '/mentor/outreach', label: 'Hours verification', match: (p) => p.startsWith('/mentor/outreach') },
 				{ href: '/admin/volunteer', label: 'Volunteer verification', match: (p) => p.startsWith('/admin/volunteer') }
 			]
 		},
@@ -78,6 +80,7 @@
 		{
 			label: 'People',
 			items: [
+				{ href: '/admin/users', label: 'Users & leads', match: (p) => p.startsWith('/admin/users') },
 				{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
 				{ href: '/admin/attendance', label: 'Attendance' }
 			]
@@ -210,9 +213,6 @@
 			</div>
 
 			<nav class="flex-1 overflow-y-auto px-3 py-4 text-sm">
-				<p class="px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-					Workspace
-				</p>
 				<ul class="space-y-0.5">
 					{#each primary as item (item.href)}
 						<li>
@@ -235,6 +235,42 @@
 						</li>
 					{/each}
 				</ul>
+
+				{#if !canParent && data.primaryTeamName}
+					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+						{data.primaryTeamName}
+					</p>
+					<ul class="space-y-0.5">
+						{#each teamSection as item (item.href)}
+							<li>
+								<a
+									href={item.href}
+									onclick={() => (mobileOpen = false)}
+									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+									style={isActive(item, page.url.pathname)
+										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+										: `color: var(--app-text-muted);`}
+								>
+									{item.label}
+								</a>
+							</li>
+						{/each}
+						{#each leadSection as item (item.href)}
+							<li>
+								<a
+									href={item.href}
+									onclick={() => (mobileOpen = false)}
+									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+									style={isActive(item, page.url.pathname)
+										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+										: `color: var(--app-text-muted);`}
+								>
+									{item.label}
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 
 				{#if canMentor}
 					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">

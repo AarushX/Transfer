@@ -19,6 +19,9 @@ declare global {
 					subteam_id: string | null;
 					bio: string;
 					avatar_url: string;
+					clickup_signed_up: boolean;
+					lead_team_group_id: string | null;
+					lead_subteam_id: string | null;
 				} | null;
 			}>;
 		}

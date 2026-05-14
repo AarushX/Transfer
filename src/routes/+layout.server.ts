@@ -85,14 +85,20 @@ export const load = async ({ locals }) => {
 			.maybeSingle();
 
 		if (user) {
-			const [orgResp, currentResp, primaryResp, requiredResp] = await Promise.all([
+			const [orgResp, currentResp, primaryResp, requiredResp, leadTeamResp, leadSubteamResp] = await Promise.all([
 				orgPromise,
 				locals.supabase.from('profile_teams').select('team_id,category_slug').eq('user_id', user.id),
-				locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle(),
+				locals.supabase.from('profile_primary_teams').select('team_group_id,team_groups(name,designator)').eq('user_id', user.id).maybeSingle(),
 				locals.supabase
 					.from('subteam_categories')
 					.select('slug')
-					.eq('is_required_onboarding', true)
+					.eq('is_required_onboarding', true),
+				profile?.lead_team_group_id
+					? locals.supabase.from('team_groups').select('id,name,designator').eq('id', profile.lead_team_group_id).maybeSingle()
+					: Promise.resolve({ data: null } as any),
+				profile?.lead_subteam_id
+					? locals.supabase.from('subteams').select('id,name').eq('id', profile.lead_subteam_id).maybeSingle()
+					: Promise.resolve({ data: null } as any)
 			]);
 
 			const org = orgResp.data as Record<string, unknown> | null;
@@ -128,6 +134,26 @@ export const load = async ({ locals }) => {
 		cacheExpiresAt = Date.now() + CACHE_TTL_MS;
 	}
 
+	let primaryTeamName: string | null = null;
+	let leadTeamName: string | null = null;
+	let leadSubteamName: string | null = null;
+	if (user) {
+		const [primaryResp2, leadResp, leadSubResp] = await Promise.all([
+			locals.supabase.from('profile_primary_teams').select('team_groups(name,designator)').eq('user_id', user.id).maybeSingle(),
+			profile?.lead_team_group_id
+				? locals.supabase.from('team_groups').select('name,designator').eq('id', profile.lead_team_group_id).maybeSingle()
+				: Promise.resolve({ data: null } as any),
+			profile?.lead_subteam_id
+				? locals.supabase.from('subteams').select('name').eq('id', profile.lead_subteam_id).maybeSingle()
+				: Promise.resolve({ data: null } as any)
+		]);
+		const pt = primaryResp2.data?.team_groups as any;
+		if (pt) primaryTeamName = pt.designator ? `${pt.name} · ${pt.designator}` : pt.name;
+		const lt = leadResp.data as any;
+		if (lt) leadTeamName = lt.designator ? `${lt.name} · ${lt.designator}` : lt.name;
+		leadSubteamName = (leadSubResp.data as any)?.name ?? null;
+	}
+
 	return {
 		session,
 		user,
@@ -135,6 +161,9 @@ export const load = async ({ locals }) => {
 		orgName: cachedOrgName!,
 		orgTheme: cachedTheme ?? theme,
 		orgIconDataUrl: cachedIconDataUrl ?? iconDataUrl,
-		needsOnboarding
+		needsOnboarding,
+		primaryTeamName,
+		leadTeamName,
+		leadSubteamName
 	};
 };
