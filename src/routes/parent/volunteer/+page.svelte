@@ -3,54 +3,70 @@
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	let { data, form } = $props();
 
-	let activeTab = $state<'dashboard' | 'opportunities' | 'hours'>('dashboard');
-	let categoryFilter = $state('all');
+	let mainTab = $state<'dashboard' | 'events' | 'hours'>('dashboard');
+	let selectedEventId = $state('');
 	let showPledgeForm = $state(false);
-	let signupOppId = $state('');
-	let signupNotes = $state('');
 
-	const commitmentMap = $derived(
-		new Map((data.commitments ?? []).map((c: any) => [c.category_id, c]))
-	);
+	const commitmentMap = $derived(new Map((data.commitments ?? []).map((c: any) => [c.category_id, c])));
 	const hasPledge = $derived((data.commitments ?? []).length > 0);
-	const yesCount = $derived(
-		(data.commitments ?? []).filter((c: any) => c.response === 'yes').length
-	);
-	const categoriesMet = $derived(
-		(data.progress ?? []).filter((p: any) => p.target_met).length
-	);
-	const totalCategories = $derived((data.categories ?? []).length);
+	const yesCount = $derived((data.commitments ?? []).filter((c: any) => c.response === 'yes').length);
+	const categoriesMet = $derived((data.progress ?? []).filter((p: any) => p.target_met).length);
+	const totalVerified = $derived((data.progress ?? []).reduce((s: number, p: any) => s + Number(p.verified_amount ?? 0), 0));
+	const totalPending = $derived((data.hourLogs ?? []).filter((h: any) => h.verification_status === 'pending').reduce((s: number, h: any) => s + Number(h.amount ?? 0), 0));
 
-	const totalVerifiedAmount = $derived(
-		(data.progress ?? []).reduce((sum: number, p: any) => sum + Number(p.verified_amount ?? 0), 0)
+	const selectedEvent = $derived((data.events ?? []).find((e: any) => e.id === selectedEventId) ?? null);
+	const eventOpps = $derived(
+		selectedEventId
+			? (data.opportunities ?? []).filter((o: any) => o.event_id === selectedEventId)
+			: []
 	);
-	const totalPendingAmount = $derived(
-		(data.hourLogs ?? [])
-			.filter((h: any) => h.verification_status === 'pending')
-			.reduce((sum: number, h: any) => sum + Number(h.amount ?? 0), 0)
+	const eventCategorySlugs = $derived(
+		[...new Set(eventOpps.map((o: any) => o.category?.slug).filter(Boolean))]
 	);
-
-	const mySignupOppIds = $derived(
-		new Set((data.signups ?? []).filter((s: any) => s.status !== 'cancelled').map((s: any) => s.opportunity_id))
+	const eventCategories = $derived(
+		(data.categories ?? []).filter((c: any) => eventCategorySlugs.includes(c.slug))
 	);
 
-	const filteredOpportunities = $derived(
-		(data.opportunities ?? []).filter((o: any) => {
-			if (categoryFilter !== 'all' && o.category_id !== categoryFilter) return false;
-			return true;
-		})
+	let activeCatSlug = $state('');
+	$effect(() => {
+		if (eventCategories.length > 0 && !eventCategorySlugs.includes(activeCatSlug)) {
+			activeCatSlug = eventCategories[0].slug;
+		}
+	});
+
+	const activeCategory = $derived(eventCategories.find((c: any) => c.slug === activeCatSlug));
+	const activeCatOpps = $derived(
+		eventOpps.filter((o: any) => o.category?.slug === activeCatSlug)
 	);
 
 	const fmtDate = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString() : '';
 	const fmtTime = (t: string | null) => {
 		if (!t) return '';
 		const [h, m] = t.split(':').map(Number);
-		const ampm = h >= 12 ? 'PM' : 'AM';
-		return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+		return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+	};
+	const pct = (v: number, t: number) => t > 0 ? Math.min(100, Math.round((v / t) * 100)) : 0;
+
+	const CATEGORY_LABELS: Record<string, string> = {
+		transport_to_comp: 'Carpool',
+		equipment_transport: 'Equipment Transport',
+		food: 'Food & Meals',
+		chaperone: 'Chaperone',
+		shop_supervision: 'Shop Shifts',
+		field_build_hours: 'Build Hours',
+		travel_planning: 'Travel Planning',
+		mentor: 'Mentor',
+		outreach: 'Outreach',
+		sponsorship: 'Sponsorship'
 	};
 
-	const progressPct = (completed: number, target: number) =>
-		target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
+	let carpoolSeats = $state(4);
+	let carpoolVehicle = $state('');
+	let carpoolPickup = $state('');
+	let foodItems = $state('');
+	let foodDietary = $state('');
+	let foodServings = $state(10);
+	let genericNotes = $state('');
 </script>
 
 <section class="space-y-5">
@@ -58,7 +74,7 @@
 		<p class="eyebrow-label" style="margin-bottom: 4px;">Parent Portal</p>
 		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Volunteer Center</span></h1>
 		{#if data.season}
-			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.season.label} · {data.family?.name ?? ''}</p>
 		{/if}
 	</header>
 
@@ -66,118 +82,94 @@
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
 		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">
-			{#if form.section === 'pledge'}Pledge saved successfully.
-			{:else if form.section === 'signup'}Signed up successfully.
-			{:else if form.section === 'cancel'}Signup cancelled.
-			{:else if form.section === 'hours'}Hours logged successfully.
-			{:else}Done.{/if}
+			{#if form.section === 'pledge'}Pledge saved.{:else if form.section === 'signup'}Signed up!{:else if form.section === 'cancel'}Cancelled.{:else if form.section === 'hours'}Hours logged.{:else}Done.{/if}
 		</p>
 	{/if}
 
 	{#if !data.season}
-		<GlassCard>
-			<p class="text-sm" style="color: var(--app-text-muted);">No active season. Volunteer features are currently unavailable.</p>
-		</GlassCard>
+		<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">No active season.</p></GlassCard>
 	{:else if !data.family}
-		<GlassCard>
-			<p class="text-sm" style="color: var(--app-text-muted);">Link a student from the <a href="/parent/dashboard" class="underline" style="color: var(--app-accent);">Parent Dashboard</a> to get started with volunteering.</p>
-		</GlassCard>
+		<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">Link a student from the <a href="/parent/dashboard" class="underline" style="color: var(--app-accent);">Dashboard</a> first.</p></GlassCard>
 	{:else}
-		<!-- Tab nav -->
+		<!-- Main tab bar -->
 		<div class="fade-up flex gap-1 rounded-xl border p-1" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-			{#each [
-				{ key: 'dashboard', label: 'Dashboard' },
-				{ key: 'opportunities', label: 'Opportunities' },
-				{ key: 'hours', label: 'Log Hours' }
-			] as tab (tab.key)}
-				<button
-					type="button"
-					onclick={() => { activeTab = tab.key as any; }}
-					class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all"
-					style={activeTab === tab.key
-						? 'background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);'
-						: 'color: var(--app-text-muted);'}
-				>
-					{tab.label}
-				</button>
+			{#each [{ key: 'dashboard', label: 'Dashboard' }, { key: 'events', label: 'Events' }, { key: 'hours', label: 'Log Hours' }] as tab (tab.key)}
+				<button type="button" onclick={() => { mainTab = tab.key as any; }} class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all" style={mainTab === tab.key ? 'background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);' : 'color: var(--app-text-muted);'}>{tab.label}</button>
 			{/each}
 		</div>
 
-		<!-- ═══════════ DASHBOARD TAB ═══════════ -->
-		{#if activeTab === 'dashboard'}
-			<!-- Summary cards -->
+		<!-- ═══════════════════════════ DASHBOARD ═══════════════════════════ -->
+		{#if mainTab === 'dashboard'}
+			<!-- Announcements -->
+			{#if (data.announcements ?? []).length > 0}
+				<div class="space-y-2">
+					{#each data.announcements.slice(0, 5) as ann (ann.id)}
+						<div class="fade-up rounded-xl border p-3" style="border-color: {ann.is_pinned ? 'color-mix(in srgb, var(--app-warning) 40%, transparent)' : 'var(--app-glass-border)'}; background: {ann.is_pinned ? 'color-mix(in srgb, var(--app-warning) 6%, transparent)' : 'var(--app-glass-bg)'};">
+							<div class="flex items-start gap-2">
+								{#if ann.is_pinned}<span class="mt-0.5 text-xs" style="color: var(--app-warning);">pinned</span>{/if}
+								<div class="min-w-0 flex-1">
+									<p class="text-sm font-semibold" style="color: var(--app-text);">{ann.title}</p>
+									<p class="mt-0.5 text-xs whitespace-pre-wrap" style="color: var(--app-text-muted);">{ann.body}</p>
+									<p class="mt-1 text-[10px]" style="color: var(--app-text-dim);">{ann.author?.full_name ?? ''} · {new Date(ann.created_at).toLocaleDateString()}</p>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<!-- Summary -->
 			<div class="fade-up grid gap-3 sm:grid-cols-3" style="animation-delay: 0.05s;">
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Pledged Categories</p>
-					<p class="mt-1 text-xl font-semibold" style="color: var(--app-text);">{yesCount} <span class="text-sm font-normal" style="color: var(--app-text-muted);">of {totalCategories}</span></p>
+					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Pledged</p>
+					<p class="mt-1 text-xl font-semibold" style="color: var(--app-text);">{yesCount} <span class="text-sm font-normal" style="color: var(--app-text-muted);">of {(data.categories ?? []).length}</span></p>
 				</GlassCard>
 				<GlassCard compact>
 					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Categories Met</p>
-					<p class="mt-1 text-xl font-semibold" style="color: var(--app-success);">{categoriesMet} <span class="text-sm font-normal" style="color: var(--app-text-muted);">of {totalCategories}</span></p>
+					<p class="mt-1 text-xl font-semibold" style="color: var(--app-success);">{categoriesMet}</p>
 				</GlassCard>
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Verified Hours</p>
-					<p class="mt-1 text-xl font-semibold" style="color: var(--app-accent);">{totalVerifiedAmount}
-						{#if totalPendingAmount > 0}
-							<span class="text-sm font-normal" style="color: var(--app-warning);">+{totalPendingAmount} pending</span>
-						{/if}
-					</p>
+					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Verified</p>
+					<p class="mt-1 text-xl font-semibold" style="color: var(--app-accent);">{totalVerified}{#if totalPending > 0} <span class="text-sm font-normal" style="color: var(--app-warning);">+{totalPending} pending</span>{/if}</p>
 				</GlassCard>
 			</div>
 
-			<!-- Pledge section -->
+			<!-- Pledge -->
 			{#if !hasPledge || showPledgeForm}
-				<GlassCard title={hasPledge ? 'Update Pledge' : 'Family Volunteer Pledge'} subtitle="Commit to at least 3 categories for the season. Select Yes, No, or Maybe for each.">
+				<GlassCard title={hasPledge ? 'Update Pledge' : 'Family Volunteer Pledge'} subtitle="Commit to at least 3 categories for the season.">
 					<form method="POST" action="?/submitPledge" class="space-y-1">
 						<div class="overflow-x-auto">
 							<table class="w-full text-sm">
 								<thead>
 									<tr class="border-b" style="border-color: var(--app-glass-border);">
 										<th class="py-2 pr-3 text-left text-xs font-medium" style="color: var(--app-text-muted);">Category</th>
-										<th class="px-2 py-2 text-center text-xs font-medium" style="color: var(--app-text-muted); width: 60px;">Yes</th>
-										<th class="px-2 py-2 text-center text-xs font-medium" style="color: var(--app-text-muted); width: 60px;">No</th>
-										<th class="px-2 py-2 text-center text-xs font-medium" style="color: var(--app-text-muted); width: 80px;">Maybe</th>
-										<th class="py-2 pl-3 text-left text-xs font-medium" style="color: var(--app-text-muted); min-width: 120px;">Notes</th>
+										<th class="px-2 py-2 text-center text-xs" style="color: var(--app-text-muted); width: 50px;">Yes</th>
+										<th class="px-2 py-2 text-center text-xs" style="color: var(--app-text-muted); width: 50px;">No</th>
+										<th class="px-2 py-2 text-center text-xs" style="color: var(--app-text-muted); width: 65px;">Maybe</th>
+										<th class="py-2 pl-3 text-left text-xs" style="color: var(--app-text-muted); min-width: 100px;">Notes</th>
 									</tr>
 								</thead>
 								<tbody>
 									{#each data.categories as cat (cat.id)}
-										{@const existing = commitmentMap.get(cat.id)}
+										{@const ex = commitmentMap.get(cat.id)}
 										<tr class="border-b" style="border-color: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
 											<td class="py-2.5 pr-3">
 												<p class="font-medium" style="color: var(--app-text);">{cat.name}</p>
 												<p class="text-xs" style="color: var(--app-text-dim);">Target: {cat.target_value} {cat.unit}{cat.requires_prereq ? ` · ${cat.requires_prereq}` : ''}</p>
 											</td>
-											<td class="px-2 py-2.5 text-center">
-												<input type="radio" name={`pledge_${cat.slug}`} value="yes" checked={existing?.response === 'yes'} class="accent-current" style="accent-color: var(--app-success);" />
-											</td>
-											<td class="px-2 py-2.5 text-center">
-												<input type="radio" name={`pledge_${cat.slug}`} value="no" checked={!existing || existing?.response === 'no'} class="accent-current" />
-											</td>
-											<td class="px-2 py-2.5 text-center">
-												<input type="radio" name={`pledge_${cat.slug}`} value="maybe" checked={existing?.response === 'maybe'} class="accent-current" style="accent-color: var(--app-warning);" />
-											</td>
-											<td class="py-2.5 pl-3">
-												<input
-													type="text"
-													name={`notes_${cat.slug}`}
-													value={existing?.notes ?? ''}
-													placeholder="Optional"
-													class="w-full rounded-lg border px-2 py-1 text-xs"
-													style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-												/>
-											</td>
+											<td class="px-2 py-2.5 text-center"><input type="radio" name={`pledge_${cat.slug}`} value="yes" checked={ex?.response === 'yes'} style="accent-color: var(--app-success);" /></td>
+											<td class="px-2 py-2.5 text-center"><input type="radio" name={`pledge_${cat.slug}`} value="no" checked={!ex || ex?.response === 'no'} /></td>
+											<td class="px-2 py-2.5 text-center"><input type="radio" name={`pledge_${cat.slug}`} value="maybe" checked={ex?.response === 'maybe'} style="accent-color: var(--app-warning);" /></td>
+											<td class="py-2.5 pl-3"><input type="text" name={`notes_${cat.slug}`} value={ex?.notes ?? ''} placeholder="Optional" class="w-full rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" /></td>
 										</tr>
 									{/each}
 								</tbody>
 							</table>
 						</div>
 						<div class="flex items-center gap-3 pt-3">
-							<Button variant="primary" type="submit">{hasPledge ? 'Update Pledge' : 'Submit Pledge'}</Button>
-							{#if hasPledge}
-								<Button variant="ghost" onclick={() => { showPledgeForm = false; }}>Cancel</Button>
-							{/if}
-							<p class="text-xs" style="color: var(--app-text-dim);">Minimum 3 "Yes" required</p>
+							<Button variant="primary" type="submit">{hasPledge ? 'Update' : 'Submit Pledge'}</Button>
+							{#if hasPledge}<Button variant="ghost" onclick={() => { showPledgeForm = false; }}>Cancel</Button>{/if}
+							<p class="text-xs" style="color: var(--app-text-dim);">Min 3 "Yes" required</p>
 						</div>
 					</form>
 				</GlassCard>
@@ -186,71 +178,46 @@
 					<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Progress by Category</h2>
 					<Button variant="ghost" size="sm" onclick={() => { showPledgeForm = true; }}>Edit Pledge</Button>
 				</div>
-			{/if}
-
-			<!-- Progress bars per category -->
-			{#if hasPledge}
-				<div class="fade-up grid gap-2" style="animation-delay: 0.1s;">
+				<div class="fade-up grid gap-2">
 					{#each data.progress as prog (prog.category_id)}
-						{@const pct = progressPct(Number(prog.verified_amount), Number(prog.target_value))}
+						{@const p = pct(Number(prog.verified_amount), Number(prog.target_value))}
 						<GlassCard compact>
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0 flex-1">
 									<div class="flex items-center gap-2">
 										<p class="text-sm font-medium" style="color: var(--app-text);">{prog.category_name}</p>
-										{#if prog.pledge_response === 'yes'}
-											<span class="inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">pledged</span>
-										{:else if prog.pledge_response === 'maybe'}
-											<span class="inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">maybe</span>
-										{/if}
+										{#if prog.pledge_response === 'yes'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">pledged</span>{/if}
+										{#if prog.pledge_response === 'maybe'}<span class="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">maybe</span>{/if}
 									</div>
-									<div class="mt-1.5 h-2 w-full overflow-hidden rounded-full" style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
-										<div
-											class="h-full rounded-full transition-all"
-											style="width: {pct}%; background: {prog.target_met ? 'var(--app-success)' : 'var(--app-accent)'};"
-										></div>
-									</div>
-									<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
-										{prog.verified_amount} / {prog.target_value} {prog.unit}
-										{#if Number(prog.completed_amount) > Number(prog.verified_amount)}
-											<span style="color: var(--app-warning);">({prog.completed_amount} submitted)</span>
-										{/if}
-									</p>
+									<div class="mt-1.5 h-2 w-full overflow-hidden rounded-full" style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"><div class="h-full rounded-full transition-all" style="width: {p}%; background: {prog.target_met ? 'var(--app-success)' : 'var(--app-accent)'};"></div></div>
+									<p class="mt-1 text-xs" style="color: var(--app-text-dim);">{prog.verified_amount} / {prog.target_value} {prog.unit}{#if Number(prog.completed_amount) > Number(prog.verified_amount)} <span style="color: var(--app-warning);">({prog.completed_amount} submitted)</span>{/if}</p>
 								</div>
-								{#if prog.target_met}
-									<span class="shrink-0 text-lg" style="color: var(--app-success);">&#10003;</span>
-								{/if}
+								{#if prog.target_met}<span class="shrink-0 text-lg" style="color: var(--app-success);">&#10003;</span>{/if}
 							</div>
 						</GlassCard>
 					{/each}
 				</div>
 			{/if}
 
-			<!-- Upcoming signups -->
-			{#if (data.signups ?? []).filter((s) => s.status !== 'cancelled').length > 0}
+			<!-- My active signups -->
+			{#if (data.mySignups ?? []).filter((s) => s.status !== 'cancelled').length > 0}
 				<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">My Signups</h2>
 				<div class="space-y-2">
-					{#each data.signups.filter((s) => s.status !== 'cancelled') as signup (signup.id)}
+					{#each data.mySignups.filter((s) => s.status !== 'cancelled') as signup (signup.id)}
 						<GlassCard compact>
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0 flex-1">
-									<p class="text-sm font-medium" style="color: var(--app-text);">{signup.opportunity?.title ?? 'Opportunity'}</p>
+									<p class="text-sm font-medium" style="color: var(--app-text);">{signup.signer?.full_name ?? 'Signup'}</p>
 									<p class="text-xs" style="color: var(--app-text-dim);">
-										{fmtDate(signup.opportunity?.event_date)} · {signup.opportunity?.category?.name ?? ''}
+										{#if signup.signup_payload?.items}Bringing: {signup.signup_payload.items}{/if}
+										{#if signup.signup_payload?.seats_offered}Seats: {signup.signup_payload.seats_offered}{/if}
+										{#if signup.notes} · {signup.notes}{/if}
 									</p>
 								</div>
 								<div class="flex items-center gap-2">
-									<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-										style={signup.status === 'confirmed' || signup.status === 'completed' || signup.status === 'verified'
-											? 'background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);'
-											: 'background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);'}>
-										{signup.status}
-									</span>
+									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style={signup.status === 'confirmed' || signup.status === 'completed' || signup.status === 'verified' ? 'background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);' : 'background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);'}>{signup.status}</span>
 									{#if signup.status === 'pending' || signup.status === 'confirmed'}
-										<form method="POST" action="?/cancelSignup">
-											<input type="hidden" name="signup_id" value={signup.id} />
-											<Button variant="ghost" size="sm" type="submit">Cancel</Button>
-										</form>
+										<form method="POST" action="?/cancelSignup"><input type="hidden" name="signup_id" value={signup.id} /><Button variant="ghost" size="sm" type="submit">Cancel</Button></form>
 									{/if}
 								</div>
 							</div>
@@ -259,140 +226,283 @@
 				</div>
 			{/if}
 
-		<!-- ═══════════ OPPORTUNITIES TAB ═══════════ -->
-		{:else if activeTab === 'opportunities'}
-			<div class="fade-up flex flex-wrap items-center gap-2">
-				<select
-					class="rounded-lg border px-3 py-2 text-sm"
-					style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-					bind:value={categoryFilter}
-				>
-					<option value="all">All categories</option>
-					{#each data.categories as cat (cat.id)}
-						<option value={cat.id}>{cat.name}</option>
+		<!-- ═══════════════════════════ EVENTS ═══════════════════════════ -->
+		{:else if mainTab === 'events'}
+			<!-- Event selector -->
+			<div class="fade-up">
+				<select class="w-full rounded-xl border px-4 py-3 text-sm font-medium" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" bind:value={selectedEventId}>
+					<option value="">Select an event...</option>
+					{#each data.events as evt (evt.id)}
+						<option value={evt.id}>{evt.title} — {fmtDate(evt.start_date)}{evt.end_date ? ` to ${fmtDate(evt.end_date)}` : ''}{evt.location ? ` · ${evt.location}` : ''}</option>
 					{/each}
 				</select>
 			</div>
 
-			{#if filteredOpportunities.length === 0}
-				<GlassCard>
-					<p class="text-sm" style="color: var(--app-text-muted);">No opportunities available{categoryFilter !== 'all' ? ' in this category' : ''} right now.</p>
-				</GlassCard>
+			{#if !selectedEvent}
+				<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">Select an event above to see volunteer opportunities.</p></GlassCard>
 			{:else}
-				<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
-					{#each filteredOpportunities as opp (opp.id)}
-						{@const isFull = opp.currentSignups >= opp.slots}
-						{@const alreadySignedUp = mySignupOppIds.has(opp.id)}
-						{@const pastDeadline = opp.signup_deadline && new Date(opp.signup_deadline) < new Date()}
-						{@const pledgedCategory = commitmentMap.get(opp.category_id)?.response === 'yes'}
-						<GlassCard>
-							<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-2">
-										<p class="text-sm font-semibold" style="color: var(--app-text);">{opp.title}</p>
-										{#if pledgedCategory}
-											<span class="inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent);">pledged</span>
-										{/if}
+				<!-- Event header -->
+				<div class="fade-up">
+					<h2 class="text-lg font-bold" style="color: var(--app-text);">{selectedEvent.title}</h2>
+					{#if selectedEvent.description}<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{selectedEvent.description}</p>{/if}
+					<p class="mt-0.5 text-xs" style="color: var(--app-text-dim);">{fmtDate(selectedEvent.start_date)}{selectedEvent.end_date ? ` – ${fmtDate(selectedEvent.end_date)}` : ''}{selectedEvent.location ? ` · ${selectedEvent.location}` : ''}</p>
+				</div>
+
+				{#if eventCategories.length === 0}
+					<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">No volunteer needs posted for this event yet.</p></GlassCard>
+				{:else}
+					<!-- Category sub-tabs -->
+					<div class="fade-up flex gap-1 overflow-x-auto rounded-xl border p-1" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+						{#each eventCategories as cat (cat.slug)}
+							<button type="button" onclick={() => { activeCatSlug = cat.slug; }} class="shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-all whitespace-nowrap" style={activeCatSlug === cat.slug ? 'background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);' : 'color: var(--app-text-muted);'}>
+								{CATEGORY_LABELS[cat.slug] ?? cat.name}
+							</button>
+						{/each}
+					</div>
+
+					<!-- ────── CARPOOL / TRANSPORT UI ────── -->
+					{#if activeCatSlug === 'transport_to_comp' || activeCatSlug === 'equipment_transport'}
+						<div class="space-y-3">
+							{#each activeCatOpps as opp (opp.id)}
+								{@const slots = opp.signups ?? []}
+								{@const isFull = slots.length >= opp.slots}
+								<GlassCard>
+									<div class="mb-3 flex items-start justify-between gap-2">
+										<div>
+											<p class="text-sm font-semibold" style="color: var(--app-text);">{opp.title}</p>
+											<p class="text-xs" style="color: var(--app-text-dim);">
+												{fmtDate(opp.event_date)}{#if opp.start_time} · Depart {fmtTime(opp.start_time)}{/if}{#if opp.end_time} · Return {fmtTime(opp.end_time)}{/if}{#if opp.location} · {opp.location}{/if}
+											</p>
+											{#if opp.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{opp.description}</p>{/if}
+										</div>
+										<span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, {isFull ? 'var(--app-danger)' : 'var(--app-success)'} 15%, transparent); color: {isFull ? 'var(--app-danger)' : 'var(--app-success)'};">{slots.length}/{opp.slots} drivers</span>
 									</div>
-									<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
-										{opp.category?.name ?? ''} · {fmtDate(opp.event_date)}
-										{#if opp.start_time} · {fmtTime(opp.start_time)}{#if opp.end_time}–{fmtTime(opp.end_time)}{/if}{/if}
-									</p>
-									{#if opp.location}
-										<p class="text-xs" style="color: var(--app-text-dim);">{opp.location}</p>
+
+									<!-- Signed-up drivers table -->
+									{#if slots.length > 0}
+										<div class="overflow-x-auto rounded-lg border" style="border-color: var(--app-glass-border);">
+											<table class="w-full text-xs">
+												<thead><tr style="background: var(--app-table-header-bg);"><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Driver</th><th class="px-3 py-2 text-center font-medium" style="color: var(--app-text-muted);">Seats</th><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Vehicle</th><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Notes</th></tr></thead>
+												<tbody>
+													{#each slots as s}
+														<tr class="border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
+															<td class="px-3 py-2" style="color: var(--app-text);">{s.signer?.full_name ?? s.family?.name ?? '—'}</td>
+															<td class="px-3 py-2 text-center" style="color: var(--app-text);">{s.signup_payload?.seats_offered ?? '—'}</td>
+															<td class="px-3 py-2" style="color: var(--app-text-muted);">{s.signup_payload?.vehicle ?? '—'}</td>
+															<td class="px-3 py-2" style="color: var(--app-text-muted);">{s.signup_payload?.pickup ?? ''}{s.notes ? ` · ${s.notes}` : ''}</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
 									{/if}
-									{#if opp.description}
-										<p class="mt-1 text-xs" style="color: var(--app-text);">{opp.description}</p>
-									{/if}
-									<p class="mt-1 text-xs" style="color: {isFull ? 'var(--app-danger)' : 'var(--app-text-dim)'};">
-										{opp.currentSignups} / {opp.slots} slots filled
-										{#if opp.signup_deadline} · Deadline: {new Date(opp.signup_deadline).toLocaleDateString()}{/if}
-									</p>
-								</div>
-								<div class="shrink-0">
-									{#if alreadySignedUp}
-										<span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">Signed up</span>
-									{:else if isFull}
-										<span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">Full</span>
-									{:else if pastDeadline}
-										<span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-text-dim) 15%, transparent); color: var(--app-text-dim);">Closed</span>
-									{:else}
-										<form method="POST" action="?/signUp" class="flex items-center gap-2">
+
+									<!-- Sign up as driver -->
+									{#if opp.myFamily}
+										<p class="mt-2 text-xs font-medium" style="color: var(--app-success);">You're signed up for this.</p>
+									{:else if !isFull}
+										<form method="POST" action="?/signUp" class="mt-3 grid gap-2 sm:grid-cols-4">
 											<input type="hidden" name="opportunity_id" value={opp.id} />
-											<input
-												type="text"
-												name="notes"
-												placeholder="Notes"
-												class="w-24 rounded-lg border px-2 py-1 text-xs sm:w-32"
-												style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-											/>
+											<input type="number" min="1" max="12" bind:value={carpoolSeats} placeholder="Seats" class="rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="text" bind:value={carpoolVehicle} placeholder="Vehicle (e.g. Honda Odyssey)" class="rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="text" bind:value={carpoolPickup} placeholder="Pickup location" class="rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="hidden" name="signup_payload" value={JSON.stringify({ seats_offered: carpoolSeats, vehicle: carpoolVehicle, pickup: carpoolPickup })} />
+											<input type="hidden" name="notes" value="" />
+											<Button variant="primary" size="sm" type="submit">Sign Up to Drive</Button>
+										</form>
+									{/if}
+								</GlassCard>
+							{/each}
+						</div>
+
+					<!-- ────── FOOD UI ────── -->
+					{:else if activeCatSlug === 'food'}
+						<div class="space-y-3">
+							{#each activeCatOpps as opp (opp.id)}
+								{@const slots = opp.signups ?? []}
+								{@const isFull = slots.length >= opp.slots}
+								<GlassCard>
+									<div class="mb-3 flex items-start justify-between gap-2">
+										<div>
+											<p class="text-sm font-semibold" style="color: var(--app-text);">{opp.title}</p>
+											<p class="text-xs" style="color: var(--app-text-dim);">{fmtDate(opp.event_date)}{#if opp.start_time} · {fmtTime(opp.start_time)}{/if}{#if opp.location} · {opp.location}{/if}</p>
+											{#if opp.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{opp.description}</p>{/if}
+										</div>
+										<span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, {isFull ? 'var(--app-success)' : 'var(--app-warning)'} 15%, transparent); color: {isFull ? 'var(--app-success)' : 'var(--app-warning)'};">{slots.length}/{opp.slots} claimed</span>
+									</div>
+
+									<!-- Who's bringing what -->
+									{#if slots.length > 0}
+										<div class="overflow-x-auto rounded-lg border" style="border-color: var(--app-glass-border);">
+											<table class="w-full text-xs">
+												<thead><tr style="background: var(--app-table-header-bg);"><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Family</th><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Bringing</th><th class="px-3 py-2 text-center font-medium" style="color: var(--app-text-muted);">Serves</th><th class="px-3 py-2 text-left font-medium" style="color: var(--app-text-muted);">Dietary</th></tr></thead>
+												<tbody>
+													{#each slots as s}
+														<tr class="border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
+															<td class="px-3 py-2" style="color: var(--app-text);">{s.signer?.full_name ?? s.family?.name ?? '—'}</td>
+															<td class="px-3 py-2" style="color: var(--app-text);">{s.signup_payload?.items ?? s.notes ?? '—'}</td>
+															<td class="px-3 py-2 text-center" style="color: var(--app-text-muted);">{s.signup_payload?.servings ?? '—'}</td>
+															<td class="px-3 py-2" style="color: var(--app-text-muted);">{s.signup_payload?.dietary ?? '—'}</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
+									{/if}
+
+									{#if opp.myFamily}
+										<p class="mt-2 text-xs font-medium" style="color: var(--app-success);">You're signed up for this.</p>
+									{:else if !isFull}
+										<form method="POST" action="?/signUp" class="mt-3 grid gap-2 sm:grid-cols-4">
+											<input type="hidden" name="opportunity_id" value={opp.id} />
+											<input type="text" bind:value={foodItems} placeholder="What you'll bring" class="sm:col-span-2 rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="number" min="1" bind:value={foodServings} placeholder="Serves" class="rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="text" bind:value={foodDietary} placeholder="Dietary notes (nut-free, etc.)" class="rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<input type="hidden" name="signup_payload" value={JSON.stringify({ items: foodItems, servings: foodServings, dietary: foodDietary })} />
+											<input type="hidden" name="notes" value="" />
 											<Button variant="primary" size="sm" type="submit">Sign Up</Button>
 										</form>
 									{/if}
-								</div>
-							</div>
-						</GlassCard>
-					{/each}
-				</div>
+								</GlassCard>
+							{/each}
+						</div>
+
+					<!-- ────── CHAPERONE UI ────── -->
+					{:else if activeCatSlug === 'chaperone'}
+						<div class="space-y-3">
+							{#each activeCatOpps as opp (opp.id)}
+								{@const slots = opp.signups ?? []}
+								{@const isFull = slots.length >= opp.slots}
+								<GlassCard>
+									<div class="mb-2 flex items-start justify-between gap-2">
+										<div>
+											<p class="text-sm font-semibold" style="color: var(--app-text);">{opp.title}</p>
+											<p class="text-xs" style="color: var(--app-text-dim);">{fmtDate(opp.event_date)}{#if opp.end_time} overnight{/if}{#if opp.location} · {opp.location}{/if}</p>
+											{#if opp.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{opp.description}</p>{/if}
+										</div>
+										<span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, {isFull ? 'var(--app-danger)' : 'var(--app-success)'} 15%, transparent); color: {isFull ? 'var(--app-danger)' : 'var(--app-success)'};">{slots.length}/{opp.slots}</span>
+									</div>
+									{#if slots.length > 0}
+										<div class="flex flex-wrap gap-1.5 mb-2">
+											{#each slots as s}
+												<span class="rounded-full px-2 py-0.5 text-xs" style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent);">{s.signer?.full_name ?? s.family?.name ?? '—'}</span>
+											{/each}
+										</div>
+									{/if}
+									{#if opp.myFamily}
+										<p class="text-xs font-medium" style="color: var(--app-success);">You're signed up.</p>
+									{:else if !isFull}
+										<form method="POST" action="?/signUp" class="flex items-center gap-2">
+											<input type="hidden" name="opportunity_id" value={opp.id} />
+											<input type="hidden" name="signup_payload" value={'{}'} />
+											<input type="text" name="notes" placeholder="Experience / notes" class="flex-1 rounded-lg border px-2 py-1.5 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											<Button variant="primary" size="sm" type="submit">Volunteer</Button>
+										</form>
+									{/if}
+								</GlassCard>
+							{/each}
+						</div>
+
+					<!-- ────── SHOP SUPERVISION / SHIFTS UI ────── -->
+					{:else if activeCatSlug === 'shop_supervision'}
+						<div class="space-y-3">
+							{#each activeCatOpps as opp (opp.id)}
+								{@const slots = opp.signups ?? []}
+								{@const isFull = slots.length >= opp.slots}
+								<GlassCard compact>
+									<div class="flex items-center justify-between gap-3">
+										<div class="min-w-0 flex-1">
+											<p class="text-sm font-medium" style="color: var(--app-text);">{opp.title}</p>
+											<p class="text-xs" style="color: var(--app-text-dim);">
+												{fmtDate(opp.event_date)}{#if opp.start_time} · {fmtTime(opp.start_time)}{/if}{#if opp.end_time}–{fmtTime(opp.end_time)}{/if}
+											</p>
+											{#if slots.length > 0}
+												<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">Signed up: {slots.map((s: any) => s.signer?.full_name ?? s.family?.name).join(', ')}</p>
+											{/if}
+										</div>
+										<div class="flex items-center gap-2">
+											<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, {isFull ? 'var(--app-danger)' : 'var(--app-success)'} 15%, transparent); color: {isFull ? 'var(--app-danger)' : 'var(--app-success)'};">{slots.length}/{opp.slots}</span>
+											{#if opp.myFamily}
+												<span class="text-xs" style="color: var(--app-success);">Signed up</span>
+											{:else if !isFull}
+												<form method="POST" action="?/signUp">
+													<input type="hidden" name="opportunity_id" value={opp.id} />
+													<input type="hidden" name="signup_payload" value={'{}'} />
+													<input type="hidden" name="notes" value="" />
+													<Button variant="primary" size="sm" type="submit">Claim Shift</Button>
+												</form>
+											{/if}
+										</div>
+									</div>
+								</GlassCard>
+							{/each}
+						</div>
+
+					<!-- ────── GENERIC CATEGORY UI ────── -->
+					{:else}
+						<div class="space-y-3">
+							{#each activeCatOpps as opp (opp.id)}
+								{@const slots = opp.signups ?? []}
+								{@const isFull = slots.length >= opp.slots}
+								<GlassCard>
+									<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+										<div class="min-w-0 flex-1">
+											<p class="text-sm font-semibold" style="color: var(--app-text);">{opp.title}</p>
+											<p class="text-xs" style="color: var(--app-text-dim);">{fmtDate(opp.event_date)}{#if opp.start_time} · {fmtTime(opp.start_time)}{/if}{#if opp.location} · {opp.location}{/if}</p>
+											{#if opp.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{opp.description}</p>{/if}
+											<p class="mt-1 text-xs" style="color: var(--app-text-dim);">{slots.length}/{opp.slots} signed up</p>
+											{#if slots.length > 0}
+												<div class="mt-1 flex flex-wrap gap-1">
+													{#each slots as s}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent);">{s.signer?.full_name ?? s.family?.name ?? '—'}</span>{/each}
+												</div>
+											{/if}
+										</div>
+										<div class="shrink-0">
+											{#if opp.myFamily}
+												<span class="rounded-full px-2.5 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">Signed up</span>
+											{:else if isFull}
+												<span class="rounded-full px-2.5 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">Full</span>
+											{:else}
+												<form method="POST" action="?/signUp" class="flex items-center gap-2">
+													<input type="hidden" name="opportunity_id" value={opp.id} />
+													<input type="hidden" name="signup_payload" value={'{}'} />
+													<input type="text" name="notes" placeholder="Notes" class="w-28 rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+													<Button variant="primary" size="sm" type="submit">Sign Up</Button>
+												</form>
+											{/if}
+										</div>
+									</div>
+								</GlassCard>
+							{/each}
+						</div>
+					{/if}
+				{/if}
 			{/if}
 
-		<!-- ═══════════ HOURS TAB ═══════════ -->
-		{:else if activeTab === 'hours'}
+		<!-- ═══════════════════════════ LOG HOURS ═══════════════════════════ -->
+		{:else if mainTab === 'hours'}
 			<GlassCard title="Log Volunteer Hours" subtitle="Self-report hours. A mentor will verify them.">
 				<form method="POST" action="?/logHours" class="space-y-3">
 					<div>
 						<label for="category_id" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Category</label>
-						<select
-							name="category_id"
-							id="category_id"
-							required
-							class="w-full rounded-lg border px-3 py-2 text-sm"
-							style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-						>
+						<select name="category_id" id="category_id" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
 							<option value="">Select category...</option>
-							{#each data.categories as cat (cat.id)}
-								<option value={cat.id}>{cat.name} ({cat.unit})</option>
-							{/each}
+							{#each data.categories as cat (cat.id)}<option value={cat.id}>{cat.name} ({cat.unit})</option>{/each}
 						</select>
 					</div>
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div>
 							<label for="amount" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Amount</label>
-							<input
-								type="number"
-								name="amount"
-								id="amount"
-								step="0.5"
-								min="0.5"
-								required
-								placeholder="e.g. 2"
-								class="w-full rounded-lg border px-3 py-2 text-sm"
-								style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-							/>
+							<input type="number" name="amount" id="amount" step="0.5" min="0.5" required placeholder="e.g. 2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
 						</div>
 						<div>
 							<label for="activity_date" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Date</label>
-							<input
-								type="date"
-								name="activity_date"
-								id="activity_date"
-								required
-								class="w-full rounded-lg border px-3 py-2 text-sm"
-								style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-							/>
+							<input type="date" name="activity_date" id="activity_date" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
 						</div>
 					</div>
 					<div>
 						<label for="description" class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Description</label>
-						<textarea
-							name="description"
-							id="description"
-							required
-							rows="3"
-							placeholder="Describe the volunteer activity..."
-							class="w-full rounded-lg border px-3 py-2 text-sm"
-							style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-						></textarea>
+						<textarea name="description" id="description" required rows="3" placeholder="Describe the volunteer activity..." class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"></textarea>
 					</div>
 					<Button variant="primary" type="submit">Log Hours</Button>
 				</form>
@@ -405,23 +515,16 @@
 						<GlassCard compact>
 							<div class="flex items-center justify-between gap-3">
 								<div class="flex-1 space-y-0.5">
-									<p class="text-sm font-medium" style="color: var(--app-text);">
-										{entry.amount} {entry.category?.unit ?? 'hours'}
-										<span class="font-normal text-xs" style="color: var(--app-text-muted);">&middot; {entry.category?.name ?? ''} &middot; {fmtDate(entry.activity_date)}</span>
-									</p>
-									{#if entry.description}
-										<p class="text-xs" style="color: var(--app-text);">{entry.description}</p>
-									{/if}
-									{#if entry.rejection_reason}
-										<p class="text-xs" style="color: var(--app-danger);">Reason: {entry.rejection_reason}</p>
-									{/if}
+									<p class="text-sm font-medium" style="color: var(--app-text);">{entry.amount} {entry.category?.unit ?? 'hours'} <span class="font-normal text-xs" style="color: var(--app-text-muted);">&middot; {entry.category?.name ?? ''} &middot; {fmtDate(entry.activity_date)}</span></p>
+									{#if entry.description}<p class="text-xs" style="color: var(--app-text);">{entry.description}</p>{/if}
+									{#if entry.rejection_reason}<p class="text-xs" style="color: var(--app-danger);">Reason: {entry.rejection_reason}</p>{/if}
 								</div>
 								{#if entry.verification_status === 'pending'}
-									<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">pending</span>
+									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">pending</span>
 								{:else if entry.verification_status === 'verified'}
-									<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">verified</span>
+									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); color: var(--app-success);">verified</span>
 								{:else}
-									<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">rejected</span>
+									<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">rejected</span>
 								{/if}
 							</div>
 						</GlassCard>
