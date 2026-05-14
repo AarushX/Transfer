@@ -19,6 +19,7 @@
 	let showInstallButton = $state(false);
 
 	type NavItem = { href: string; label: string; match?: (p: string) => boolean };
+	type NavGroup = { label: string; items: NavItem[] };
 
 	const memberPrimary: NavItem[] = [
 		...(data.needsOnboarding
@@ -28,59 +29,66 @@
 		{ href: '/graph', label: 'Skill Graph', match: (p) => p.startsWith('/graph') },
 		{ href: '/ranked', label: 'Ranked', match: (p) => p.startsWith('/ranked') },
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
-		{ href: '/lettering', label: 'Lettering', match: (p) => p.startsWith('/lettering') },
-		{ href: '/outreach', label: 'Outreach', match: (p) => p.startsWith('/outreach') },
+		{ href: '/lettering', label: 'Season', match: (p) => p.startsWith('/lettering') || p.startsWith('/outreach') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
 	const parentPrimary: NavItem[] = [
 		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
-		{ href: '/parent/carpool', label: 'Carpool', match: (p) => p.startsWith('/parent/carpool') },
-		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') },
-		{ href: '/parent/hours', label: 'Legacy Hours', match: (p) => p.startsWith('/parent/hours') }
+		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool') || p.startsWith('/parent/hours') }
 	];
 	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;
 
-	const mentorNav: NavItem[] = [
-		{ href: '/mentor', label: 'Checkoffs queue', match: (p) => p === '/mentor' },
+	const mentorNav: NavGroup[] = [
 		{
-			href: '/mentor/courses',
-			label: 'Course management',
-			match: (p) => p.startsWith('/mentor/courses')
+			label: 'Queue',
+			items: [
+				{ href: '/mentor', label: 'Checkoffs', match: (p) => p === '/mentor' },
+				{ href: '/mentor/outreach', label: 'Hours verification', match: (p) => p.startsWith('/mentor/outreach') },
+				{ href: '/admin/volunteer', label: 'Volunteer verification', match: (p) => p.startsWith('/admin/volunteer') }
+			]
 		},
 		{
-			href: '/mentor/surveys',
-			label: 'Survey management',
-			match: (p) => p.startsWith('/mentor/surveys')
+			label: 'Manage',
+			items: [
+				{ href: '/mentor/courses', label: 'Courses', match: (p) => p.startsWith('/mentor/courses') },
+				{ href: '/mentor/surveys', label: 'Surveys', match: (p) => p.startsWith('/mentor/surveys') },
+				{ href: '/mentor/forms', label: 'Forms', match: (p) => p.startsWith('/mentor/forms') },
+				{ href: '/mentor/carpool', label: 'Carpool', match: (p) => p.startsWith('/mentor/carpool') },
+				{ href: '/mentor/machines', label: 'Machines', match: (p) => p.startsWith('/mentor/machines') }
+			]
 		},
 		{
-			href: '/mentor/forms',
-			label: 'Forms management',
-			match: (p) => p.startsWith('/mentor/forms')
-		},
-		{
-			href: '/mentor/carpool',
-			label: 'Carpool management',
-			match: (p) => p.startsWith('/mentor/carpool')
-		},
-		{
-			href: '/mentor/machines',
-			label: 'Machine shop',
-			match: (p) => p.startsWith('/mentor/machines')
-		},
-		{ href: '/admin/volunteer', label: 'Volunteer verification', match: (p) => p.startsWith('/admin/volunteer') },
-		{ href: '/mentor/outreach', label: 'Hours verification', match: (p) => p.startsWith('/mentor/outreach') },
-		{ href: '/roster', label: 'Roster', match: (p) => p.startsWith('/roster') }
+			label: 'Roster',
+			items: [
+				{ href: '/roster', label: 'Roster', match: (p) => p.startsWith('/roster') }
+			]
+		}
 	];
 
-	const adminNav: NavItem[] = [
-		{ href: '/admin/settings', label: 'Workspace' },
-		{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
-		{ href: '/admin/content', label: 'Content' },
-		{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
-		{ href: '/admin/lettering', label: 'Lettering', match: (p) => p.startsWith('/admin/lettering') },
-		{ href: '/admin/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/admin/volunteer') },
-		{ href: '/admin/attendance', label: 'Attendance' },
-		{ href: '/admin/audit', label: 'Audit log' }
+	const adminNav: NavGroup[] = [
+		{
+			label: 'Workspace',
+			items: [
+				{ href: '/admin/settings', label: 'Settings' },
+				{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
+				{ href: '/admin/content', label: 'Content' },
+				{ href: '/admin/audit', label: 'Audit log' }
+			]
+		},
+		{
+			label: 'People',
+			items: [
+				{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
+				{ href: '/admin/attendance', label: 'Attendance' }
+			]
+		},
+		{
+			label: 'Season',
+			items: [
+				{ href: '/admin/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/admin/volunteer') },
+				{ href: '/admin/lettering', label: 'Lettering rules', match: (p) => p.startsWith('/admin/lettering') }
+			]
+		}
 	];
 
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
@@ -229,47 +237,53 @@
 				</ul>
 
 				{#if canMentor}
-					<p class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Mentor
 					</p>
-					<ul class="space-y-0.5">
-						{#each mentorNav as item (item.href)}
-							<li>
-								<a
-									href={item.href}
-									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-									style={isActive(item, page.url.pathname)
-										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-										: `color: var(--app-text-muted);`}
-								>
-									{item.label}
-								</a>
-							</li>
-						{/each}
-					</ul>
+					{#each mentorNav as group (group.label)}
+						<p class="mt-2 px-2 pb-1 text-[9px] font-medium tracking-[0.14em] uppercase" style="color: color-mix(in srgb, var(--app-text-dim) 80%, transparent);">{group.label}</p>
+						<ul class="space-y-0.5">
+							{#each group.items as item (item.href)}
+								<li>
+									<a
+										href={item.href}
+										onclick={() => (mobileOpen = false)}
+										class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+										style={isActive(item, page.url.pathname)
+											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+											: `color: var(--app-text-muted);`}
+									>
+										{item.label}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/each}
 				{/if}
 
 				{#if canAdmin}
-					<p class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Admin
 					</p>
-					<ul class="space-y-0.5">
-						{#each adminNav as item (item.href)}
-							<li>
-								<a
-									href={item.href}
-									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-									style={isActive(item, page.url.pathname)
-										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-										: `color: var(--app-text-muted);`}
-								>
-									{item.label}
-								</a>
-							</li>
-						{/each}
-					</ul>
+					{#each adminNav as group (group.label)}
+						<p class="mt-2 px-2 pb-1 text-[9px] font-medium tracking-[0.14em] uppercase" style="color: color-mix(in srgb, var(--app-text-dim) 80%, transparent);">{group.label}</p>
+						<ul class="space-y-0.5">
+							{#each group.items as item (item.href)}
+								<li>
+									<a
+										href={item.href}
+										onclick={() => (mobileOpen = false)}
+										class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+										style={isActive(item, page.url.pathname)
+											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+											: `color: var(--app-text-muted);`}
+									>
+										{item.label}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/each}
 				{/if}
 			</nav>
 

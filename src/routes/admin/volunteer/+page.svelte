@@ -5,8 +5,10 @@
 
 	let activeTab = $state<'events' | 'verify' | 'announcements' | 'gaps' | 'families' | 'categories'>('events');
 	let showCreateEvent = $state(false);
-	let showCreateOpp = $state(false);
 	let showCreateAnn = $state(false);
+	let editingEventId = $state('');
+	let editingOppId = $state('');
+	let editingAnnId = $state('');
 	let rejectingId = $state('');
 	let rejectReason = $state('');
 
@@ -20,13 +22,14 @@
 		return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 	};
 
-	const oppsByEvent = $derived(() => {
-		const map = new Map<string, any[]>();
+	// For each event, build a set of currently-active category_ids
+	const activeCategoriesByEvent = $derived(() => {
+		const map = new Map<string, Set<string>>();
 		for (const opp of data.opportunities ?? []) {
-			const key = opp.event_id ?? '__none__';
-			const list = map.get(key) ?? [];
-			list.push(opp);
-			map.set(key, list);
+			if (!opp.event_id || !opp.is_active) continue;
+			const set = map.get(opp.event_id) ?? new Set<string>();
+			set.add(opp.category_id);
+			map.set(opp.event_id, set);
 		}
 		return map;
 	});
@@ -62,15 +65,15 @@
 			{/each}
 		</div>
 
-		<!-- ═══════════ EVENTS + OPPORTUNITIES ═══════════ -->
+		<!-- ═══════════ EVENTS ═══════════ -->
 		{#if activeTab === 'events'}
-			<div class="flex items-center gap-2">
-				<Button variant="primary" size="sm" onclick={() => { showCreateEvent = !showCreateEvent; showCreateOpp = false; }}>{showCreateEvent ? 'Cancel' : 'New Event'}</Button>
-				<Button variant="secondary" size="sm" onclick={() => { showCreateOpp = !showCreateOpp; showCreateEvent = false; }}>{showCreateOpp ? 'Cancel' : 'New Opportunity'}</Button>
+			<div class="flex items-center justify-between">
+				<p class="text-xs" style="color: var(--app-text-dim);">{(data.events ?? []).length} event{(data.events ?? []).length !== 1 ? 's' : ''}</p>
+				<Button variant="primary" size="sm" onclick={() => { showCreateEvent = !showCreateEvent; }}>{showCreateEvent ? 'Cancel' : 'New Event'}</Button>
 			</div>
 
 			{#if showCreateEvent}
-				<GlassCard title="Create Event / Competition">
+				<GlassCard title="Create Event / Competition" subtitle="Check the categories this event needs. Each checked category creates a volunteer signup section parents can claim.">
 					<form method="POST" action="?/createEvent" class="space-y-3">
 						<div class="grid gap-3 sm:grid-cols-2">
 							<div>
@@ -94,141 +97,151 @@
 						</div>
 						<div>
 							<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Description</label>
-							<textarea name="description" rows="2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" placeholder="Details about this event..."></textarea>
+							<textarea name="description" rows="2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" placeholder="Details parents need to know..."></textarea>
+						</div>
+						<div>
+							<p class="mb-2 text-xs font-medium" style="color: var(--app-text-muted);">Volunteer categories needed</p>
+							<div class="grid gap-1.5 sm:grid-cols-2">
+								{#each data.categories as cat (cat.id)}
+									<label class="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border);">
+										<div class="flex items-center gap-2 min-w-0">
+											<input type="checkbox" name="category_ids" value={cat.id} />
+											<span style="color: var(--app-text);">{cat.name}</span>
+										</div>
+										<div class="flex items-center gap-1 shrink-0">
+											<span class="text-xs" style="color: var(--app-text-dim);">slots</span>
+											<input type="number" name={`slots_${cat.id}`} value="4" min="1" class="w-14 rounded border px-1.5 py-0.5 text-xs text-center" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+										</div>
+									</label>
+								{/each}
+							</div>
 						</div>
 						<Button variant="primary" type="submit">Create Event</Button>
 					</form>
 				</GlassCard>
 			{/if}
 
-			{#if showCreateOpp}
-				<GlassCard title="Create Volunteer Opportunity">
-					<form method="POST" action="?/createOpportunity" class="space-y-3">
-						<div class="grid gap-3 sm:grid-cols-2">
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Event</label>
-								<select name="event_id" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
-									<option value="">No event (standalone)</option>
-									{#each data.events as evt (evt.id)}<option value={evt.id}>{evt.title} ({fmtDate(evt.start_date)})</option>{/each}
-								</select>
-							</div>
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Category</label>
-								<select name="category_id" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
-									<option value="">Select...</option>
-									{#each data.categories as cat (cat.id)}<option value={cat.id}>{cat.name}</option>{/each}
-								</select>
-							</div>
-						</div>
-						<div>
-							<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Title</label>
-							<input type="text" name="title" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" placeholder="e.g. Transportation to GRITS, Lunch Day 1" />
-						</div>
-						<div>
-							<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Description</label>
-							<textarea name="description" rows="2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" placeholder="What's needed (for food: list items; for carpool: route details)"></textarea>
-						</div>
-						<div class="grid gap-3 sm:grid-cols-3">
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Date</label>
-								<input type="date" name="event_date" required class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Start Time</label>
-								<input type="time" name="start_time" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">End Time</label>
-								<input type="time" name="end_time" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-						</div>
-						<div class="grid gap-3 sm:grid-cols-3">
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Location</label>
-								<input type="text" name="location" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Slots</label>
-								<input type="number" name="slots" min="1" value="4" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-							<div>
-								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Signup Deadline</label>
-								<input type="datetime-local" name="signup_deadline" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
-							</div>
-						</div>
-						<label class="flex items-center gap-2 text-sm" style="color: var(--app-text-muted);"><input type="checkbox" name="requires_approval" /> Require admin approval</label>
-						<Button variant="primary" type="submit">Create Opportunity</Button>
-					</form>
-				</GlassCard>
-			{/if}
-
-			<!-- Events list with their opportunities -->
+			<!-- Events list -->
 			{#each data.events as evt (evt.id)}
 				{@const evtOpps = (data.opportunities ?? []).filter((o) => o.event_id === evt.id)}
+				{@const activeCatIds = activeCategoriesByEvent().get(evt.id) ?? new Set()}
 				<GlassCard>
-					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p class="text-sm font-bold" style="color: var(--app-text);">{evt.title}</p>
-							<p class="text-xs" style="color: var(--app-text-dim);">{fmtDate(evt.start_date)}{evt.end_date ? ` – ${fmtDate(evt.end_date)}` : ''}{evt.location ? ` · ${evt.location}` : ''}</p>
-							{#if evt.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{evt.description}</p>{/if}
-						</div>
-						<form method="POST" action="?/deleteEvent" onsubmit={(e) => { if (!confirm('Delete this event and all its opportunities?')) e.preventDefault(); }}>
+					{#if editingEventId === evt.id}
+						<!-- EDIT MODE -->
+						<form method="POST" action="?/updateEvent" class="space-y-3">
 							<input type="hidden" name="id" value={evt.id} />
-							<Button variant="danger" size="sm" type="submit">Delete</Button>
-						</form>
-					</div>
-
-					{#if evtOpps.length > 0}
-						<div class="mt-3 space-y-1.5">
-							{#each evtOpps as opp (opp.id)}
-								<div class="flex items-center justify-between gap-2 rounded-lg border p-2" style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent);">
-									<div class="min-w-0 flex-1">
-										<p class="text-xs font-medium" style="color: var(--app-text);">
-											{opp.title}
-											<span style="color: var(--app-text-dim);">· {opp.category?.name ?? ''} · {opp.currentSignups}/{opp.slots}</span>
-											{#if !opp.is_active}<span class="ml-1 rounded px-1 text-[10px]" style="background: color-mix(in srgb, var(--app-text-dim) 15%, transparent); color: var(--app-text-dim);">inactive</span>{/if}
-										</p>
-									</div>
-									<div class="flex items-center gap-1.5">
-										<form method="POST" action="?/toggleOpportunity">
-											<input type="hidden" name="id" value={opp.id} />
-											<input type="hidden" name="is_active" value={opp.is_active ? 'false' : 'true'} />
-											<Button variant="ghost" size="sm" type="submit">{opp.is_active ? 'Hide' : 'Show'}</Button>
-										</form>
-										<form method="POST" action="?/deleteOpportunity" onsubmit={(e) => { if (!confirm('Delete?')) e.preventDefault(); }}>
-											<input type="hidden" name="id" value={opp.id} />
-											<Button variant="danger" size="sm" type="submit">Del</Button>
-										</form>
-									</div>
+							<div class="grid gap-3 sm:grid-cols-2">
+								<div>
+									<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Title</label>
+									<input type="text" name="title" required value={evt.title} class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
 								</div>
-							{/each}
-						</div>
+								<div>
+									<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Location</label>
+									<input type="text" name="location" value={evt.location ?? ''} class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+								</div>
+							</div>
+							<div class="grid gap-3 sm:grid-cols-2">
+								<div>
+									<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Start Date</label>
+									<input type="date" name="start_date" required value={evt.start_date} class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+								</div>
+								<div>
+									<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">End Date</label>
+									<input type="date" name="end_date" value={evt.end_date ?? ''} class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+								</div>
+							</div>
+							<div>
+								<label class="mb-1 block text-xs font-medium" style="color: var(--app-text-muted);">Description</label>
+								<textarea name="description" rows="2" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">{evt.description ?? ''}</textarea>
+							</div>
+							<div>
+								<p class="mb-2 text-xs font-medium" style="color: var(--app-text-muted);">Volunteer categories needed</p>
+								<div class="grid gap-1.5 sm:grid-cols-2">
+									{#each data.categories as cat (cat.id)}
+										{@const existingOpp = evtOpps.find((o) => o.category_id === cat.id)}
+										<label class="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border);">
+											<div class="flex items-center gap-2 min-w-0">
+												<input type="checkbox" name="category_ids" value={cat.id} checked={activeCatIds.has(cat.id)} />
+												<span style="color: var(--app-text);">{cat.name}</span>
+											</div>
+											<div class="flex items-center gap-1 shrink-0">
+												<span class="text-xs" style="color: var(--app-text-dim);">slots</span>
+												<input type="number" name={`slots_${cat.id}`} value={existingOpp?.slots ?? 4} min="1" class="w-14 rounded border px-1.5 py-0.5 text-xs text-center" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											</div>
+										</label>
+									{/each}
+								</div>
+							</div>
+							<div class="flex items-center gap-2">
+								<Button variant="primary" type="submit">Save</Button>
+								<Button variant="ghost" onclick={() => { editingEventId = ''; }}>Cancel</Button>
+							</div>
+						</form>
 					{:else}
-						<p class="mt-2 text-xs" style="color: var(--app-text-dim);">No opportunities yet — create one above and link it to this event.</p>
+						<!-- VIEW MODE -->
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0 flex-1">
+								<p class="text-sm font-bold" style="color: var(--app-text);">{evt.title}</p>
+								<p class="text-xs" style="color: var(--app-text-dim);">{fmtDate(evt.start_date)}{evt.end_date ? ` – ${fmtDate(evt.end_date)}` : ''}{evt.location ? ` · ${evt.location}` : ''}</p>
+								{#if evt.description}<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{evt.description}</p>{/if}
+							</div>
+							<div class="flex items-center gap-1.5 shrink-0">
+								<Button variant="ghost" size="sm" onclick={() => { editingEventId = evt.id; }}>Edit</Button>
+								<form method="POST" action="?/deleteEvent" onsubmit={(e) => { if (!confirm('Delete this event and all its opportunities?')) e.preventDefault(); }}>
+									<input type="hidden" name="id" value={evt.id} />
+									<Button variant="danger" size="sm" type="submit">Delete</Button>
+								</form>
+							</div>
+						</div>
+
+						{#if evtOpps.length > 0}
+							<div class="mt-3 space-y-1.5">
+								{#each evtOpps as opp (opp.id)}
+									{#if editingOppId === opp.id}
+										<form method="POST" action="?/updateOpportunity" class="rounded-lg border p-3 space-y-2" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
+											<input type="hidden" name="id" value={opp.id} />
+											<div class="grid gap-2 sm:grid-cols-3">
+												<input type="text" name="title" value={opp.title} placeholder="Title" class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+												<input type="date" name="event_date" value={opp.event_date} class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+												<input type="number" name="slots" value={opp.slots} min="1" class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											</div>
+											<div class="grid gap-2 sm:grid-cols-3">
+												<input type="time" name="start_time" value={opp.start_time ?? ''} class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+												<input type="time" name="end_time" value={opp.end_time ?? ''} class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+												<input type="text" name="location" value={opp.location ?? ''} placeholder="Location" class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+											</div>
+											<textarea name="description" rows="2" placeholder="Description / notes for parents" class="w-full rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">{opp.description ?? ''}</textarea>
+											<div class="flex items-center gap-2">
+												<Button variant="primary" size="sm" type="submit">Save</Button>
+												<Button variant="ghost" size="sm" onclick={() => { editingOppId = ''; }}>Cancel</Button>
+											</div>
+										</form>
+									{:else}
+										<div class="flex items-center justify-between gap-2 rounded-lg border p-2" style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent);">
+											<div class="min-w-0 flex-1">
+												<p class="text-xs font-medium" style="color: var(--app-text);">
+													{opp.title}
+													<span style="color: var(--app-text-dim);">· {opp.category?.name ?? ''} · {opp.currentSignups}/{opp.slots} signed up</span>
+													{#if !opp.is_active}<span class="ml-1 rounded px-1 text-[10px]" style="background: color-mix(in srgb, var(--app-text-dim) 15%, transparent); color: var(--app-text-dim);">inactive</span>{/if}
+												</p>
+												{#if opp.start_time || opp.location}
+													<p class="text-[11px]" style="color: var(--app-text-dim);">
+														{#if opp.start_time}{fmtTime(opp.start_time)}{#if opp.end_time}–{fmtTime(opp.end_time)}{/if}{/if}
+														{#if opp.location} · {opp.location}{/if}
+													</p>
+												{/if}
+											</div>
+											<Button variant="ghost" size="sm" onclick={() => { editingOppId = opp.id; }}>Edit</Button>
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{:else}
+							<p class="mt-2 text-xs" style="color: var(--app-text-dim);">No categories selected yet — click Edit to add some.</p>
+						{/if}
 					{/if}
 				</GlassCard>
 			{/each}
-
-			<!-- Standalone opportunities (no event) -->
-			{@const standaloneOpps = (data.opportunities ?? []).filter((o) => !o.event_id)}
-			{#if standaloneOpps.length > 0}
-				<h2 class="text-sm font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Standalone Opportunities</h2>
-				<div class="space-y-2">
-					{#each standaloneOpps as opp (opp.id)}
-						<GlassCard compact>
-							<div class="flex items-center justify-between gap-2">
-								<div class="min-w-0 flex-1">
-									<p class="text-xs font-medium" style="color: var(--app-text);">{opp.title} <span style="color: var(--app-text-dim);">· {opp.category?.name} · {fmtDate(opp.event_date)} · {opp.currentSignups}/{opp.slots}</span></p>
-								</div>
-								<div class="flex items-center gap-1.5">
-									<form method="POST" action="?/toggleOpportunity"><input type="hidden" name="id" value={opp.id} /><input type="hidden" name="is_active" value={opp.is_active ? 'false' : 'true'} /><Button variant="ghost" size="sm" type="submit">{opp.is_active ? 'Hide' : 'Show'}</Button></form>
-									<form method="POST" action="?/deleteOpportunity" onsubmit={(e) => { if (!confirm('Delete?')) e.preventDefault(); }}><input type="hidden" name="id" value={opp.id} /><Button variant="danger" size="sm" type="submit">Del</Button></form>
-								</div>
-							</div>
-						</GlassCard>
-					{/each}
-				</div>
-			{/if}
 
 		<!-- ═══════════ VERIFY ═══════════ -->
 		{:else if activeTab === 'verify'}
@@ -274,7 +287,7 @@
 			{#if !data.emailConfigured}
 				<div class="rounded-xl border p-3" style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 6%, transparent);">
 					<p class="text-xs font-medium" style="color: var(--app-warning);">Email not configured</p>
-					<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">Set GMAIL_USER and GMAIL_APP_PASSWORD environment variables to enable email blasts. Announcements will still appear in the portal.</p>
+					<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">Set GMAIL_USER and GMAIL_APP_PASSWORD env vars to enable email blasts. Announcements still appear in the portal.</p>
 				</div>
 			{/if}
 
@@ -312,24 +325,47 @@
 			<div class="space-y-2">
 				{#each data.announcements as ann (ann.id)}
 					<GlassCard compact>
-						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0 flex-1">
-								<div class="flex items-center gap-2">
-									<p class="text-sm font-semibold" style="color: var(--app-text);">{ann.title}</p>
-									{#if ann.is_pinned}<span class="rounded px-1 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">pinned</span>{/if}
-									<span class="rounded px-1 text-[10px]" style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent);">{ann.audience}</span>
-								</div>
-								{#if ann.body}<p class="mt-0.5 text-xs whitespace-pre-wrap" style="color: var(--app-text-muted);">{ann.body.slice(0, 200)}{ann.body.length > 200 ? '...' : ''}</p>{/if}
-								<p class="mt-1 text-[10px]" style="color: var(--app-text-dim);">
-									{ann.author?.full_name ?? ''} · {new Date(ann.created_at).toLocaleDateString()}
-									{#if ann.emailed_at} · Emailed to {ann.email_count}{/if}
-								</p>
-							</div>
-							<form method="POST" action="?/deleteAnnouncement" onsubmit={(e) => { if (!confirm('Delete this announcement?')) e.preventDefault(); }}>
+						{#if editingAnnId === ann.id}
+							<form method="POST" action="?/updateAnnouncement" class="space-y-2">
 								<input type="hidden" name="id" value={ann.id} />
-								<Button variant="ghost" size="sm" type="submit">Delete</Button>
+								<input type="text" name="title" required value={ann.title} class="w-full rounded-lg border px-3 py-2 text-sm font-semibold" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" />
+								<textarea name="body" rows="4" class="w-full rounded-lg border px-3 py-2 text-sm" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">{ann.body ?? ''}</textarea>
+								<div class="flex items-center gap-3">
+									<select name="audience" class="rounded-lg border px-2 py-1 text-xs" style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+										<option value="all" selected={ann.audience === 'all'}>Everyone</option>
+										<option value="parents" selected={ann.audience === 'parents'}>Parents</option>
+										<option value="students" selected={ann.audience === 'students'}>Students</option>
+										<option value="mentors" selected={ann.audience === 'mentors'}>Mentors</option>
+									</select>
+									<label class="flex items-center gap-1 text-xs" style="color: var(--app-text-muted);"><input type="checkbox" name="is_pinned" checked={ann.is_pinned} /> Pinned</label>
+									<Button variant="primary" size="sm" type="submit">Save</Button>
+									<Button variant="ghost" size="sm" onclick={() => { editingAnnId = ''; }}>Cancel</Button>
+								</div>
+								{#if ann.emailed_at}<p class="text-[10px]" style="color: var(--app-text-dim);">Already emailed to {ann.email_count} recipients on {new Date(ann.emailed_at).toLocaleDateString()}. Editing won't re-send.</p>{/if}
 							</form>
-						</div>
+						{:else}
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center gap-2">
+										<p class="text-sm font-semibold" style="color: var(--app-text);">{ann.title}</p>
+										{#if ann.is_pinned}<span class="rounded px-1 text-[10px] font-medium" style="background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: var(--app-warning);">pinned</span>{/if}
+										<span class="rounded px-1 text-[10px]" style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent);">{ann.audience}</span>
+									</div>
+									{#if ann.body}<p class="mt-0.5 text-xs whitespace-pre-wrap" style="color: var(--app-text-muted);">{ann.body.slice(0, 200)}{ann.body.length > 200 ? '...' : ''}</p>{/if}
+									<p class="mt-1 text-[10px]" style="color: var(--app-text-dim);">
+										{ann.author?.full_name ?? ''} · {new Date(ann.created_at).toLocaleDateString()}
+										{#if ann.emailed_at} · Emailed to {ann.email_count}{/if}
+									</p>
+								</div>
+								<div class="flex items-center gap-1.5 shrink-0">
+									<Button variant="ghost" size="sm" onclick={() => { editingAnnId = ann.id; }}>Edit</Button>
+									<form method="POST" action="?/deleteAnnouncement" onsubmit={(e) => { if (!confirm('Delete this announcement?')) e.preventDefault(); }}>
+										<input type="hidden" name="id" value={ann.id} />
+										<Button variant="danger" size="sm" type="submit">Delete</Button>
+									</form>
+								</div>
+							</div>
+						{/if}
 					</GlassCard>
 				{/each}
 			</div>

@@ -100,14 +100,131 @@ export const actions: Actions = {
 		const location = String(form.get('location') ?? '').trim();
 		const startDate = String(form.get('start_date') ?? '').trim();
 		const endDate = String(form.get('end_date') ?? '').trim() || null;
+		const categoryIds = form.getAll('category_ids').map(String).filter(Boolean);
 
 		if (!title || !startDate) return fail(400, { error: 'Title and start date are required.' });
 
-		const { error } = await service.from('volunteer_events').insert({
+		const { data: event, error } = await service.from('volunteer_events').insert({
 			season_id: season.id, title, description, location, start_date: startDate, end_date: endDate, created_by: user.id
-		});
-		if (error) return fail(400, { error: error.message });
+		}).select('id').single();
+		if (error || !event) return fail(400, { error: error?.message ?? 'Failed to create event.' });
+
+		if (categoryIds.length > 0) {
+			const { data: cats } = await service.from('volunteer_categories').select('id,name').in('id', categoryIds);
+			for (const cat of cats ?? []) {
+				const slots = Math.max(1, Number(form.get(`slots_${cat.id}`) ?? 4));
+				await service.from('volunteer_opportunities').insert({
+					event_id: event.id,
+					category_id: cat.id,
+					season_id: season.id,
+					title: cat.name,
+					description: '',
+					location: location,
+					event_date: startDate,
+					slots,
+					created_by: user.id
+				});
+			}
+		}
 		return { ok: true, section: 'event' };
+	},
+
+	updateEvent: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		const service = createSupabaseServiceClient();
+		const form = await request.formData();
+
+		const { data: season } = await service.from('lettering_seasons').select('id').eq('is_active', true).maybeSingle();
+		if (!season) return fail(400, { error: 'No active season.' });
+
+		const id = String(form.get('id') ?? '').trim();
+		const title = String(form.get('title') ?? '').trim();
+		const description = String(form.get('description') ?? '').trim();
+		const location = String(form.get('location') ?? '').trim();
+		const startDate = String(form.get('start_date') ?? '').trim();
+		const endDate = String(form.get('end_date') ?? '').trim() || null;
+		const categoryIds = new Set(form.getAll('category_ids').map(String).filter(Boolean));
+
+		if (!id || !title || !startDate) return fail(400, { error: 'ID, title, and start date are required.' });
+
+		const { error } = await service.from('volunteer_events').update({
+			title, description, location, start_date: startDate, end_date: endDate, updated_at: new Date().toISOString()
+		}).eq('id', id);
+		if (error) return fail(400, { error: error.message });
+
+		const { data: existingOpps } = await service
+			.from('volunteer_opportunities')
+			.select('id,category_id,is_active')
+			.eq('event_id', id);
+
+		const existingByCategory = new Map<string, { id: string; is_active: boolean }>();
+		for (const opp of existingOpps ?? []) {
+			existingByCategory.set(opp.category_id, { id: opp.id, is_active: opp.is_active });
+		}
+
+		for (const categoryId of categoryIds) {
+			const existing = existingByCategory.get(categoryId);
+			const slots = Math.max(1, Number(form.get(`slots_${categoryId}`) ?? 4));
+			if (existing) {
+				if (!existing.is_active) {
+					await service.from('volunteer_opportunities').update({ is_active: true }).eq('id', existing.id);
+				}
+			} else {
+				const { data: cat } = await service.from('volunteer_categories').select('name').eq('id', categoryId).maybeSingle();
+				await service.from('volunteer_opportunities').insert({
+					event_id: id,
+					category_id: categoryId,
+					season_id: season.id,
+					title: cat?.name ?? 'Volunteer Need',
+					description: '',
+					location: location,
+					event_date: startDate,
+					slots,
+					created_by: user.id
+				});
+			}
+		}
+
+		for (const [catId, existing] of existingByCategory) {
+			if (!categoryIds.has(catId) && existing.is_active) {
+				await service.from('volunteer_opportunities').update({ is_active: false }).eq('id', existing.id);
+			}
+		}
+
+		return { ok: true, section: 'event_update' };
+	},
+
+	updateOpportunity: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		const service = createSupabaseServiceClient();
+		const form = await request.formData();
+		const id = String(form.get('id') ?? '').trim();
+		if (!id) return fail(400, { error: 'Opportunity ID required.' });
+
+		const updates: any = { updated_at: new Date().toISOString() };
+		const title = String(form.get('title') ?? '').trim();
+		const description = String(form.get('description') ?? '').trim();
+		const location = String(form.get('location') ?? '').trim();
+		const eventDate = String(form.get('event_date') ?? '').trim();
+		const startTime = String(form.get('start_time') ?? '').trim() || null;
+		const endTime = String(form.get('end_time') ?? '').trim() || null;
+		const slots = Number(form.get('slots') ?? 0);
+		const signupDeadline = String(form.get('signup_deadline') ?? '').trim() || null;
+
+		if (title) updates.title = title;
+		updates.description = description;
+		updates.location = location;
+		if (eventDate) updates.event_date = eventDate;
+		updates.start_time = startTime;
+		updates.end_time = endTime;
+		if (slots > 0) updates.slots = slots;
+		updates.signup_deadline = signupDeadline;
+
+		const { error } = await service.from('volunteer_opportunities').update(updates).eq('id', id);
+		if (error) return fail(400, { error: error.message });
+		return { ok: true, section: 'opp_update' };
 	},
 
 	deleteEvent: async ({ locals, request }) => {
@@ -121,37 +238,6 @@ export const actions: Actions = {
 		return { ok: true, section: 'event_delete' };
 	},
 
-	createOpportunity: async ({ locals, request }) => {
-		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
-		const service = createSupabaseServiceClient();
-		const form = await request.formData();
-
-		const { data: season } = await service.from('lettering_seasons').select('id').eq('is_active', true).maybeSingle();
-		if (!season) return fail(400, { error: 'No active season.' });
-
-		const eventId = String(form.get('event_id') ?? '').trim() || null;
-		const categoryId = String(form.get('category_id') ?? '').trim();
-		const title = String(form.get('title') ?? '').trim();
-		const description = String(form.get('description') ?? '').trim();
-		const location = String(form.get('location') ?? '').trim();
-		const eventDate = String(form.get('event_date') ?? '').trim();
-		const startTime = String(form.get('start_time') ?? '').trim() || null;
-		const endTime = String(form.get('end_time') ?? '').trim() || null;
-		const slots = Math.max(1, Number(form.get('slots') ?? 1));
-		const requiresApproval = form.get('requires_approval') === 'on';
-		const signupDeadline = String(form.get('signup_deadline') ?? '').trim() || null;
-
-		if (!categoryId || !title || !eventDate) return fail(400, { error: 'Category, title, and date are required.' });
-
-		const { error } = await service.from('volunteer_opportunities').insert({
-			event_id: eventId, category_id: categoryId, season_id: season.id, title, description, location,
-			event_date: eventDate, start_time: startTime, end_time: endTime, slots,
-			requires_approval: requiresApproval, signup_deadline: signupDeadline, created_by: user.id
-		});
-		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'opportunity' };
-	},
 
 	deleteOpportunity: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
@@ -248,6 +334,27 @@ export const actions: Actions = {
 		}
 
 		return { ok: true, section: 'announcement' };
+	},
+
+	updateAnnouncement: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		const service = createSupabaseServiceClient();
+		const form = await request.formData();
+
+		const id = String(form.get('id') ?? '').trim();
+		const title = String(form.get('title') ?? '').trim();
+		const body = String(form.get('body') ?? '').trim();
+		const audience = String(form.get('audience') ?? 'all').trim();
+		const isPinned = form.get('is_pinned') === 'on';
+
+		if (!id || !title) return fail(400, { error: 'ID and title required.' });
+
+		const { error } = await service.from('announcements').update({
+			title, body, audience, is_pinned: isPinned, updated_at: new Date().toISOString()
+		}).eq('id', id);
+		if (error) return fail(400, { error: error.message });
+		return { ok: true, section: 'ann_update' };
 	},
 
 	deleteAnnouncement: async ({ locals, request }) => {
