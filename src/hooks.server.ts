@@ -27,16 +27,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			} = await event.locals.supabase.auth.getUser();
 			if (userError || !user) return { session: null, user: null, profile: null };
 
-			if (TEAM_EMAIL_DOMAIN && !user.email?.toLowerCase().endsWith(`@${TEAM_EMAIL_DOMAIN}`)) {
-				await event.locals.supabase.auth.signOut();
-				throw redirect(303, '/login?error=domain');
-			}
-
 			const { data: profile } = await event.locals.supabase
 				.from('profiles')
 				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url')
 				.eq('id', user.id)
 				.single();
+
+			const isParent = profile?.is_parent_guardian === true;
+			if (TEAM_EMAIL_DOMAIN && !isParent && !user.email?.toLowerCase().endsWith(`@${TEAM_EMAIL_DOMAIN}`)) {
+				await event.locals.supabase.auth.signOut();
+				throw redirect(303, '/login?error=domain');
+			}
 
 			return { session: null, user, profile: (profile ?? null) as ProfileRow | null };
 		})();

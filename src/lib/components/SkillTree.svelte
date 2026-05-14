@@ -12,6 +12,8 @@
 	const hasGraphData = $derived((nodes?.length ?? 0) > 0 && (prerequisites?.length ?? 0) > 0);
 
 	const NODE_R = 26;
+	const MIN_ZOOM = 0.15;
+	const MAX_ZOOM = 3;
 
 	const STATE_COLOR: Record<string, string> = {
 		completed: '#34d399',
@@ -77,13 +79,11 @@
 			perLayerNodes.set(l, arr);
 		}
 
-		const maxLayer = Math.max(0, ...[...perLayerNodes.keys()]);
 		const hSpacing = 200;
 		const vSpacing = 100;
 		const padX = 120;
 		const padY = 80;
 
-		const nodeById = new Map(nodes.map((n) => [n.id, n]));
 		const result: LayoutNode[] = [];
 		for (const n of nodes) {
 			const l = layer.get(n.id) ?? 0;
@@ -105,8 +105,8 @@
 		return result;
 	});
 
-	const viewBoxWidth = $derived(Math.max(800, ...layoutNodes.map((n) => n.x + 120)));
-	const viewBoxHeight = $derived(Math.max(600, ...layoutNodes.map((n) => n.y + 100)));
+	const contentWidth = $derived(Math.max(800, ...layoutNodes.map((n) => n.x + 120)));
+	const contentHeight = $derived(Math.max(600, ...layoutNodes.map((n) => n.y + 100)));
 	const nodeMap = $derived(new Map(layoutNodes.map((n) => [n.id, n])));
 
 	const edges = $derived.by(() => {
@@ -146,11 +146,115 @@
 			available: 'Available',
 			locked: 'Locked'
 		})[state] ?? state;
+
+	// --- Zoom & pan state ---
+	let zoom = $state(1);
+	let panX = $state(0);
+	let panY = $state(0);
+	let containerEl = $state<HTMLDivElement | null>(null);
+
+	let isPanning = $state(false);
+	let panStart = $state({ x: 0, y: 0, panX: 0, panY: 0 });
+	let didPan = $state(false);
+
+	const viewBox = $derived(
+		`${-panX / zoom} ${-panY / zoom} ${(containerEl?.clientWidth ?? 800) / zoom} ${(containerEl?.clientHeight ?? 600) / zoom}`
+	);
+
+	function fitView() {
+		if (!containerEl) return;
+		const cw = containerEl.clientWidth;
+		const ch = containerEl.clientHeight;
+		const pad = 60;
+		const zx = cw / (contentWidth + pad * 2);
+		const zy = ch / (contentHeight + pad * 2);
+		const z = Math.min(zx, zy, MAX_ZOOM);
+		zoom = Math.max(z, MIN_ZOOM);
+		panX = (cw - contentWidth * zoom) / 2;
+		panY = (ch - contentHeight * zoom) / 2;
+	}
+
+	function handleWheel(e: WheelEvent) {
+		e.preventDefault();
+		const rect = containerEl!.getBoundingClientRect();
+		const mx = e.clientX - rect.left;
+		const my = e.clientY - rect.top;
+		const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+		const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
+		panX = mx - (mx - panX) * (newZoom / zoom);
+		panY = my - (my - panY) * (newZoom / zoom);
+		zoom = newZoom;
+	}
+
+	function handlePointerDown(e: PointerEvent) {
+		if (e.button !== 0) return;
+		isPanning = true;
+		didPan = false;
+		panStart = { x: e.clientX, y: e.clientY, panX, panY };
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+
+	function handlePointerMove(e: PointerEvent) {
+		if (!isPanning) return;
+		const dx = e.clientX - panStart.x;
+		const dy = e.clientY - panStart.y;
+		if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPan = true;
+		panX = panStart.panX + dx;
+		panY = panStart.panY + dy;
+	}
+
+	function handlePointerUp(e: PointerEvent) {
+		isPanning = false;
+		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+	}
+
+	// Touch pinch-to-zoom
+	let pinchStartDist = $state(0);
+	let pinchStartZoom = $state(1);
+
+	function handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			e.preventDefault();
+			const dx = e.touches[0].clientX - e.touches[1].clientX;
+			const dy = e.touches[0].clientY - e.touches[1].clientY;
+			pinchStartDist = Math.hypot(dx, dy);
+			pinchStartZoom = zoom;
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			e.preventDefault();
+			const dx = e.touches[0].clientX - e.touches[1].clientX;
+			const dy = e.touches[0].clientY - e.touches[1].clientY;
+			const dist = Math.hypot(dx, dy);
+			if (pinchStartDist > 0) {
+				zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartZoom * (dist / pinchStartDist)));
+			}
+		}
+	}
+
+	$effect(() => {
+		if (hasGraphData && containerEl) {
+			requestAnimationFrame(() => fitView());
+		}
+	});
 </script>
 
 {#if hasGraphData}
-	<div class="relative overflow-hidden rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 640px;">
-		<svg viewBox="0 0 {viewBoxWidth} {viewBoxHeight}" style="width: 100%; height: 100%;">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		bind:this={containerEl}
+		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 75vh; min-height: 400px; touch-action: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
+		onwheel={handleWheel}
+		onpointerdown={handlePointerDown}
+		onpointermove={handlePointerMove}
+		onpointerup={handlePointerUp}
+		ontouchstart={handleTouchStart}
+		ontouchmove={handleTouchMove}
+	>
+		<svg viewBox={viewBox} style="width: 100%; height: 100%; display: block;">
 			<defs>
 				{#each Object.entries(STATE_COLOR) as [key, color]}
 					<radialGradient id="fill-{key}">
@@ -172,7 +276,7 @@
 				</pattern>
 			</defs>
 
-			<rect width={viewBoxWidth} height={viewBoxHeight} fill="url(#dotgrid)" />
+			<rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dotgrid)" />
 
 			<!-- Edges -->
 			{#each edges as edge (edge.key)}
@@ -201,7 +305,7 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<g
 					style="cursor: pointer;"
-					onclick={() => (selected = isSelected ? null : node)}
+					onclick={(e) => { if (!didPan) { selected = isSelected ? null : node; } }}
 					onmouseenter={() => (hovered = node)}
 					onmouseleave={() => (hovered = null)}
 				>
@@ -242,6 +346,37 @@
 				</g>
 			{/each}
 		</svg>
+
+		<!-- Zoom controls -->
+		<div class="absolute right-4 bottom-4 flex flex-col gap-1.5" style="z-index: 5;">
+			<button
+				type="button"
+				onclick={() => { zoom = Math.min(MAX_ZOOM, zoom * 1.3); }}
+				class="grid h-8 w-8 place-items-center rounded-lg border backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
+				aria-label="Zoom in"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4"><path d="M12 5v14M5 12h14"/></svg>
+			</button>
+			<button
+				type="button"
+				onclick={() => { zoom = Math.max(MIN_ZOOM, zoom / 1.3); }}
+				class="grid h-8 w-8 place-items-center rounded-lg border backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
+				aria-label="Zoom out"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4"><path d="M5 12h14"/></svg>
+			</button>
+			<button
+				type="button"
+				onclick={fitView}
+				class="grid h-8 w-8 place-items-center rounded-lg border backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
+				aria-label="Fit to view"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+			</button>
+		</div>
 
 		<!-- Legend -->
 		<div class="absolute left-4 bottom-4 rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;">
