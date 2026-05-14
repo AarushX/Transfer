@@ -179,7 +179,9 @@
 		const rect = containerEl!.getBoundingClientRect();
 		const mx = e.clientX - rect.left;
 		const my = e.clientY - rect.top;
-		const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+		const absDelta = Math.abs(e.deltaY);
+		const speed = absDelta < 10 ? 0.01 : absDelta < 50 ? 0.03 : 0.06;
+		const factor = 1 - Math.sign(e.deltaY) * speed * Math.min(absDelta, 60);
 		const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
 		panX = mx - (mx - panX) * (newZoom / zoom);
 		panY = my - (my - panY) * (newZoom / zoom);
@@ -188,6 +190,8 @@
 
 	function handlePointerDown(e: PointerEvent) {
 		if (e.button !== 0) return;
+		if ((e.target as HTMLElement).closest('button')) return;
+		e.preventDefault();
 		isPanning = true;
 		didPan = false;
 		panStart = { x: e.clientX, y: e.clientY, panX, panY };
@@ -246,7 +250,7 @@
 	<div
 		bind:this={containerEl}
 		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 75vh; min-height: 400px; touch-action: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 75vh; min-height: 400px; touch-action: none; user-select: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
 		onwheel={handleWheel}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}

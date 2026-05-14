@@ -22,7 +22,6 @@
 		message = '';
 		machine = null;
 		try {
-			// First, allow mentor/admin checkoff approval QR tokens from module pages.
 			const checkoffRes = await fetch('/api/mentor/checkoff', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -35,6 +34,12 @@
 				machine = null;
 				return;
 			}
+			if (checkoffRes.status !== 403 || checkoffBody?.error !== 'Forbidden') {
+				status = 'denied';
+				message = checkoffBody?.error ?? 'Checkoff could not be completed.';
+				machine = null;
+				return;
+			}
 
 			const res = await fetch('/api/machines/use', {
 				method: 'POST',
@@ -42,40 +47,36 @@
 				body: JSON.stringify({ machineToken: token })
 			});
 			const body = await res.json().catch(() => null);
-			if (!res.ok) {
-				// Fall back to attendance scan flow when this QR is not a machine token.
-				const attendanceRes = await fetch('/api/attendance/scan', {
-					method: 'POST',
-					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify({ token })
-				});
-				const attendanceBody = await attendanceRes.json().catch(() => null);
-				if (attendanceRes.ok) {
-					status = 'ok';
-					if (attendanceBody?.action === 'activate') {
-						message = 'Attendance kiosk activated.';
-					} else if (attendanceBody?.action === 'deactivate') {
-						message = 'Attendance kiosk disabled.';
-					} else {
-						message =
-							attendanceBody?.action === 'check_out'
-								? 'Attendance check-out recorded.'
-								: 'Attendance check-in recorded.';
-					}
-					machine = null;
-					return;
-				}
-				status = 'denied';
-				message =
-					body?.error ??
-					checkoffBody?.error ??
-					attendanceBody?.error ??
-					'Not authorized.';
+			if (res.ok) {
+				status = 'ok';
+				message = body?.message ?? 'Authorized.';
 				machine = body?.machine ?? null;
 				return;
 			}
-			status = 'ok';
-			message = body?.message ?? 'Authorized.';
+
+			const attendanceRes = await fetch('/api/attendance/scan', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ token })
+			});
+			const attendanceBody = await attendanceRes.json().catch(() => null);
+			if (attendanceRes.ok) {
+				status = 'ok';
+				if (attendanceBody?.action === 'activate') {
+					message = 'Attendance kiosk activated.';
+				} else if (attendanceBody?.action === 'deactivate') {
+					message = 'Attendance kiosk disabled.';
+				} else {
+					message =
+						attendanceBody?.action === 'check_out'
+							? 'Attendance check-out recorded.'
+							: 'Attendance check-in recorded.';
+				}
+				machine = null;
+				return;
+			}
+			status = 'denied';
+			message = attendanceBody?.error ?? body?.error ?? 'Not authorized.';
 			machine = body?.machine ?? null;
 		} catch {
 			status = 'denied';
