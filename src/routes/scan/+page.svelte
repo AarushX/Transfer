@@ -1,5 +1,7 @@
 <script lang="ts">
 	import QRScanner from '$lib/components/QRScanner.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data } = $props();
 
 	let status = $state<'idle' | 'checking' | 'ok' | 'denied'>('idle');
@@ -121,18 +123,18 @@
 
 <section class="space-y-6">
 	<header>
-		<p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Scan</p>
-		<h1 class="mt-1 text-3xl font-semibold tracking-tight">Machine &amp; shop access</h1>
-		<p class="mt-2 max-w-2xl text-sm text-slate-400">
+		<p class="text-[11px] font-medium uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Scan</p>
+		<h1 class="mt-1 text-3xl font-semibold tracking-tight" style="color: var(--app-text);">Machine &amp; shop access</h1>
+		<p class="mt-2 max-w-2xl text-sm" style="color: var(--app-text-muted);">
 			Point your camera at a machine's QR code. Authorization is checked against your completed
 			training. Shop attendance scanning will land here next.
 		</p>
 	</header>
 
 	<div class="grid gap-6 lg:grid-cols-[1fr_22rem]">
-		<div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-			<div class="border-b border-slate-800 px-5 py-3">
-				<p class="text-sm font-medium">Scanner</p>
+		<div class="overflow-hidden rounded-xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+			<div class="border-b px-5 py-3" style="border-color: var(--app-glass-border);">
+				<p class="text-sm font-medium" style="color: var(--app-text);">Scanner</p>
 			</div>
 			<div class="p-4">
 				<QRScanner onDecoded={(v: string) => authorize(v.trim())} />
@@ -141,11 +143,11 @@
 
 		<div class="space-y-4">
 			{#if status === 'idle'}
-				<div class="rounded-xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-400">
+				<div class="rounded-xl border border-dashed p-6 text-center text-sm" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">
 					Waiting for a scan…
 				</div>
 			{:else if status === 'checking'}
-				<div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 text-center text-sm text-slate-300">
+				<div class="rounded-xl border p-6 text-center text-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">
 					Checking authorization…
 				</div>
 			{:else if status === 'ok'}
@@ -169,39 +171,40 @@
 				</div>
 			{/if}
 
-			<p class="text-center text-xs text-slate-500">Ready for next scan automatically.</p>
+			<p class="text-center text-xs" style="color: var(--app-text-muted);">Ready for next scan automatically.</p>
 		</div>
 	</div>
 
 	{#if data.canManageAttendance}
 		<div class="grid gap-4">
-			<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-				<p class="text-sm font-semibold">Manual Attendance Assist (No RR)</p>
-				<p class="mt-1 text-xs text-slate-400">Use when a member cannot scan. This records attendance but excludes RR points.</p>
+			<GlassCard>
+				<p class="text-sm font-semibold" style="color: var(--app-text);">Manual Attendance Assist (No RR)</p>
+				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Use when a member cannot scan. This records attendance but excludes RR points.</p>
 				<div class="mt-3 space-y-2">
-					<select class="w-full rounded bg-slate-800 px-3 py-2 text-sm" bind:value={manualAttendeeUserId}>
+					<select class="w-full rounded px-3 py-2 text-sm" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" bind:value={manualAttendeeUserId}>
 						<option value="">Select member...</option>
 						{#each data.members as member}
 							<option value={member.id}>{member.label}</option>
 						{/each}
 					</select>
 					<input
-						class="w-full rounded bg-slate-800 px-3 py-2 text-sm"
+						class="w-full rounded px-3 py-2 text-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
 						placeholder="Reason (optional)"
 						bind:value={manualReason}
 						maxlength="300"
 					/>
-					<button
-						class="rounded bg-sky-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+					<Button
+						variant="primary"
 						disabled={!manualAttendeeUserId || manualSaving}
 						onclick={submitManualCheckIn}
 					>
 						{manualSaving ? 'Saving...' : 'Manual Check-In'}
-					</button>
+					</Button>
 					{#if manualMessage}<p class="text-xs text-emerald-300">{manualMessage}</p>{/if}
 					{#if manualError}<p class="text-xs text-red-300">{manualError}</p>{/if}
 				</div>
-			</div>
+			</GlassCard>
 		</div>
 	{/if}
 </section>

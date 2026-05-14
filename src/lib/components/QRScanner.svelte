@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { BrowserMultiFormatReader } from '@zxing/browser';
 	import { onDestroy, onMount } from 'svelte';
 	let { onDecoded }: { onDecoded: (value: string) => void } = $props();
 	let videoEl: HTMLVideoElement;
-	let reader: BrowserMultiFormatReader | null = null;
 	let controls: { stop: () => void } | null = null;
 
 	const stopCamera = () => {
@@ -17,14 +15,16 @@
 	};
 
 	onMount(() => {
-		reader = new BrowserMultiFormatReader();
-		reader
-			.decodeFromVideoDevice(undefined, videoEl, (result) => {
-				if (result) onDecoded(result.getText());
-			})
-			.then((c) => {
-				controls = c;
-			});
+		import('@zxing/browser').then(({ BrowserMultiFormatReader }) => {
+			const reader = new BrowserMultiFormatReader();
+			reader
+				.decodeFromVideoDevice(undefined, videoEl, (result) => {
+					if (result) onDecoded(result.getText());
+				})
+				.then((c) => {
+					controls = c;
+				});
+		});
 		return stopCamera;
 	});
 

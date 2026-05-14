@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	type Question = {
 		id: string;
 		prompt: string;
@@ -14,6 +15,7 @@
 		short_ignore_punctuation?: boolean;
 		short_ignore_case?: boolean;
 		short_required?: boolean;
+		short_requires_mentor_checkoff?: boolean;
 	};
 
 	type VideoConfig = {
@@ -365,6 +367,7 @@ const teamsByGroup = $derived.by(() => {
 			if (q.short_ignore_punctuation == null) q.short_ignore_punctuation = false;
 			if (q.short_ignore_case == null) q.short_ignore_case = true;
 			if (q.short_required == null) q.short_required = true;
+			if (q.short_requires_mentor_checkoff == null) q.short_requires_mentor_checkoff = false;
 		}
 	}
 
@@ -442,54 +445,48 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		return null;
 	});
 	let templateName = $state('');
+
+	const glassInput = "rounded-lg border px-2 py-2 backdrop-blur-sm";
+	const glassInputStyle = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
+	const glassLabelColor = "color: var(--app-text-muted);";
+	const glassFormCard = "rounded-xl border p-4 backdrop-blur-xl";
+	const glassFormCardStyle = "background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);";
 </script>
 
 <section class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<a href="/mentor/courses" class="text-xs text-slate-400">← All courses</a>
-			<h1 class="text-2xl font-semibold">{data.node.title}</h1>
-			<p class="text-xs text-slate-400">
-				<code class="rounded bg-slate-800 px-1 py-0.5">{data.node.slug}</code>
+			<a href="/mentor/courses" class="text-xs" style="color: var(--app-text-muted);">← All courses</a>
+			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">{data.node.title}</h1>
+			<p class="text-xs" style="color: var(--app-text-muted);">
+				<code class="rounded-lg px-1 py-0.5" style="background: var(--app-surface-alt);">{data.node.slug}</code>
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<a
-				href={`/learn/${data.node.slug}`}
-				class="rounded border border-slate-800 px-3 py-2 text-sm hover:bg-slate-800"
-				>Preview as student</a
-			>
+			<Button variant="secondary" href={`/learn/${data.node.slug}`}>Preview as student</Button>
 			<form method="POST" action="?/deleteNode" onsubmit={handleDeleteSubmit}>
-				<button
-					type="submit"
-					class="rounded border border-red-700 bg-red-900/30 px-3 py-2 text-sm text-red-200 hover:bg-red-900/60"
-				>
-					Delete
-				</button>
+				<Button variant="danger" type="submit">Delete</Button>
 			</form>
 			<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
 				<input
-					class="rounded bg-slate-800 px-2 py-2 text-xs"
+					class={glassInput + " text-xs"}
+					style={glassInputStyle}
 					name="template_name"
 					bind:value={templateName}
 					placeholder="Template name"
 					required
 				/>
-				<button
-					type="submit"
-					class="rounded border border-sky-700 bg-sky-900/30 px-3 py-2 text-xs text-sky-200 hover:bg-sky-900/50"
-				>
-					Save as template
-				</button>
+				<Button variant="secondary" size="sm" type="submit">Save as template</Button>
 			</form>
 		</div>
 	</div>
 
 	{#if message}
 		<div
-			class="rounded border p-3 text-sm {message.tone === 'error'
-				? 'border-red-700 bg-red-900/30 text-red-200'
-				: 'border-emerald-700 bg-emerald-900/30 text-emerald-200'}"
+			class="rounded-xl border p-3 text-sm"
+			style={message.tone === 'error'
+				? 'border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);'
+				: 'border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);'}
 		>
 			{message.text}
 		</div>
@@ -498,67 +495,67 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 	<form
 		method="POST"
 		action="?/updateNode"
-		class="grid gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-2"
+		class="grid gap-3 {glassFormCard} md:grid-cols-2"
+		style={glassFormCardStyle}
 	>
-		<h2 class="text-lg font-semibold md:col-span-2">Details</h2>
+		<h2 class="text-lg font-semibold md:col-span-2" style="color: var(--app-text);">Details</h2>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Title</span>
-			<input class="rounded bg-slate-800 px-2 py-2" name="title" value={data.node.title} required />
+			<span style="color: var(--app-text);">Title</span>
+			<input class={glassInput} style={glassInputStyle} name="title" value={data.node.title} required />
 		</label>
 		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Slug</span>
-			<input class="rounded bg-slate-800 px-2 py-2" name="slug" value={data.node.slug} required />
+			<span style="color: var(--app-text);">Slug</span>
+			<input class={glassInput} style={glassInputStyle} name="slug" value={data.node.slug} required />
 		</label>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Description</span>
-			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"
+			<span style="color: var(--app-text);">Description</span>
+			<textarea class={glassInput} style={glassInputStyle} name="description" rows="3"
 				>{data.node.description ?? ''}</textarea
 			>
 		</label>
 		<div class="flex justify-end md:col-span-2">
-			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
-				Save details
-			</button>
+			<Button variant="primary" type="submit">Save details</Button>
 		</div>
 	</form>
 
 	<form
 		method="POST"
 		action="?/saveBlocks"
-		class="space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-4"
+		class="space-y-4 {glassFormCard}"
+		style={glassFormCardStyle}
 	>
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<div>
-				<h2 class="text-lg font-semibold">Course Builder</h2>
-				<p class="text-xs text-slate-400">
+				<h2 class="text-lg font-semibold" style="color: var(--app-text);">Course Builder</h2>
+				<p class="text-xs" style="color: var(--app-text-muted);">
 					Compose this course from ordered blocks. Students complete each block in sequence.
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
 				<button
 					type="button"
-					class="rounded border border-sky-700/60 bg-sky-950/40 px-3 py-1 text-sm hover:bg-sky-900/30"
+					class="rounded-lg border border-sky-700/60 bg-sky-950/40 px-3 py-1 text-sm hover:bg-sky-900/30"
 					onclick={() => addBlock('video')}
 				>
 					+ Video
 				</button>
 				<button
 					type="button"
-					class="rounded border border-yellow-700/60 bg-yellow-950/40 px-3 py-1 text-sm hover:bg-yellow-900/40"
+					class="rounded-lg border border-yellow-700/60 bg-yellow-950/40 px-3 py-1 text-sm hover:bg-yellow-900/40"
 					onclick={() => addBlock('quiz')}
 				>
 					+ Quiz
 				</button>
 				<button
 					type="button"
-					class="rounded border border-violet-700/60 bg-violet-950/40 px-3 py-1 text-sm hover:bg-violet-900/30"
+					class="rounded-lg border border-violet-700/60 bg-violet-950/40 px-3 py-1 text-sm hover:bg-violet-900/30"
 					onclick={() => addBlock('reading')}
 				>
 					+ Reading
 				</button>
 				<button
 					type="button"
-					class="rounded border border-emerald-700/60 bg-emerald-950/40 px-3 py-1 text-sm hover:bg-emerald-900/30"
+					class="rounded-lg border border-emerald-700/60 bg-emerald-950/40 px-3 py-1 text-sm hover:bg-emerald-900/30"
 					onclick={() => addBlock('checkoff')}
 				>
 					+ Skills Check
@@ -569,19 +566,20 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 
 		<div class="space-y-2">
 			{#each blocks as block, i (block.id ?? i)}
-				<div class="rounded border p-3 {blockStyles(block.type)} {blockErrors[i] ? 'ring-1 ring-red-500' : ''}">
+				<div class="rounded-lg border p-3 {blockStyles(block.type)} {blockErrors[i] ? 'ring-1 ring-red-500' : ''}">
 					<div
 						class="flex cursor-pointer flex-wrap items-center gap-2"
 						onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
 					>
-						<span class="inline-flex items-center rounded bg-slate-900/50 px-2 py-0.5 text-xs font-semibold">
+						<span class="inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-semibold" style="background: color-mix(in srgb, var(--app-surface) 70%, transparent); color: var(--app-text);">
 							{i + 1}. {blockLabel(block.type)}
 						</span>
-						<p class="truncate text-sm text-slate-200">{blockSummary(block)}</p>
+						<p class="truncate text-sm" style="color: var(--app-text);">{blockSummary(block)}</p>
 						<div class="ml-auto flex items-center gap-1">
 							<button
 								type="button"
-								class="rounded border border-slate-800 px-2 py-0.5 text-xs disabled:opacity-40"
+								class="rounded-lg border px-2 py-0.5 text-xs disabled:opacity-40"
+								style="border-color: var(--app-glass-border);"
 								disabled={i === 0}
 								onclick={(event) => {
 									event.stopPropagation();
@@ -592,7 +590,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 							>▲</button>
 							<button
 								type="button"
-								class="rounded border border-slate-800 px-2 py-0.5 text-xs disabled:opacity-40"
+								class="rounded-lg border px-2 py-0.5 text-xs disabled:opacity-40"
+								style="border-color: var(--app-glass-border);"
 								disabled={i === blocks.length - 1}
 								onclick={(event) => {
 									event.stopPropagation();
@@ -603,7 +602,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 							>▼</button>
 							<button
 								type="button"
-								class="rounded border border-slate-800 px-2 py-0.5 text-xs"
+								class="rounded-lg border px-2 py-0.5 text-xs"
+								style="border-color: var(--app-glass-border);"
 								onclick={(event) => {
 									event.stopPropagation();
 									expandedIndex = expandedIndex === i ? null : i;
@@ -613,7 +613,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 							</button>
 							<button
 								type="button"
-								class="rounded border border-red-700/60 px-2 py-0.5 text-xs text-red-200"
+								class="rounded-lg border px-2 py-0.5 text-xs"
+								style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
 								onclick={(event) => {
 									event.stopPropagation();
 									removeBlock(i);
@@ -623,34 +624,36 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 					</div>
 
 					{#if expandedIndex === i}
-						<div class="mt-3 space-y-3 rounded bg-slate-900/60 p-3">
+						<div class="mt-3 space-y-3 rounded-lg p-3" style="background: color-mix(in srgb, var(--app-surface) 60%, transparent);">
 							{#if blockErrors[i]}
-								<p class="rounded border border-red-700 bg-red-900/30 p-2 text-xs text-red-200">
+								<p class="rounded-lg border p-2 text-xs" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
 									{blockErrors[i]}
 								</p>
 							{/if}
 							{#if block.type === 'video'}
 								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Title (shown to students)</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.title} placeholder="e.g. Intro to Pneumatics" />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="e.g. Intro to Pneumatics" />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>YouTube URL</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.video_url} placeholder="https://www.youtube.com/watch?v=..." />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.video_url} placeholder="https://www.youtube.com/watch?v=..." />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Start time (mm:ss)</span>
 										<input
-											class="rounded bg-slate-800 px-2 py-2 text-sm"
+											class={glassInput + " text-sm"}
+											style={glassInputStyle}
 											value={formatClock(block.config.start_seconds)}
 											onchange={(e) => (block.config.start_seconds = parseClock((e.currentTarget as HTMLInputElement).value))}
 										/>
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>End time (mm:ss, optional)</span>
 										<input
-											class="rounded bg-slate-800 px-2 py-2 text-sm"
+											class={glassInput + " text-sm"}
+											style={glassInputStyle}
 											placeholder="e.g. 12:30"
 											value={block.config.end_seconds == null ? '' : formatClock(block.config.end_seconds)}
 											onchange={(e) => {
@@ -662,22 +665,23 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 								</div>
 							{:else if block.type === 'quiz'}
 								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Title</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.title} placeholder="Quiz name (optional)" />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="Quiz name (optional)" />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Passing score (%)</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="1" max="100" bind:value={block.config.passing_score} />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="100" bind:value={block.config.passing_score} />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Min seconds between attempts</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Max attempts (optional)</span>
 										<input
-											class="rounded bg-slate-800 px-2 py-2 text-sm"
+											class={glassInput + " text-sm"}
+											style={glassInputStyle}
 											type="number"
 											min="1"
 											max="1000"
@@ -689,37 +693,37 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 											}}
 										/>
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Failed-attempt window (minutes)</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Max failed in window</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="1" max="200" bind:value={block.config.max_failed_in_window} />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="200" bind:value={block.config.max_failed_in_window} />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Short answer min / max chars</span>
 										<div class="flex gap-2">
-											<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="0" max="5000" bind:value={block.config.short_answer_min_chars} />
-											<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" type="number" min="1" max="5000" bind:value={block.config.short_answer_max_chars} />
+											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} type="number" min="0" max="5000" bind:value={block.config.short_answer_min_chars} />
+											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} type="number" min="1" max="5000" bind:value={block.config.short_answer_max_chars} />
 										</div>
 									</label>
 								</div>
 
 								<div class="space-y-2">
 									<div class="flex items-center justify-between">
-										<p class="text-xs font-semibold text-slate-300">Questions</p>
-										<button type="button" class="rounded border border-slate-800 px-2 py-1 text-xs" onclick={() => addQuizQuestion(block)}>+ Add question</button>
+										<p class="text-xs font-semibold" style="color: var(--app-text);">Questions</p>
+										<button type="button" class="rounded-lg border px-2 py-1 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addQuizQuestion(block)}>+ Add question</button>
 									</div>
 									{#each block.config.questions as q, qIdx (qIdx)}
-										<div class="space-y-2 rounded border border-slate-800 bg-slate-900/50 p-2">
+										<div class="space-y-2 rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 											<div class="flex items-center justify-between">
-												<span class="text-xs text-slate-400">Q{qIdx + 1}</span>
-												<button type="button" class="text-xs text-red-300" onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button>
+												<span class="text-xs" style="color: var(--app-text-muted);">Q{qIdx + 1}</span>
+												<button type="button" class="text-xs" style="color: var(--app-danger);" onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button>
 											</div>
-											<input class="w-full rounded bg-slate-800 px-2 py-2 text-sm" placeholder="Question prompt" bind:value={q.prompt} />
+											<input class={"w-full " + glassInput + " text-sm"} style={glassInputStyle} placeholder="Question prompt" bind:value={q.prompt} />
 											<div class="flex items-center gap-2">
-												<select class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
+												<select class={glassInput + " text-sm"} style={glassInputStyle} bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
 													<option value="mc">Multiple choice</option>
 													<option value="ms">Multiple select</option>
 													<option value="tf">True / False</option>
@@ -739,15 +743,15 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																checked={typeof q.correct === 'string' && q.correct !== '' && q.correct === q.options![oi]}
 																onchange={() => (q.correct = q.options![oi])}
 															/>
-															<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+															<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
 														</div>
 													{/each}
-													<label class="mt-1 inline-flex items-center gap-2 text-xs text-slate-300">
+													<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
 														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
 														Randomize option order for students
 													</label>
 													<div class="flex gap-2 pt-1">
-														<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+														<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
 													</div>
 												</div>
 											{:else if q.type === 'ms'}
@@ -766,20 +770,21 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																		: current.filter((value) => value !== option);
 																}}
 															/>
-															<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+															<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
 														</div>
 													{/each}
-													<label class="mt-1 inline-flex items-center gap-2 text-xs text-slate-300">
+													<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
 														<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
 														Randomize option order for students
 													</label>
-													<label class="mt-1 flex items-center gap-2 text-xs text-slate-300">
+													<label class="mt-1 flex items-center gap-2 text-xs" style="color: var(--app-text);">
 														<span>Max selections (optional)</span>
 														<input
 															type="number"
 															min="1"
 															max={Math.max(1, (q.options ?? []).length)}
-															class="w-24 rounded bg-slate-800 px-2 py-1 text-xs"
+															class={"w-24 " + glassInput + " py-1 text-xs"}
+															style={glassInputStyle}
 															value={q.max_select ?? ''}
 															oninput={(e) => {
 																const raw = (e.currentTarget as HTMLInputElement).value.trim();
@@ -794,63 +799,52 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 														/>
 													</label>
 													<div class="flex gap-2 pt-1">
-														<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+														<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
 													</div>
 												</div>
 											{:else if q.type === 'tf'}
-												<div class="inline-flex overflow-hidden rounded border border-slate-800">
-													<button type="button" class={`px-4 py-1 text-sm ${q.correct === 'true' ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-200'}`} onclick={() => (q.correct = 'true')}>True</button>
-													<button type="button" class={`px-4 py-1 text-sm ${q.correct === 'false' ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-200'}`} onclick={() => (q.correct = 'false')}>False</button>
+												<div class="inline-flex overflow-hidden rounded-lg border" style="border-color: var(--app-glass-border);">
+													<button type="button" class="px-4 py-1 text-sm" style={q.correct === 'true' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'true')}>True</button>
+													<button type="button" class="px-4 py-1 text-sm" style={q.correct === 'false' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'false')}>False</button>
 												</div>
 											{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
 												<div class="space-y-2">
 													<div class="grid gap-2 md:grid-cols-2">
-														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 															<div class="mb-1 flex items-center justify-between">
-																<p class="text-xs font-semibold text-slate-300">Rows</p>
-																<button
-																	type="button"
-																	class="rounded border border-slate-800 px-2 py-0.5 text-xs"
-																	onclick={() => (q.rows = [...(q.rows ?? []), ''])}
-																>
-																	+ Row
-																</button>
+																<p class="text-xs font-semibold" style="color: var(--app-text);">Rows</p>
+																<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.rows = [...(q.rows ?? []), ''])}>+ Row</button>
 															</div>
 															{#each q.rows ?? [] as _row, ri (ri)}
 																<div class="mb-1 flex items-center gap-1">
-																	<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
-																	<button type="button" class="px-2 text-xs text-red-300" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>×</button>
+																	<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
+																	<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>x</button>
 																</div>
 															{/each}
 														</div>
-														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 															<div class="mb-1 flex items-center justify-between">
-																<p class="text-xs font-semibold text-slate-300">Columns</p>
-																<button
-																	type="button"
-																	class="rounded border border-slate-800 px-2 py-0.5 text-xs"
-																	onclick={() => (q.columns = [...(q.columns ?? []), ''])}
-																>
-																	+ Column
-																</button>
+																<p class="text-xs font-semibold" style="color: var(--app-text);">Columns</p>
+																<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => (q.columns = [...(q.columns ?? []), ''])}>+ Column</button>
 															</div>
 															{#each q.columns ?? [] as _col, ci (ci)}
 																<div class="mb-1 flex items-center gap-1">
-																	<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
-																	<button type="button" class="px-2 text-xs text-red-300" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>×</button>
+																	<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
+																	<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>x</button>
 																</div>
 															{/each}
 														</div>
 													</div>
 													{#if q.type !== 'short_grid'}
-														<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
-															<p class="mb-1 text-xs font-semibold text-slate-300">Optional answer key per row</p>
+														<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
+															<p class="mb-1 text-xs font-semibold" style="color: var(--app-text);">Optional answer key per row</p>
 															{#each (q.rows ?? []).filter((row) => String(row).trim().length > 0) as row}
 																{#if q.type === 'matrix'}
 																	<div class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]">
 																		<span>{row}</span>
 																		<select
-																			class="rounded bg-slate-800 px-2 py-1 text-xs"
+																			class={glassInput + " text-xs"}
+																			style={glassInputStyle}
 																			value={q.correct_map?.[row] ?? ''}
 																			onchange={(e) => {
 																				const value = (e.currentTarget as HTMLSelectElement).value;
@@ -867,7 +861,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																		</select>
 																	</div>
 																{:else}
-																	<div class="mb-2 rounded border border-slate-800 bg-slate-900/50 p-2 text-xs">
+																	<div class="mb-2 rounded-lg border p-2 text-xs" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 																		<p class="mb-1">{row}</p>
 																		<div class="grid gap-1 md:grid-cols-2">
 																			{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
@@ -892,19 +886,20 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																	</div>
 																{/if}
 															{/each}
-														</div>
+													</div>
 													{:else}
-														<p class="text-xs text-slate-400">Each row/column cell will render as a short answer input.</p>
+														<p class="text-xs" style="color: var(--app-text-muted);">Each row/column cell will render as a short answer input.</p>
 													{/if}
 												</div>
 											{:else}
 												<input
-													class="w-full rounded bg-slate-800 px-2 py-2 text-sm"
+													class={"w-full " + glassInput + " text-sm"}
+													style={glassInputStyle}
 													placeholder="Expected answer"
 													value={Array.isArray(q.correct) ? (q.correct[0] ?? '') : q.correct}
 													oninput={(e) => (q.correct = (e.currentTarget as HTMLInputElement).value)}
 												/>
-												<div class="flex flex-wrap gap-4 text-xs text-slate-300">
+												<div class="flex flex-wrap gap-4 text-xs" style="color: var(--app-text);">
 													<label class="inline-flex items-center gap-2">
 														<input
 															type="checkbox"
@@ -930,60 +925,71 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 														/>
 														Ignore periods/punctuation
 													</label>
+													<label class="inline-flex items-center gap-2">
+														<input
+															type="checkbox"
+															checked={q.short_requires_mentor_checkoff ?? false}
+															onchange={(e) =>
+																(q.short_requires_mentor_checkoff = (e.currentTarget as HTMLInputElement).checked)}
+														/>
+														Require mentor checkoff (any valid answer earns quiz credit; mentor confirms during checkoff)
+													</label>
 												</div>
-												<p class="text-xs text-slate-500">
-													Set expected answer to <code>acknowledged</code> to give credit for any non-empty response.
+												<p class="text-xs" style="color: var(--app-text-muted);">
+													Set expected answer to <code>acknowledged</code> to give credit for any non-empty response
+													without mentor review. Optional reference answer above is shown to mentors when checkoff is
+													required.
 												</p>
 											{/if}
 										</div>
 									{:else}
-										<p class="text-xs text-slate-500">No questions yet.</p>
+										<p class="text-xs" style="color: var(--app-text-muted);">No questions yet.</p>
 									{/each}
 								</div>
 							{:else if block.type === 'reading'}
 								<div class="space-y-3">
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Title</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.title} placeholder="Reading title" />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} placeholder="Reading title" />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Reading content</span>
-										<textarea class="rounded bg-slate-800 px-2 py-2 text-sm" rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
+										<textarea class={glassInput + " text-sm"} style={glassInputStyle} rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
 									</label>
-									<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold text-slate-300">Resource links</p>
-											<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => addReadingResourceLink(block)}>+ Link</button>
+											<p class="text-xs font-semibold" style="color: var(--app-text);">Resource links</p>
+											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addReadingResourceLink(block)}>+ Link</button>
 										</div>
 										{#each block.config.resource_links as _link, idx (idx)}
 											<div class="flex items-center gap-1">
-												<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-												<button type="button" class="px-2 text-xs text-red-300" onclick={() => removeReadingResourceLink(block, idx)}>×</button>
+												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.resource_links[idx]} placeholder="https://..." />
+												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeReadingResourceLink(block, idx)}>x</button>
 											</div>
 										{:else}
-											<p class="text-xs text-slate-500">No links yet.</p>
+											<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
 										{/each}
 									</div>
 								</div>
 							{:else}
 								<div class="grid gap-2 md:grid-cols-2">
-									<label class="flex flex-col gap-1 text-xs text-slate-400 md:col-span-2">
+									<label class="flex flex-col gap-1 text-xs md:col-span-2" style={glassLabelColor}>
 										<span>Section title</span>
-										<input class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.title} />
+										<input class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.title} />
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400 md:col-span-2">
+									<label class="flex flex-col gap-1 text-xs md:col-span-2" style={glassLabelColor}>
 										<span>Student directions</span>
-										<textarea class="rounded bg-slate-800 px-2 py-2 text-sm" rows="3" bind:value={block.config.directions} placeholder="Explain exactly what they must demo or submit..."></textarea>
+										<textarea class={glassInput + " text-sm"} style={glassInputStyle} rows="3" bind:value={block.config.directions} placeholder="Explain exactly what they must demo or submit..."></textarea>
 									</label>
-									<label class="flex flex-col gap-1 text-xs text-slate-400">
+									<label class="flex flex-col gap-1 text-xs" style={glassLabelColor}>
 										<span>Photo evidence</span>
-										<select class="rounded bg-slate-800 px-2 py-2 text-sm" bind:value={block.config.evidence_mode}>
+										<select class={glassInput + " text-sm"} style={glassInputStyle} bind:value={block.config.evidence_mode}>
 											<option value="none">No photo</option>
 											<option value="photo_optional">Photo optional</option>
 											<option value="photo_required">Photo required</option>
 										</select>
 									</label>
-									<label class="flex items-center gap-2 text-xs text-slate-300">
+									<label class="flex items-center gap-2 text-xs" style="color: var(--app-text);">
 										<input
 											type="checkbox"
 											class="accent-yellow-400"
@@ -998,32 +1004,32 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 								</div>
 
 								<div class="grid gap-3 md:grid-cols-2">
-									<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold text-slate-300">Mentor checklist</p>
-											<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => addChecklistItem(block)}>+ Item</button>
+											<p class="text-xs font-semibold" style="color: var(--app-text);">Mentor checklist</p>
+											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addChecklistItem(block)}>+ Item</button>
 										</div>
 										{#each block.config.mentor_checklist as _item, idx (idx)}
 											<div class="flex items-center gap-1">
-												<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={block.config.mentor_checklist[idx]} placeholder="e.g. Safety glasses worn" />
-												<button type="button" class="px-2 text-xs text-red-300" onclick={() => removeChecklistItem(block, idx)}>×</button>
+												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.mentor_checklist[idx]} placeholder="e.g. Safety glasses worn" />
+												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeChecklistItem(block, idx)}>x</button>
 											</div>
 										{:else}
-											<p class="text-xs text-slate-500">No checklist items yet.</p>
+											<p class="text-xs" style="color: var(--app-text-muted);">No checklist items yet.</p>
 										{/each}
 									</div>
-									<div class="rounded border border-slate-800 bg-slate-900/50 p-2">
+									<div class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-surface) 50%, transparent); border-color: var(--app-glass-border);">
 										<div class="mb-1 flex items-center justify-between">
-											<p class="text-xs font-semibold text-slate-300">Resource links</p>
-											<button type="button" class="rounded border border-slate-800 px-2 py-0.5 text-xs" onclick={() => addResourceLink(block)}>+ Link</button>
+											<p class="text-xs font-semibold" style="color: var(--app-text);">Resource links</p>
+											<button type="button" class="rounded-lg border px-2 py-0.5 text-xs" style="border-color: var(--app-glass-border);" onclick={() => addResourceLink(block)}>+ Link</button>
 										</div>
 										{#each block.config.resource_links as _link, idx (idx)}
 											<div class="flex items-center gap-1">
-												<input class="flex-1 rounded bg-slate-800 px-2 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-												<button type="button" class="px-2 text-xs text-red-300" onclick={() => removeResourceLink(block, idx)}>×</button>
+												<input class={"flex-1 " + glassInput + " py-1 text-sm"} style={glassInputStyle} bind:value={block.config.resource_links[idx]} placeholder="https://..." />
+												<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeResourceLink(block, idx)}>x</button>
 											</div>
 										{:else}
-											<p class="text-xs text-slate-500">No links yet.</p>
+											<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
 										{/each}
 									</div>
 								</div>
@@ -1032,46 +1038,52 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 					{/if}
 				</div>
 			{:else}
-				<div class="rounded border border-dashed border-slate-800 p-6 text-center text-sm text-slate-400">
+				<div class="rounded-xl border border-dashed p-6 text-center text-sm" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">
 					No blocks yet. Use the buttons above to add a video, quiz, reading, or skills check.
 				</div>
 			{/each}
 		</div>
 
 		<div class="flex justify-end">
-			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
-				Save course
-			</button>
+			<Button variant="primary" type="submit">Save course</Button>
 		</div>
 	</form>
 
-	<form method="POST" action="?/savePrereqs" class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+	<form method="POST" action="?/savePrereqs" class="space-y-3 {glassFormCard}" style={glassFormCardStyle}>
 		<div>
-			<h2 class="text-lg font-semibold">Prerequisites</h2>
-			<p class="text-xs text-slate-400">
+			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Prerequisites</h2>
+			<p class="text-xs" style="color: var(--app-text-muted);">
 				Students must complete these courses before starting this one.
 			</p>
 		</div>
 		<input
 			bind:value={prereqFilter}
 			placeholder="Filter by title or slug..."
-			class="w-full rounded bg-slate-800 px-2 py-2 text-sm"
+			class={"w-full " + glassInput + " text-sm"}
+			style={glassInputStyle}
 		/>
 		<div class="grid max-h-80 gap-1 overflow-y-auto md:grid-cols-2">
 			{#each filteredNodes as n (n.id)}
-				<label class="flex items-center gap-2 rounded border border-slate-800 px-2 py-1 text-sm hover:bg-slate-800">
+				<label class="glass-prereq-row flex items-center gap-2 rounded-lg border px-2 py-1 text-sm" style="border-color: var(--app-glass-border);">
 					<input type="checkbox" name="prereq_ids" value={n.id} checked={data.prereqIds.includes(n.id)} />
 					<span class="truncate">{n.title}</span>
-					<span class="ml-auto text-xs text-slate-500">{n.slug}</span>
+					<span class="ml-auto text-xs" style="color: var(--app-text-muted);">{n.slug}</span>
 				</label>
 			{:else}
-				<p class="text-sm text-slate-400">No matching courses.</p>
+				<p class="text-sm" style="color: var(--app-text-muted);">No matching courses.</p>
 			{/each}
 		</div>
 		<div class="flex justify-end">
-			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
-				Save prerequisites
-			</button>
+			<Button variant="primary" type="submit">Save prerequisites</Button>
 		</div>
 	</form>
 </section>
+
+<style>
+	.glass-prereq-row {
+		transition: background 0.15s ease;
+	}
+	.glass-prereq-row:hover {
+		background: var(--app-glass-bg-hover);
+	}
+</style>

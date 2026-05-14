@@ -10,9 +10,9 @@
 
 <header class="flex flex-wrap items-end justify-between gap-3">
 	<div>
-		<h1 class="text-2xl font-semibold text-slate-100">{title}</h1>
+		<h1 class="text-2xl font-semibold tracking-tight" style="color: var(--app-text);">{title}</h1>
 		{#if description}
-			<p class="mt-1 text-sm text-slate-400">{description}</p>
+			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{description}</p>
 		{/if}
 	</div>
 	<slot />

@@ -12,16 +12,22 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	if (intent === 'signup') {
-		const { data, error } = await locals.supabase.auth.signUp({
+		const service = createSupabaseServiceClient();
+		const { data, error } = await service.auth.admin.createUser({
 			email,
-			password
+			password,
+			email_confirm: true
 		});
 		if (error) throw redirect(303, `/login?error=${encodeURIComponent(error.message)}`);
 		if (data.user?.id) {
-			const service = createSupabaseServiceClient();
 			await service.from('profiles').update({ is_parent_guardian: true }).eq('id', data.user.id);
 		}
-		throw redirect(303, '/login?success=parent_signup');
+		const { error: signInError } = await locals.supabase.auth.signInWithPassword({
+			email,
+			password
+		});
+		if (signInError) throw redirect(303, `/login?error=${encodeURIComponent(signInError.message)}`);
+		throw redirect(303, '/parent/dashboard');
 	}
 
 	const { error } = await locals.supabase.auth.signInWithPassword({
@@ -45,5 +51,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw redirect(303, '/login?error=parent_only');
 	}
 
-	throw redirect(303, '/dashboard');
+	throw redirect(303, '/parent/dashboard');
 };

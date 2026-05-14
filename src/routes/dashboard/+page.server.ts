@@ -131,18 +131,6 @@ export const actions: Actions = {
 			.replace(/[^A-Z0-9]/g, '');
 		if (!code) return fail(400, { error: 'Enter a student link code.' });
 
-		const { data: application } = await locals.supabase
-			.from('parent_applications')
-			.select('status')
-			.eq('parent_user_id', user.id)
-			.maybeSingle();
-		if (String(application?.status ?? '') !== 'approved') {
-			return fail(400, {
-				error:
-					'Your parent application is not approved yet. Ask an admin to approve it in Parent Application Approvals.'
-			});
-		}
-
 		const { data: codeRow, error: codeError } = await locals.supabase
 			.from('parent_link_codes')
 			.select('id,student_user_id,expires_at,used_at')

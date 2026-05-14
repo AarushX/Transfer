@@ -1,4 +1,6 @@
 <script lang="ts">
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 	const signupsForRole = (roleId: string) => (data.signups ?? []).filter((s: any) => s.role_id === roleId);
 	const mySignupForRole = (roleId: string) => (data.signups ?? []).find((s: any) => s.role_id === roleId && s.user_id === data.me);
@@ -11,40 +13,40 @@
 
 <section class="space-y-5">
 	<div>
-		<a href="/dashboard" class="text-xs text-slate-400">← Dashboard</a>
-		<h1 class="text-2xl font-semibold">Carpool Volunteering</h1>
-		<p class="text-sm text-slate-400">Sign up for day-specific transport and chaperone slots.</p>
+		<a href="/dashboard" class="text-xs" style="color: var(--app-text-muted);">← Dashboard</a>
+		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Carpool Volunteering</h1>
+		<p class="text-sm" style="color: var(--app-text-muted);">Sign up for day-specific transport and chaperone slots.</p>
 	</div>
 
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
-		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">Saved.</p>
+		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
 	{#each data.events as event (event.id)}
-		<article class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+		<GlassCard>
 			<div>
-				<h2 class="text-lg font-semibold">{event.title}</h2>
-				{#if event.description}<p class="text-sm text-slate-300">{event.description}</p>{/if}
+				<h2 class="text-lg font-semibold" style="color: var(--app-text);">{event.title}</h2>
+				{#if event.description}<p class="text-sm" style="color: var(--app-text-muted);">{event.description}</p>{/if}
 			</div>
 			{#each (data.days ?? []).filter((d) => d.event_id === event.id) as day (day.id)}
-				<div class="space-y-2 rounded border border-slate-800 bg-slate-950/60 p-3">
-					<p class="font-medium">{day.day_date} {day.label ? `- ${day.label}` : ''}</p>
-					{#if day.notes}<p class="text-xs text-slate-400">{day.notes}</p>{/if}
+				<div class="mt-3 space-y-2 rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
+					<p class="font-medium" style="color: var(--app-text);">{day.day_date} {day.label ? `- ${day.label}` : ''}</p>
+					{#if day.notes}<p class="text-xs" style="color: var(--app-text-muted);">{day.notes}</p>{/if}
 					<div class="grid gap-2 md:grid-cols-2">
 						{#each (data.roles ?? []).filter((r) => r.day_id === day.id) as role (role.id)}
-							<div class="rounded border border-slate-800 bg-slate-900/60 p-2">
-								<p class="text-sm font-medium">{role.role_label}</p>
+							<div class="rounded border p-2" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+								<p class="text-sm font-medium" style="color: var(--app-text);">{role.role_label}</p>
 								{#if role.role_description}
-									<p class="text-xs text-slate-300">{role.role_description}</p>
+									<p class="text-xs" style="color: var(--app-text-muted);">{role.role_description}</p>
 								{/if}
-								<p class="text-xs text-slate-400">
+								<p class="text-xs" style="color: var(--app-text-muted);">
 									{usedForRole(role)}/{role.slot_count} {unitForRole(role)} filled
 								</p>
 								<div class="mt-1 space-y-1">
 									{#each signupsForRole(role.id) as signup (signup.id)}
-										<p class="text-xs text-slate-300">
+										<p class="text-xs" style="color: var(--app-text-muted);">
 											{signup.user?.full_name || signup.user?.email || signup.user_id}
 											{#if role.signup_mode === 'capacity'} · {signup.capacity_count} capacity{/if}
 										</p>
@@ -53,7 +55,7 @@
 								{#if mySignupForRole(role.id)}
 									<form method="POST" action="?/cancelSignup" class="mt-2">
 										<input type="hidden" name="signup_id" value={mySignupForRole(role.id).id} />
-										<button class="rounded border border-red-700 px-2 py-1 text-xs text-red-200">Cancel my slot</button>
+										<Button variant="danger" size="sm">Cancel my slot</Button>
 									</form>
 								{:else if usedForRole(role) < role.slot_count}
 									<form method="POST" action="?/signUp" class="mt-2 space-y-1">
@@ -64,13 +66,14 @@
 												min="1"
 												max={Math.max(1, role.slot_count - usedForRole(role))}
 												name="capacity_count"
-												class="w-full rounded bg-slate-800 px-2 py-1 text-xs"
+												class="w-full rounded px-2 py-1 text-xs"
+												style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
 												placeholder="Capacity you can take"
 												required
 											/>
 										{/if}
-										<input name="notes" class="w-full rounded bg-slate-800 px-2 py-1 text-xs" placeholder="Optional notes" />
-										<button class="rounded bg-yellow-400 px-2 py-1 text-xs font-semibold text-slate-900">Sign up</button>
+										<input name="notes" class="w-full rounded px-2 py-1 text-xs" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" placeholder="Optional notes" />
+										<Button variant="primary" size="sm" type="submit">Sign up</Button>
 									</form>
 								{:else}
 									<p class="mt-2 text-xs text-amber-200">Full</p>
@@ -80,8 +83,8 @@
 					</div>
 				</div>
 			{/each}
-		</article>
+		</GlassCard>
 	{:else}
-		<p class="rounded border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">No carpool events published yet.</p>
+		<p class="rounded border p-4 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">No carpool events published yet.</p>
 	{/each}
 </section>

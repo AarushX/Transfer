@@ -139,7 +139,7 @@
 	});
 </script>
 
-<section class="flex min-h-dvh flex-col overflow-y-auto bg-slate-950 px-6 py-0">
+<section class="flex min-h-dvh flex-col overflow-y-auto px-6 py-0" style="background: var(--app-surface);">
 	<div class="pt-5">
 		<div class="mx-auto max-w-4xl text-center [&_header]:justify-center [&_h1]:text-center [&_p]:text-center">
 			<PageHeader title="Attendance Kiosk" />
@@ -198,7 +198,7 @@
 		</div>
 	</div>
 	<div class="mt-auto">
-		<div class="mx-auto mt-2 max-w-4xl rounded-lg border border-sky-700/60 bg-sky-900/30 px-4 py-3 text-center text-sm text-sky-100">
+		<div class="mx-auto mt-2 max-w-4xl rounded-lg border px-4 py-3 text-center text-sm" style="border-color: color-mix(in srgb, var(--app-info) 40%, transparent); background: color-mix(in srgb, var(--app-info) 12%, transparent); color: color-mix(in srgb, var(--app-info) 80%, white);">
 			Scan the top attendance QR codes using the Transfer app at
 			<span class="font-semibold">transfer.circuitrunners.com/scan</span>.
 		</div>
@@ -208,12 +208,13 @@
 			</div>
 		{/if}
 		<div class="mx-auto mb-3 mt-2 w-full max-w-6xl">
-			<div class="rounded-xl border border-amber-500/50 bg-amber-900/25 p-3">
+			<div class="rounded-xl border p-3" style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent);">
 				<div class="flex flex-wrap items-center justify-center gap-4 text-center">
 					{#if data.installPwaQrDataUrl}
 						<div class="mx-auto flex flex-col items-center gap-2">
 							<button
-								class="rounded bg-sky-400 px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-950"
+								class="rounded px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-wide"
+								style="background: var(--app-info); color: var(--app-accent-text);"
 								onclick={openPwaHelpDialog}
 							>
 								Install App Help
@@ -224,26 +225,29 @@
 						</div>
 					{/if}
 					<div class="mx-auto w-full max-w-2xl">
-						<div class="mt-3 rounded-lg border border-amber-400/40 bg-slate-950/30 p-3">
-							<p class="text-xs font-semibold uppercase tracking-wide text-amber-200">Sign In As Guest</p>
-							<p class="mt-1 text-[11px] text-amber-100/90">
+						<div class="mt-3 rounded-lg border p-3" style="border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); background: var(--app-surface-alt);">
+							<p class="text-xs font-semibold uppercase tracking-wide" style="color: color-mix(in srgb, var(--app-warning) 80%, white);">Sign In As Guest</p>
+							<p class="mt-1 text-[11px]" style="color: color-mix(in srgb, var(--app-warning) 70%, white);">
 								Students, only use this in emergencies where you can&apos;t access the app.
 							</p>
 							<div class="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
 								<input
-									class="rounded bg-slate-900 px-3 py-2 text-center text-sm text-slate-100"
+									class="rounded px-3 py-2 text-center text-sm"
+									style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
 									placeholder="Your name"
 									bind:value={guestName}
 									maxlength="120"
 								/>
 								<input
-									class="rounded bg-slate-900 px-3 py-2 text-center text-sm text-slate-100"
+									class="rounded px-3 py-2 text-center text-sm"
+									style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
 									placeholder="Reason (optional)"
 									bind:value={guestReason}
 									maxlength="300"
 								/>
 								<button
-									class="rounded bg-amber-400 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+									class="rounded px-3 py-2 text-sm font-semibold disabled:opacity-60"
+									style="background: var(--app-warning); color: var(--app-accent-text);"
 									disabled={!guestName.trim() || guestSaving}
 									onclick={submitGuestSignIn}
 								>
@@ -259,26 +263,26 @@
 		</div>
 	</div>
 	{#if showPwaHelpDialog}
-		<div class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onclick={closePwaHelpDialog}>
-			<div class="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-4 text-left text-slate-100" onclick={(event) => event.stopPropagation()}>
+		<div class="fixed inset-0 z-40 flex items-center justify-center p-4" style="background: var(--app-overlay-scrim);" onclick={closePwaHelpDialog}>
+			<div class="w-full max-w-lg rounded-xl border p-4 text-left backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);" onclick={(event) => event.stopPropagation()}>
 				<div class="flex items-start justify-between gap-3">
-					<p class="text-sm font-semibold">Add Transfer App to Home Screen</p>
-					<button class="rounded border border-slate-700 px-2 py-1 text-xs" onclick={closePwaHelpDialog}>Close</button>
+					<p class="text-sm font-semibold" style="color: var(--app-text);">Add Transfer App to Home Screen</p>
+					<button class="rounded border px-2 py-1 text-xs" style="border-color: var(--app-glass-border); color: var(--app-text-muted);" onclick={closePwaHelpDialog}>Close</button>
 				</div>
-				<p class="mt-1 text-xs text-slate-400">This help box closes automatically after 1 minute.</p>
+				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">This help box closes automatically after 1 minute.</p>
 				<div class="mt-3 grid gap-3 md:grid-cols-2">
-					<div class="rounded border border-slate-800 bg-slate-950/60 p-3">
-						<p class="text-xs font-semibold uppercase tracking-wide text-slate-300">iPhone / iPad</p>
-						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-200">
+					<div class="rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
+						<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">iPhone / iPad</p>
+						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs" style="color: var(--app-text);">
 							<li>Open the link in Safari.</li>
 							<li>Tap the Share button.</li>
 							<li>Select Add to Home Screen.</li>
 							<li>Tap Add.</li>
 						</ol>
 					</div>
-					<div class="rounded border border-slate-800 bg-slate-950/60 p-3">
-						<p class="text-xs font-semibold uppercase tracking-wide text-slate-300">Android</p>
-						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-200">
+					<div class="rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
+						<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Android</p>
+						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs" style="color: var(--app-text);">
 							<li>Open the link in Chrome.</li>
 							<li>Tap the menu (three dots).</li>
 							<li>Choose Install app or Add to Home screen.</li>

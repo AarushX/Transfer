@@ -1,32 +1,19 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 	let iconDataUrl = $state(String(data.iconDataUrl ?? ''));
 	let settingsForm = $state<HTMLFormElement | null>(null);
 
 	const defaults = {
 		name: 'Workspace',
-		color_background: '#0b1220',
-		color_surface: '#121a2b',
-		color_surface_alt: '#1a2438',
-		color_border: '#2a3754',
-		color_text: '#e6edf7',
-		color_text_muted: '#9fb0cc',
-		color_accent: '#8b5cf6',
-		color_accent_text: '#ffffff',
-		color_success: '#22c55e',
-		color_warning: '#f59e0b',
-		color_danger: '#f43f5e',
-		color_info: '#06b6d4',
-		color_link: '#60a5fa',
-		color_link_hover: '#3b82f6',
-		color_input_bg: '#111a2e',
-		color_input_text: '#e6edf7',
-		color_table_header_bg: '#1a2438',
-		color_table_row_hover: '#182136',
-		color_overlay_scrim: '#020617',
-		color_focus_ring: '#a78bfa',
-		color_button_secondary_bg: '#1a2438',
-		color_button_secondary_text: '#d6e2f5',
+		color_background: '#0b1220', color_surface: '#121a2b', color_surface_alt: '#1a2438',
+		color_border: '#2a3754', color_text: '#e6edf7', color_text_muted: '#9fb0cc',
+		color_accent: '#8b5cf6', color_accent_text: '#ffffff', color_success: '#22c55e',
+		color_warning: '#f59e0b', color_danger: '#f43f5e', color_info: '#06b6d4',
+		color_link: '#60a5fa', color_link_hover: '#3b82f6', color_input_bg: '#111a2e',
+		color_input_text: '#e6edf7', color_table_header_bg: '#1a2438', color_table_row_hover: '#182136',
+		color_overlay_scrim: '#020617', color_focus_ring: '#a78bfa',
+		color_button_secondary_bg: '#1a2438', color_button_secondary_text: '#d6e2f5',
 		color_button_secondary_border: '#334766'
 	};
 
@@ -56,154 +43,73 @@
 		{ label: 'Secondary Button Border', name: 'color_button_secondary_border', value: data.colorButtonSecondaryBorder }
 	];
 
-	const setFieldValue = (name: string, value: string) => {
-		const el = settingsForm?.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
-		if (el) el.value = value;
-	};
+	const setFieldValue = (name: string, value: string) => { const el = settingsForm?.querySelector(`[name="${name}"]`) as HTMLInputElement | null; if (el) el.value = value; };
+	const resetField = (name: keyof typeof defaults) => { setFieldValue(name, defaults[name]); };
+	const resetAllDefaults = () => { setFieldValue('name', defaults.name); for (const field of colorFields) setFieldValue(field.name, defaults[field.name]); iconDataUrl = ''; const clearIconEl = settingsForm?.querySelector('[name="clear_icon"]') as HTMLInputElement | null; if (clearIconEl) clearIconEl.checked = true; };
 
-	const resetField = (name: keyof typeof defaults) => {
-		setFieldValue(name, defaults[name]);
-	};
+	const fileToImageDataUrl = (file: File) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Could not read file.')); reader.onload = () => resolve(String(reader.result ?? '')); reader.readAsDataURL(file); });
+	const convertImageToPngDataUrl = (source: string, size = 256) => new Promise<string>((resolve, reject) => { const img = new Image(); img.onerror = () => reject(new Error('Invalid image file.')); img.onload = () => { const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size; const ctx = canvas.getContext('2d'); if (!ctx) return reject(new Error('Canvas unavailable.')); ctx.clearRect(0, 0, size, size); const scale = Math.min(size / img.width, size / img.height); const w = img.width * scale; const h = img.height * scale; const x = (size - w) / 2; const y = (size - h) / 2; ctx.drawImage(img, x, y, w, h); resolve(canvas.toDataURL('image/png')); }; img.src = source; });
+	const onIconFileChange = async (event: Event) => { const input = event.currentTarget as HTMLInputElement; const file = input.files?.[0]; if (!file) return; try { const rawDataUrl = await fileToImageDataUrl(file); iconDataUrl = await convertImageToPngDataUrl(rawDataUrl, 256); } catch { /* keep previous icon */ } };
 
-	const resetAllDefaults = () => {
-		setFieldValue('name', defaults.name);
-		for (const field of colorFields) setFieldValue(field.name, defaults[field.name]);
-		iconDataUrl = '';
-		const clearIconEl = settingsForm?.querySelector('[name="clear_icon"]') as HTMLInputElement | null;
-		if (clearIconEl) clearIconEl.checked = true;
-	};
-
-	const fileToImageDataUrl = (file: File) =>
-		new Promise<string>((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onerror = () => reject(new Error('Could not read file.'));
-			reader.onload = () => resolve(String(reader.result ?? ''));
-			reader.readAsDataURL(file);
-		});
-
-	const convertImageToPngDataUrl = (source: string, size = 256) =>
-		new Promise<string>((resolve, reject) => {
-			const img = new Image();
-			img.onerror = () => reject(new Error('Invalid image file.'));
-			img.onload = () => {
-				const canvas = document.createElement('canvas');
-				canvas.width = size;
-				canvas.height = size;
-				const ctx = canvas.getContext('2d');
-				if (!ctx) return reject(new Error('Canvas unavailable.'));
-				ctx.clearRect(0, 0, size, size);
-				const scale = Math.min(size / img.width, size / img.height);
-				const w = img.width * scale;
-				const h = img.height * scale;
-				const x = (size - w) / 2;
-				const y = (size - h) / 2;
-				ctx.drawImage(img, x, y, w, h);
-				resolve(canvas.toDataURL('image/png'));
-			};
-			img.src = source;
-		});
-
-	const onIconFileChange = async (event: Event) => {
-		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		try {
-			const rawDataUrl = await fileToImageDataUrl(file);
-			iconDataUrl = await convertImageToPngDataUrl(rawDataUrl, 256);
-		} catch {
-			// keep previous icon if conversion fails
-		}
-	};
+	const gi = "rounded-lg border px-2 py-2 backdrop-blur-sm";
+	const gs = "background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);";
 </script>
 
 <section class="max-w-2xl space-y-4">
-	<h1 class="text-2xl font-semibold">Workspace Settings</h1>
-	<p class="text-sm text-slate-400">Controls workspace name plus global app theme colors.</p>
+	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Workspace Settings</h1>
+	<p class="text-sm" style="color: var(--app-text-muted);">Controls workspace name plus global app theme colors.</p>
 
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{/if}
 	{#if form?.ok}
-		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">
-			Settings saved.
-		</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Settings saved.</p>
 	{/if}
 
-	<form bind:this={settingsForm} method="POST" action="?/save" class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+	<form bind:this={settingsForm} method="POST" action="?/save" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 		<label class="flex flex-col gap-1 text-sm">
-			<span class="flex items-center justify-between text-slate-300">
+			<span class="flex items-center justify-between" style="color: var(--app-text);">
 				<span>Organization name</span>
-				<button
-					type="button"
-					class="rounded border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
-					onclick={() => resetField('name')}
-					title="Reset to default"
-				>
-					↺
-				</button>
+				<button type="button" class="glass-reset-btn rounded-lg border px-1.5 py-0.5 text-[11px]" style="border-color: var(--app-glass-border); color: var(--app-text);" onclick={() => resetField('name')} title="Reset to default">↺</button>
 			</span>
-			<input class="rounded bg-slate-800 px-2 py-2" name="name" required value={data.orgName} />
+			<input class={gi} style={gs} name="name" required value={data.orgName} />
 		</label>
 		<div class="flex justify-end">
-			<button
-				type="button"
-				class="rounded border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800"
-				onclick={resetAllDefaults}
-			>
-				Reset all defaults
-			</button>
+			<button type="button" class="glass-reset-btn rounded-lg border px-3 py-1 text-xs" style="border-color: var(--app-glass-border); color: var(--app-text);" onclick={resetAllDefaults}>Reset all defaults</button>
 		</div>
 		<div class="grid gap-3 md:grid-cols-2">
 			{#each colorFields as field}
-				<label class="flex items-center justify-between rounded border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm">
+				<label class="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style="border-color: var(--app-glass-border); background: var(--app-surface-alt); color: var(--app-text);">
 					<span>{field.label}</span>
 					<div class="flex items-center gap-2">
 						<input type="color" name={field.name} value={field.value} />
-						<button
-							type="button"
-							class="rounded border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
-							onclick={() => resetField(field.name)}
-							title="Reset to default"
-						>
-							↺
-						</button>
+						<button type="button" class="glass-reset-btn rounded-lg border px-1.5 py-0.5 text-[11px]" style="border-color: var(--app-glass-border); color: var(--app-text);" onclick={() => resetField(field.name)} title="Reset to default">↺</button>
 					</div>
 				</label>
 			{/each}
 		</div>
-		<div class="space-y-2 rounded border border-slate-800 bg-slate-950/40 p-3">
-			<p class="text-sm font-semibold text-slate-200">Workspace icon</p>
-			<p class="text-xs text-slate-400">Upload any image. It is auto-converted to PNG favicon format.</p>
+		<div class="space-y-2 rounded-lg border p-3" style="border-color: var(--app-glass-border); background: var(--app-surface-alt);">
+			<p class="text-sm font-semibold" style="color: var(--app-text);">Workspace icon</p>
+			<p class="text-xs" style="color: var(--app-text-muted);">Upload any image. It is auto-converted to PNG favicon format.</p>
 			<div class="flex flex-wrap items-center gap-3">
-				<input type="file" accept="image/*" onchange={onIconFileChange} class="text-xs text-slate-300" />
-				<label class="inline-flex items-center gap-2 text-xs text-slate-300">
-					<input type="checkbox" name="clear_icon" />
-					Clear icon
-				</label>
-				<button
-					type="button"
-					class="rounded border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
-					onclick={() => {
-						iconDataUrl = '';
-						const clearIconEl = settingsForm?.querySelector('[name="clear_icon"]') as HTMLInputElement | null;
-						if (clearIconEl) clearIconEl.checked = true;
-					}}
-					title="Reset icon"
-				>
-					↺
-				</button>
+				<input type="file" accept="image/*" onchange={onIconFileChange} class="text-xs" style="color: var(--app-text);" />
+				<label class="inline-flex items-center gap-2 text-xs" style="color: var(--app-text);"><input type="checkbox" name="clear_icon" /> Clear icon</label>
+				<button type="button" class="glass-reset-btn rounded-lg border px-1.5 py-0.5 text-[11px]" style="border-color: var(--app-glass-border); color: var(--app-text);" onclick={() => { iconDataUrl = ''; const clearIconEl = settingsForm?.querySelector('[name="clear_icon"]') as HTMLInputElement | null; if (clearIconEl) clearIconEl.checked = true; }} title="Reset icon">↺</button>
 			</div>
 			<input type="hidden" name="icon_data_url" value={iconDataUrl} />
 			{#if iconDataUrl}
-				<div class="inline-flex rounded border border-slate-700 bg-slate-900 p-2">
+				<div class="inline-flex rounded-lg border p-2" style="border-color: var(--app-glass-border); background: var(--app-surface);">
 					<img src={iconDataUrl} alt="Workspace icon preview" class="h-10 w-10 rounded object-contain" />
 				</div>
 			{/if}
 		</div>
 		<div class="flex justify-end">
-			<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">
-				Save
-			</button>
+			<Button variant="primary" type="submit">Save</Button>
 		</div>
 	</form>
 </section>
+
+<style>
+	.glass-reset-btn { transition: background 0.15s ease; }
+	.glass-reset-btn:hover { background: var(--app-glass-bg-hover); }
+</style>

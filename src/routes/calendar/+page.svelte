@@ -187,46 +187,49 @@
 <section class="space-y-6">
 	<header class="flex flex-wrap items-end justify-between gap-4">
 		<div>
-			<p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Calendar</p>
-			<h1 class="mt-1 text-3xl font-semibold tracking-tight">Shop availability</h1>
-			<p class="mt-2 max-w-2xl text-sm text-slate-400">
+			<p class="text-[11px] font-medium uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Calendar</p>
+			<h1 class="mt-1 text-3xl font-semibold tracking-tight" style="color: var(--app-text);">Shop availability</h1>
+			<p class="mt-2 max-w-2xl text-sm" style="color: var(--app-text-muted);">
 				Mark the shifts you can be at the shop for the next two weeks. Each day has two shifts.
 				{#if data.canTeam}Mentors and student leads can see team availability.{/if}
 				{#if data.canAll} Admins see everyone.{/if}
 			</p>
 		</div>
 
-		<div class="inline-flex overflow-hidden rounded-md border border-slate-600 bg-slate-900 text-sm shadow-sm">
+		<div class="inline-flex overflow-hidden rounded-md border text-sm shadow-sm" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
 			<button
 				type="button"
-				class={`px-3 py-1.5 ${data.scope === 'me' ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+				class="px-3 py-1.5"
+				style={data.scope === 'me' ? 'background: var(--app-glass-bg-hover); color: var(--app-text);' : 'background: var(--app-glass-bg); color: var(--app-text-muted);'}
 				onclick={() => setScope('me')}>Me</button
 			>
 			{#if data.canTeam}
 				<button
 					type="button"
-					class={`border-l border-slate-600 px-3 py-1.5 ${data.scope === 'team' ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+					class="border-l px-3 py-1.5"
+					style={`border-color: var(--app-glass-border); ${data.scope === 'team' ? 'background: var(--app-glass-bg-hover); color: var(--app-text);' : 'background: var(--app-glass-bg); color: var(--app-text-muted);'}`}
 					onclick={() => setScope('team')}>My team</button
 				>
 			{/if}
 			{#if data.canAll}
 				<button
 					type="button"
-					class={`border-l border-slate-600 px-3 py-1.5 ${data.scope === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+					class="border-l px-3 py-1.5"
+					style={`border-color: var(--app-glass-border); ${data.scope === 'all' ? 'background: var(--app-glass-bg-hover); color: var(--app-text);' : 'background: var(--app-glass-bg); color: var(--app-text-muted);'}`}
 					onclick={() => setScope('all')}>All</button
 				>
 			{/if}
 		</div>
 	</header>
 
-	<div class="rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-sm">
-		<h2 class="text-lg font-semibold">Weekly recurring plan (Sun-Sat)</h2>
-		<p class="mt-1 text-xs text-slate-400">
+	<div class="rounded-xl border p-4 shadow-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Weekly recurring plan (Sun-Sat)</h2>
+		<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 			Set your normal weekly shifts here. The calendar below auto-populates from this plan.
 		</p>
 		<div class="mt-3 overflow-x-auto">
 			<div class="min-w-[700px]">
-				<div class="grid grid-cols-8 gap-2 text-xs text-slate-400">
+				<div class="grid grid-cols-8 gap-2 text-xs" style="color: var(--app-text-muted);">
 					<div></div>
 					{#each dayLabelLong as day}
 						<div class="text-center font-semibold">{day.slice(0, 3)}</div>
@@ -234,17 +237,16 @@
 				</div>
 				{#each shifts as shift (shift.n)}
 					<div class="mt-2 grid grid-cols-8 gap-2">
-						<div class="flex items-center text-xs font-semibold text-slate-300">{shift.label}</div>
+						<div class="flex items-center text-xs font-semibold" style="color: var(--app-text-muted);">{shift.label}</div>
 						{#each dayLabelLong as _d, dayIndex}
 							{@const key = `${dayIndex}|${shift.n}`}
 							{@const on = mineRecurringSet.has(key)}
 							<button
 								type="button"
-								class={`rounded border px-2 py-2 text-xs ${
-									on
-										? 'border-slate-600 bg-slate-700 text-white'
-										: 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
-								}`}
+								class="rounded border px-2 py-2 text-xs transition-colors"
+								style={on
+									? 'background: var(--app-glass-bg-hover); border-color: var(--app-glass-border-hover); color: var(--app-text);'
+									: 'background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);'}
 								onclick={() => toggleRecurring(dayIndex, shift.n, on)}
 							>
 								{on ? 'On' : 'Off'}
@@ -259,21 +261,21 @@
 	{#if data.scope === 'me'}
 		<div class="space-y-3 md:hidden">
 			{#each mobileWeekGroups as week (week.title)}
-				<div class="rounded-xl border border-slate-700 bg-slate-900 p-3">
-					<div class="mb-3 border-b border-slate-800 pb-2">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{week.title}</p>
-						<p class="mt-1 text-sm text-slate-300">{weekRangeLabel(week.start, week.end)}</p>
+				<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<div class="mb-3 border-b pb-2" style="border-color: var(--app-glass-border);">
+						<p class="text-xs font-semibold uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">{week.title}</p>
+						<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{weekRangeLabel(week.start, week.end)}</p>
 					</div>
 					<div class="space-y-2.5">
 						{#each week.dates as iso (iso)}
 							{@const m = fmt(iso)}
-							<div class={`rounded-lg border p-2.5 ${m.isWeekend ? 'border-slate-700 bg-slate-900/70' : 'border-slate-700 bg-slate-900/40'}`}>
+							<div class="rounded-lg border p-2.5" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
 								<div class="mb-2 flex items-center justify-between">
-									<p class="text-sm font-semibold text-slate-100">
+									<p class="text-sm font-semibold" style="color: var(--app-text);">
 										{m.weekday}, {m.month} {m.day}
 									</p>
 									{#if m.isToday}
-										<span class="rounded bg-slate-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+										<span class="rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide" style="background: var(--app-surface-alt); color: var(--app-text);">
 											Today
 										</span>
 									{/if}
@@ -285,14 +287,13 @@
 										<button
 											type="button"
 											onclick={() => toggle(iso, shift.n, on)}
-											class={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-												on
-													? 'border-slate-600 bg-slate-700 text-white'
-													: 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
-											}`}
+											class="rounded-md border px-3 py-2 text-left text-sm transition-colors"
+											style={on
+												? 'background: var(--app-glass-bg-hover); border-color: var(--app-glass-border-hover); color: var(--app-text);'
+												: 'background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);'}
 										>
 											<span class="block font-medium">{shift.label}</span>
-											<span class={`block text-xs ${on ? 'text-white/75' : 'text-slate-500'}`}>
+											<span class="block text-xs" style={on ? 'opacity: 0.75;' : 'color: var(--app-text-muted);'}>
 												{on ? 'Available' : 'Tap to opt in'}
 											</span>
 										</button>
@@ -304,23 +305,23 @@
 				</div>
 			{/each}
 		</div>
-		<div class="hidden overflow-x-auto rounded-xl border border-slate-700 bg-slate-900 shadow-sm md:block">
+		<div class="hidden overflow-x-auto rounded-xl border shadow-sm backdrop-blur-xl md:block" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 			<div class="min-w-[700px]">
-			<div class="grid grid-cols-7 border-b border-slate-700 bg-slate-800/70 text-[11px] font-medium uppercase tracking-wider text-slate-300">
+			<div class="grid grid-cols-7 border-b text-[11px] font-medium uppercase tracking-wider" style="background: var(--app-surface-alt); border-color: var(--app-glass-border); color: var(--app-text-muted);">
 				{#each weekdayLabels as day (day)}
 					<div class="px-3 py-2 text-center">{day}</div>
 				{/each}
 			</div>
 			<div class="space-y-0">
 				{#each calendarRows as row, ri (ri)}
-					<div class="grid grid-cols-7 divide-x divide-slate-700 border-b border-slate-800 last:border-b-0">
+					<div class="grid grid-cols-7 border-b last:border-b-0" style="border-color: var(--app-glass-border);">
 						{#each row as iso, ci (`${ri}-${ci}`)}
-							<div class={`min-h-[126px] p-2 ${ci === 0 || ci === 6 ? 'bg-slate-900/40' : ''}`}>
+							<div class="min-h-[126px] border-r p-2 last:border-r-0" style="border-color: var(--app-glass-border);">
 								{#if iso}
 									{@const m = fmt(iso)}
 									<div class="mb-1 flex items-baseline justify-between">
-										<span class="text-[11px] text-slate-400">{m.month}</span>
-										<span class={m.isToday ? 'rounded bg-slate-700 px-1.5 py-0.5 text-xs text-white' : 'text-xs text-slate-300'}>
+										<span class="text-[11px]" style="color: var(--app-text-muted);">{m.month}</span>
+										<span class="text-xs" style={m.isToday ? 'background: var(--app-surface-alt); border-radius: 4px; padding: 1px 6px; color: var(--app-text);' : 'color: var(--app-text-muted);'}>
 											{m.day}
 										</span>
 									</div>
@@ -331,14 +332,13 @@
 											<button
 												type="button"
 												onclick={() => toggle(iso, shift.n, on)}
-												class={`rounded-md border px-2 py-1.5 text-left text-xs transition-colors ${
-													on
-														? 'border-slate-600 bg-slate-700 text-white'
-														: 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
-												}`}
+												class="rounded-md border px-2 py-1.5 text-left text-xs transition-colors"
+												style={on
+													? 'background: var(--app-glass-bg-hover); border-color: var(--app-glass-border-hover); color: var(--app-text);'
+													: 'background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);'}
 											>
 												<span class="block font-medium">{shift.label}</span>
-												<span class={`block text-[10px] ${on ? 'text-white/70' : 'text-slate-500'}`}>
+												<span class="block text-[10px]" style={on ? 'opacity: 0.7;' : 'color: var(--app-text-muted);'}>
 													{on ? 'Available' : 'Tap to opt in'}
 												</span>
 											</button>
@@ -346,8 +346,8 @@
 									</div>
 								{/if}
 								{#if !iso}
-									<div class="flex h-full min-h-[110px] items-center justify-center rounded-md border border-dashed border-slate-800 bg-slate-900/20">
-										<span class="text-base font-light text-slate-700">×</span>
+									<div class="flex h-full min-h-[110px] items-center justify-center rounded-md border border-dashed" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
+										<span class="text-base font-light" style="color: var(--app-text-muted); opacity: 0.4;">×</span>
 									</div>
 								{/if}
 							</div>
@@ -361,21 +361,21 @@
 		<div class="space-y-4">
 			<div class="space-y-3 md:hidden">
 				{#each mobileWeekGroups as week (week.title)}
-					<div class="rounded-xl border border-slate-700 bg-slate-900 p-3">
-						<div class="mb-3 border-b border-slate-800 pb-2">
-							<p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{week.title}</p>
-							<p class="mt-1 text-sm text-slate-300">{weekRangeLabel(week.start, week.end)}</p>
+					<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+						<div class="mb-3 border-b pb-2" style="border-color: var(--app-glass-border);">
+							<p class="text-xs font-semibold uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">{week.title}</p>
+							<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{weekRangeLabel(week.start, week.end)}</p>
 						</div>
 						<div class="space-y-2.5">
 							{#each week.dates as iso (iso)}
 								{@const m = fmt(iso)}
-								<div class={`rounded-lg border p-2.5 ${m.isWeekend ? 'border-slate-700 bg-slate-900/70' : 'border-slate-700 bg-slate-900/40'}`}>
+								<div class="rounded-lg border p-2.5" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
 									<div class="mb-2 flex items-center justify-between">
-										<p class="text-sm font-semibold text-slate-100">
+										<p class="text-sm font-semibold" style="color: var(--app-text);">
 											{m.weekday}, {m.month} {m.day}
 										</p>
 										{#if m.isToday}
-											<span class="rounded bg-slate-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+											<span class="rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide" style="background: var(--app-surface-alt); color: var(--app-text);">
 												Today
 											</span>
 										{/if}
@@ -385,15 +385,15 @@
 											{@const key = `${iso}|${shift.n}`}
 											{@const ids = data.rosterByKey[key] ?? []}
 											{@const mineOn = mineSet.has(key)}
-											<div class="w-full rounded-md border border-slate-700 bg-slate-800/40 p-2 text-left">
+											<div class="w-full rounded-md border p-2 text-left" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
 												<div class="flex items-center justify-between">
-													<p class="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+													<p class="text-[11px] font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">
 														{shift.label}
 													</p>
-													<span class="text-xs font-medium text-slate-100">{ids.length}</span>
+													<span class="text-xs font-medium" style="color: var(--app-text);">{ids.length}</span>
 												</div>
 												{#if ids.length === 0}
-													<p class="mt-1 text-xs text-slate-500">No one yet</p>
+													<p class="mt-1 text-xs" style="color: var(--app-text-muted);">No one yet</p>
 												{:else}
 													<div class="mt-1.5 flex flex-wrap gap-1">
 														{#each ids.slice(0, 10) as uid (uid)}
@@ -411,7 +411,7 @@
 															{/if}
 														{/each}
 														{#if ids.length > 10}
-															<span class="text-xs text-slate-400">+{ids.length - 10}</span>
+															<span class="text-xs" style="color: var(--app-text-muted);">+{ids.length - 10}</span>
 														{/if}
 													</div>
 												{/if}
@@ -419,7 +419,8 @@
 													{#if data.scope === 'all'}
 														<button
 															type="button"
-															class="flex-1 rounded border border-slate-700 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+															class="flex-1 rounded border px-2 py-1.5 text-xs transition-colors"
+															style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
 															onclick={() => openShift(iso, shift.n)}
 														>
 															List
@@ -427,7 +428,8 @@
 													{/if}
 													<button
 														type="button"
-														class="flex-1 rounded border border-slate-700 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+														class="flex-1 rounded border px-2 py-1.5 text-xs transition-colors"
+														style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
 														onclick={() => toggle(iso, shift.n, mineOn)}
 													>
 														{mineOn ? 'Leave' : 'Add me'}
@@ -442,23 +444,23 @@
 					</div>
 				{/each}
 			</div>
-			<div class="hidden overflow-x-auto rounded-xl border border-slate-700 bg-slate-900 shadow-sm md:block">
+			<div class="hidden overflow-x-auto rounded-xl border shadow-sm backdrop-blur-xl md:block" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 				<div class="min-w-[700px]">
-				<div class="grid grid-cols-7 border-b border-slate-700 bg-slate-800/70 text-[11px] font-medium uppercase tracking-wider text-slate-300">
+				<div class="grid grid-cols-7 border-b text-[11px] font-medium uppercase tracking-wider" style="background: var(--app-surface-alt); border-color: var(--app-glass-border); color: var(--app-text-muted);">
 					{#each weekdayLabels as day (day)}
 						<div class="px-3 py-2 text-center">{day}</div>
 					{/each}
 				</div>
 				<div class="space-y-0">
 					{#each calendarRows as row, ri (ri)}
-						<div class="grid grid-cols-7 divide-x divide-slate-700 border-b border-slate-800 last:border-b-0">
+						<div class="grid grid-cols-7 border-b last:border-b-0" style="border-color: var(--app-glass-border);">
 							{#each row as iso, ci (`${ri}-${ci}`)}
-								<div class={`min-h-[154px] p-2 ${ci === 0 || ci === 6 ? 'bg-slate-900/40' : ''}`}>
+								<div class="min-h-[154px] border-r p-2 last:border-r-0" style="border-color: var(--app-glass-border);">
 									{#if iso}
 										{@const m = fmt(iso)}
 										<div class="mb-1 flex items-baseline justify-between">
-											<span class="text-[11px] text-slate-400">{m.month}</span>
-											<span class={m.isToday ? 'rounded bg-slate-700 px-1.5 py-0.5 text-xs text-white' : 'text-xs text-slate-300'}>
+											<span class="text-[11px]" style="color: var(--app-text-muted);">{m.month}</span>
+											<span class="text-xs" style={m.isToday ? 'background: var(--app-surface-alt); border-radius: 4px; padding: 1px 6px; color: var(--app-text);' : 'color: var(--app-text-muted);'}>
 												{m.day}
 											</span>
 										</div>
@@ -467,15 +469,15 @@
 												{@const key = `${iso}|${shift.n}`}
 												{@const ids = data.rosterByKey[key] ?? []}
 												{@const mineOn = mineSet.has(key)}
-												<div class="w-full rounded-md border border-slate-700 bg-slate-800/40 p-2 text-left">
+												<div class="w-full rounded-md border p-2 text-left" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
 													<div class="flex items-center justify-between">
-														<p class="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+														<p class="text-[11px] font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">
 															{shift.label}
 														</p>
-														<span class="text-[11px] font-medium text-slate-100">{ids.length}</span>
+														<span class="text-[11px] font-medium" style="color: var(--app-text);">{ids.length}</span>
 													</div>
 													{#if ids.length === 0}
-														<p class="mt-1.5 text-[11px] text-slate-500">—</p>
+														<p class="mt-1.5 text-[11px]" style="color: var(--app-text-muted);">—</p>
 													{:else}
 														<div class="mt-1.5 flex flex-wrap gap-1">
 															{#each ids.slice(0, 8) as uid (uid)}
@@ -493,7 +495,7 @@
 																{/if}
 															{/each}
 															{#if ids.length > 8}
-																<span class="text-[11px] text-slate-400">+{ids.length - 8}</span>
+																<span class="text-[11px]" style="color: var(--app-text-muted);">+{ids.length - 8}</span>
 															{/if}
 														</div>
 													{/if}
@@ -501,7 +503,8 @@
 														{#if data.scope === 'all'}
 															<button
 																type="button"
-																class="flex-1 rounded border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
+																class="flex-1 rounded border px-2 py-1 text-[11px] transition-colors"
+																style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
 																onclick={() => openShift(iso, shift.n)}
 															>
 																List
@@ -509,7 +512,8 @@
 														{/if}
 														<button
 															type="button"
-															class="flex-1 rounded border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
+															class="flex-1 rounded border px-2 py-1 text-[11px] transition-colors"
+															style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
 															onclick={() => toggle(iso, shift.n, mineOn)}
 														>
 															{mineOn ? 'Leave' : 'Add me'}
@@ -520,8 +524,8 @@
 										</div>
 									{/if}
 									{#if !iso}
-										<div class="flex h-full min-h-[138px] items-center justify-center rounded-md border border-dashed border-slate-800 bg-slate-900/20">
-											<span class="text-base font-light text-slate-700">×</span>
+										<div class="flex h-full min-h-[138px] items-center justify-center rounded-md border border-dashed" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
+											<span class="text-base font-light" style="color: var(--app-text-muted); opacity: 0.4;">×</span>
 										</div>
 									{/if}
 								</div>
@@ -533,12 +537,12 @@
 			</div>
 
 			{#if data.scope === 'all' && roster.length > 0}
-				<div class="rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
-					<p class="text-sm font-medium">Roster ({roster.length})</p>
-					<p class="text-xs text-slate-400">Everyone visible to admins.</p>
+				<div class="rounded-xl border p-5 shadow-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+					<p class="text-sm font-medium" style="color: var(--app-text);">Roster ({roster.length})</p>
+					<p class="text-xs" style="color: var(--app-text-muted);">Everyone visible to admins.</p>
 					<ul class="mt-3 grid gap-2 sm:grid-cols-2 md:grid-cols-3">
 						{#each roster as p (p.id)}
-							<li class="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-800/30 p-2">
+							<li class="flex items-center gap-2 rounded-md border p-2" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
 								<Avatar
 									name={p.full_name}
 									email={p.email}
@@ -548,8 +552,8 @@
 									ringClass="ring-sky-400"
 								/>
 								<div class="min-w-0 text-xs">
-									<p class="truncate font-medium text-slate-100">{p.full_name || p.email}</p>
-									<p class="truncate text-slate-400">
+									<p class="truncate font-medium" style="color: var(--app-text);">{p.full_name || p.email}</p>
+									<p class="truncate" style="color: var(--app-text-muted);">
 										{roleBadgeParts(p).join(' · ')} · {subteamMap.get(p.subteam_id ?? '')?.name ?? 'No team'}
 									</p>
 								</div>
@@ -563,7 +567,8 @@
 
 	{#if selectedShift}
 		<div
-			class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+			class="fixed inset-0 z-40 flex items-center justify-center p-4"
+			style="background: var(--app-overlay-scrim);"
 			role="button"
 			tabindex="0"
 			onclick={closeShift}
@@ -572,7 +577,8 @@
 			}}
 		>
 			<div
-				class="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4"
+				class="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-xl border p-4 backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 				role="dialog"
 				aria-modal="true"
 				tabindex="0"
@@ -583,31 +589,32 @@
 			>
 				<div class="mb-3 flex items-center justify-between gap-3">
 					<div>
-						<p class="text-xs uppercase tracking-wide text-slate-400">Shift detail</p>
-						<p class="text-lg font-semibold">
+						<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Shift detail</p>
+						<p class="text-lg font-semibold" style="color: var(--app-text);">
 							{fmt(selectedShift.date).weekday}, {fmt(selectedShift.date).month} {fmt(selectedShift.date).day} ·
 							Shift {selectedShift.shift}
 						</p>
-						<p class="text-xs text-slate-400">{selectedShift.userIds.length} available</p>
+						<p class="text-xs" style="color: var(--app-text-muted);">{selectedShift.userIds.length} available</p>
 					</div>
 					<button
 						type="button"
-						class="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+						class="rounded border px-3 py-1.5 text-xs transition-colors"
+						style="border-color: var(--app-glass-border); color: var(--app-text);"
 						onclick={closeShift}
 					>
 						Close
 					</button>
 				</div>
 				{#if selectedShift.userIds.length === 0}
-					<p class="text-sm text-slate-400">Nobody marked available for this shift.</p>
+					<p class="text-sm" style="color: var(--app-text-muted);">Nobody marked available for this shift.</p>
 				{:else}
 					<div class="space-y-4">
 						{#each groupedSelectedShiftUsers as group (group.key)}
 							<div>
-								<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.label}</p>
+								<p class="mb-2 text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">{group.label}</p>
 								<ul class="grid gap-2 sm:grid-cols-2">
 									{#each group.users as p (p.id)}
-										<li class="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-800/40 p-2">
+										<li class="flex items-center gap-2 rounded-md border p-2" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
 											<Avatar
 												name={p.full_name}
 												email={p.email}
@@ -617,8 +624,8 @@
 												ringClass="ring-sky-400"
 											/>
 											<div class="min-w-0 text-xs">
-												<p class="truncate font-medium text-slate-100">{p.full_name || p.email}</p>
-												<p class="truncate text-slate-400">
+												<p class="truncate font-medium" style="color: var(--app-text);">{p.full_name || p.email}</p>
+												<p class="truncate" style="color: var(--app-text-muted);">
 													{roleBadgeParts(p).join(' · ')} · {subteamMap.get(p.subteam_id ?? '')?.name ?? 'No team'}
 												</p>
 											</div>

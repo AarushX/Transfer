@@ -5,7 +5,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
 	optimizeDeps: {
-		// @zxing/browser pre-bundles against @zxing/library; keep both explicit for resolution (pnpm).
 		include: ['@zxing/browser', '@zxing/library']
 	},
 	plugins: [

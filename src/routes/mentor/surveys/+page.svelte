@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { WORKFLOW_META } from '$lib/surveys/workflows';
+	import Button from '$lib/components/ui/Button.svelte';
+	import GlassTable from '$lib/components/ui/GlassTable.svelte';
 	let { data, form } = $props();
 	let showTemplatePanel = $state(false);
 	let selectedTemplateId = $state((data.templates?.[0]?.id as string | undefined) ?? '');
@@ -20,96 +22,79 @@
 <section class="space-y-5">
 	<div class="flex items-center justify-between">
 		<div>
-			<a href="/mentor" class="text-xs text-slate-400">← Mentor home</a>
-			<h1 class="text-2xl font-semibold">Surveys</h1>
-			<p class="text-sm text-slate-400">
+			<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
+			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Surveys</h1>
+			<p class="text-sm" style="color: var(--app-text-muted);">
 				Separate from modules, with module prerequisites and visibility windows.
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<a
-				href="/mentor/surveys/new"
-				class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-yellow-300"
-			>
-				+ New survey
-			</a>
+			<Button variant="primary" href="/mentor/surveys/new">+ New survey</Button>
 			{#if (data.templates ?? []).length > 0}
-				<button
-					type="button"
-					class="rounded border border-sky-700 px-3 py-2 text-sm text-sky-200 hover:bg-sky-900/30"
-					onclick={() => (showTemplatePanel = !showTemplatePanel)}
-				>
-					Use template
-				</button>
+				<Button variant="secondary" onclick={() => (showTemplatePanel = !showTemplatePanel)}>Use template</Button>
 			{/if}
 		</div>
 	</div>
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{/if}
 	{#if showTemplatePanel && (data.templates ?? []).length > 0}
-		<form method="POST" action="?/createFromTemplate" class="grid gap-2 rounded-xl border border-sky-800/70 bg-sky-950/20 p-3 md:grid-cols-4">
-			<select name="template_id" class="rounded bg-slate-800 px-2 py-2 text-xs" bind:value={selectedTemplateId}>
+		<form method="POST" action="?/createFromTemplate" class="grid gap-2 rounded-xl border p-3 md:grid-cols-4" style="border-color: var(--app-info); background: color-mix(in srgb, var(--app-info) 8%, transparent);">
+			<select name="template_id" class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" bind:value={selectedTemplateId}>
 				{#each data.templates as template (template.id)}
 					<option value={template.id}>{template.name}</option>
 				{/each}
 			</select>
-			<input name="title" class="rounded bg-slate-800 px-2 py-2 text-xs" bind:value={newTitle} placeholder="Survey title" required />
-			<input name="slug" class="rounded bg-slate-800 px-2 py-2 text-xs" bind:value={newSlug} placeholder="Slug (optional)" />
+			<input name="title" class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" bind:value={newTitle} placeholder="Survey title" required />
+			<input name="slug" class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" bind:value={newSlug} placeholder="Slug (optional)" />
 			<div class="flex gap-2">
-				<button class="rounded border border-sky-700 px-3 py-2 text-xs text-sky-200">Create</button>
-				<button type="button" class="rounded border border-slate-700 px-3 py-2 text-xs" onclick={() => (showTemplatePanel = false)}>Cancel</button>
+				<Button variant="secondary" size="sm" type="submit">Create</Button>
+				<Button variant="ghost" size="sm" onclick={() => (showTemplatePanel = false)}>Cancel</Button>
 			</div>
 		</form>
 	{/if}
 
-	<div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-		<table class="w-full text-sm">
-			<thead class="bg-slate-800 text-left text-xs uppercase text-slate-400">
+	<GlassTable>
+		<thead>
+			<tr>
+				<th>Title</th>
+				<th>Workflow</th>
+				<th>Window</th>
+				<th>Status</th>
+				<th class="text-right">Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each data.surveys as survey (survey.id)}
 				<tr>
-					<th class="px-3 py-2">Title</th>
-					<th class="px-3 py-2">Workflow</th>
-					<th class="px-3 py-2">Window</th>
-					<th class="px-3 py-2">Status</th>
-					<th class="px-3 py-2 text-right">Actions</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each data.surveys as survey (survey.id)}
-					<tr class="border-t border-slate-800">
-						<td class="px-3 py-2">
-							<p class="font-medium">{survey.title}</p>
-							<p class="text-xs text-slate-400">{survey.slug}</p>
-						</td>
-						<td class="px-3 py-2 text-xs text-slate-300">
-							{workflowLabel(survey.workflowKind)}
-						</td>
-						<td class="px-3 py-2 text-xs text-slate-300">
-							{survey.visible_from ? new Date(survey.visible_from).toLocaleString() : 'Any time'} to
-							{survey.visible_until ? new Date(survey.visible_until).toLocaleString() : 'Any time'}
-						</td>
-						<td class="px-3 py-2 text-xs">
-							<span class="rounded bg-slate-800 px-2 py-0.5">
-								{survey.is_active ? 'Active' : 'Inactive'}
+					<td>
+						<p class="font-medium" style="color: var(--app-text);">{survey.title}</p>
+						<p class="text-xs" style="color: var(--app-text-muted);">{survey.slug}</p>
+					</td>
+					<td class="text-xs" style="color: var(--app-text);">
+						{workflowLabel(survey.workflowKind)}
+					</td>
+					<td class="text-xs" style="color: var(--app-text);">
+						{survey.visible_from ? new Date(survey.visible_from).toLocaleString() : 'Any time'} to
+						{survey.visible_until ? new Date(survey.visible_until).toLocaleString() : 'Any time'}
+					</td>
+					<td class="text-xs">
+						<span class="rounded-lg px-2 py-0.5" style="background: var(--app-surface-alt); color: var(--app-text);">
+							{survey.is_active ? 'Active' : 'Inactive'}
+						</span>
+						{#if survey.show_when_inactive}
+							<span class="ml-1 rounded-lg px-2 py-0.5" style="background: color-mix(in srgb, var(--app-info) 15%, transparent); color: var(--app-info);">
+								Show while inactive
 							</span>
-							{#if survey.show_when_inactive}
-								<span class="ml-1 rounded bg-sky-900/30 px-2 py-0.5 text-sky-200">
-									Show while inactive
-								</span>
-							{/if}
-						</td>
-						<td class="px-3 py-2 text-right">
-							<a
-								href={`/mentor/surveys/${survey.slug}`}
-								class="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600"
-								>Edit</a
-							>
-						</td>
-					</tr>
-				{:else}
-					<tr><td colspan="5" class="px-3 py-6 text-center text-slate-400">No surveys yet.</td></tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+						{/if}
+					</td>
+					<td class="text-right">
+						<Button variant="secondary" size="sm" href={`/mentor/surveys/${survey.slug}`}>Edit</Button>
+					</td>
+				</tr>
+			{:else}
+				<tr><td colspan="5" class="px-3 py-6 text-center" style="color: var(--app-text-muted);">No surveys yet.</td></tr>
+			{/each}
+		</tbody>
+	</GlassTable>
 </section>

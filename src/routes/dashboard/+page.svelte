@@ -1,6 +1,9 @@
 <script lang="ts">
 	import SearchField from '$lib/components/ui/SearchField.svelte';
 	import StatusChip from '$lib/components/ui/StatusChip.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import ProgressBar from '$lib/components/ui/ProgressBar.svelte';
 
 type Node = { id: string; title: string; slug: string; subteam_id: string; video_url?: string | null };
 	type Status = { node_id: string; computed_status: string };
@@ -347,24 +350,24 @@ const normalPrimary = $derived([...takeablePrimary]);
 
 const courseCardClass = (status: string) => {
 	const base =
-		'group relative block overflow-hidden rounded-2xl border p-4 transition duration-150 hover:border-slate-500 hover:bg-slate-800/80';
+		'group relative block overflow-hidden rounded-2xl border p-4 transition duration-150 backdrop-blur-xl';
 	if (status === 'available' || status === 'video_pending' || status === 'quiz_pending') {
-		return `${base} border-slate-700 bg-slate-900/70 text-slate-100`;
+		return `${base} course-card`;
 	}
 	if (
 		status === 'mentor_checkoff_pending' ||
 		status === 'checkoff_needs_review' ||
 		status === 'checkoff_blocked'
 	) {
-		return `${base} border-slate-700 bg-slate-900/70 text-slate-100`;
+		return `${base} course-card`;
 	}
 	if (status === 'completed') {
-		return `${base} border-slate-700 bg-slate-900/60 text-slate-200`;
+		return `${base} course-card course-card-completed`;
 	}
 	if (status === 'locked') {
-		return `${base} border-slate-800 bg-slate-900/40 text-slate-300`;
+		return `${base} course-card course-card-locked`;
 	}
-	return `${base} border-slate-700 bg-slate-900/65 text-slate-200`;
+	return `${base} course-card`;
 };
 const teamNameById = $derived(
 	new Map(
@@ -403,8 +406,8 @@ const linkedTeamLabelForNode = (nodeId: string) => {
 };
 const teamChipStyleForNode = (nodeId: string) => {
 	const accent = accentColorForNode(nodeId);
-	if (!accent) return '';
-	return `background: color-mix(in srgb, ${accent} 22%, transparent); border-color: color-mix(in srgb, ${accent} 70%, #334155); color: color-mix(in srgb, ${accent} 35%, #f8fafc);`;
+	if (!accent) return `background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);`;
+	return `background: color-mix(in srgb, ${accent} 22%, transparent); border-color: color-mix(in srgb, ${accent} 70%, var(--app-glass-border)); color: color-mix(in srgb, ${accent} 35%, #f8fafc);`;
 };
 const progressPercentForCard = (nodeId: string, status: string) => {
 	const total = totalModulesForNode(nodeId);
@@ -437,28 +440,28 @@ const hasPartialProgress = (nodeId: string) => {
 </script>
 
 <section>
-	<div class="space-y-0 divide-y divide-slate-800/80">
+	<div class="dashboard-dividers space-y-0 divide-y">
 		{#if data.profile?.is_parent_guardian}
 			<div class="py-6 first:pt-0 md:py-8">
-				<div class="rounded-xl border border-slate-800/80 bg-slate-950/30 p-4 sm:p-5">
-				<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+				<div class="rounded-xl border p-4 backdrop-blur-xl sm:p-5" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+				<GlassCard>
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<div>
-							<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Parent Linking</p>
-							<p class="mt-1 text-sm text-slate-300">
+							<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Linking</p>
+							<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
 								Enter the student-generated link code from their profile to connect accounts.
 							</p>
-							<p class="mt-1 text-xs text-slate-500">
+							<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 								Application status: {String(data.parentApplicationStatus ?? 'not_started').replaceAll('_', ' ')}
 							</p>
 						</div>
 					</div>
 					{#if form?.error}
-						<p class="mt-2 rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">
+						<p class="mt-2 rounded-xl border p-2 text-sm" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); color: color-mix(in srgb, var(--app-danger) 60%, white);">
 							{form.error}
 						</p>
 					{:else if form?.ok && form?.section === 'parent-link'}
-						<p class="mt-2 rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">
+						<p class="mt-2 rounded-xl border p-2 text-sm" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); border-color: color-mix(in srgb, var(--app-success) 40%, transparent); color: color-mix(in srgb, var(--app-success) 60%, white);">
 							Student linked successfully.
 						</p>
 					{/if}
@@ -466,48 +469,41 @@ const hasPartialProgress = (nodeId: string) => {
 						<input
 							name="code"
 							required
-							class="rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm uppercase"
+							class="rounded-lg border px-3 py-2 text-sm uppercase backdrop-blur-sm"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 							placeholder="AB12CD34"
-							disabled={String(data.parentApplicationStatus ?? '') !== 'approved'}
 						/>
-						<button
-							class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
-							disabled={String(data.parentApplicationStatus ?? '') !== 'approved'}
+						<Button
+							variant="primary"
+							size="sm"
+							type="submit"
 						>
 							Link student
-						</button>
+						</Button>
 					</form>
-					{#if String(data.parentApplicationStatus ?? '') !== 'approved'}
-						<p class="mt-2 text-xs text-slate-500">
-							Linking unlocks after admin approval.
-						</p>
-					{/if}
 					<div class="mt-3 space-y-1">
-						<p class="text-xs uppercase tracking-wide text-slate-500">Linked students</p>
+						<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Linked students</p>
 						{#each data.linkedStudents ?? [] as student}
-							<p class="text-sm text-slate-300">{student.full_name || student.email}</p>
+							<p class="text-sm" style="color: var(--app-text-muted);">{student.full_name || student.email}</p>
 						{:else}
-							<p class="text-sm text-slate-500">No linked students yet.</p>
+							<p class="text-sm" style="color: var(--app-text-muted);">No linked students yet.</p>
 						{/each}
 					</div>
-				</div>
+				</GlassCard>
 				</div>
 			</div>
 		{/if}
 
 		{#if needsOnboarding}
 			<div class="py-6 first:pt-0 md:py-8">
-			<div class="rounded-xl border border-amber-800/25 bg-amber-950/20 p-4 sm:p-5">
-				<p class="text-sm font-semibold text-amber-100">Finish onboarding</p>
-				<p class="mt-1 text-xs text-amber-200/90">
+			<div class="rounded-xl border p-4 backdrop-blur-xl sm:p-5" style="background: color-mix(in srgb, var(--app-warning) 8%, transparent); border-color: color-mix(in srgb, var(--app-warning) 25%, transparent);">
+				<p class="text-sm font-semibold" style="color: color-mix(in srgb, var(--app-warning) 30%, white);">Finish onboarding</p>
+				<p class="mt-1 text-xs" style="color: color-mix(in srgb, var(--app-warning) 40%, white); opacity: 0.9;">
 					Choose your team and subteam to unlock the right course path.
 				</p>
-				<a
-					href="/onboarding"
-					class="mt-3 inline-flex rounded bg-amber-400 px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-amber-300"
-				>
+				<Button variant="primary" href="/onboarding" size="sm" class="mt-3">
 					Start onboarding
-				</a>
+				</Button>
 			</div>
 			</div>
 		{/if}
@@ -516,7 +512,7 @@ const hasPartialProgress = (nodeId: string) => {
 			<div class="space-y-6 py-6 first:pt-0 md:py-8">
 				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
 					<div class="flex min-w-0 flex-wrap items-center gap-2">
-						<h2 class="text-lg font-semibold tracking-tight">My Courses</h2>
+						<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">My Courses</h2>
 						<button
 							type="button"
 							onclick={() => {
@@ -525,9 +521,12 @@ const hasPartialProgress = (nodeId: string) => {
 							}}
 							class={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${
 								activeCourseScope === 'all'
-									? 'border-sky-500/60 bg-sky-950/30 text-sky-100'
-									: 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:text-slate-100'
+									? 'scope-chip-active'
+									: 'scope-chip'
 							}`}
+							style={activeCourseScope === 'all'
+								? 'border-color: color-mix(in srgb, var(--app-accent) 60%, transparent); background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-text);'
+								: 'border-color: var(--app-glass-border); background: var(--app-glass-bg); color: var(--app-text-muted);'}
 						>
 							All courses
 						</button>
@@ -537,7 +536,6 @@ const hasPartialProgress = (nodeId: string) => {
 							bind:value={filter}
 							placeholder="Search courses..."
 							fieldClass="rounded-xl px-3 py-2.5"
-							fieldStyle="background-color: rgb(15 23 42); border-color: rgb(51 65 85);"
 						/>
 					</div>
 				</div>
@@ -551,36 +549,36 @@ const hasPartialProgress = (nodeId: string) => {
 									activeCourseScope = activeCourseScope === card.key ? 'all' : card.key;
 									showCompletedCourses = false;
 								}}
-								class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition ${
+								class={`min-w-56 shrink-0 rounded-xl border p-4 text-left transition backdrop-blur-xl scope-card ${
 									activeCourseScope === card.key
-										? 'border-slate-500 bg-slate-900'
-										: 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/80'
+										? 'scope-card-active'
+										: ''
 								}`}
+								style={activeCourseScope === card.key
+									? 'background: var(--app-glass-bg-hover); border-color: var(--app-glass-border-hover);'
+									: 'background: var(--app-glass-bg); border-color: var(--app-glass-border);'}
 							>
 								<div class="flex items-start justify-between gap-2">
 									<div class="min-w-0">
-										<p class="truncate text-sm font-semibold">{card.label}</p>
+										<p class="truncate text-sm font-semibold" style="color: var(--app-text);">{card.label}</p>
 										{#if card.subLabel}
-											<p class="truncate text-xs text-slate-500">{card.subLabel}</p>
+											<p class="truncate text-xs" style="color: var(--app-text-muted);">{card.subLabel}</p>
 										{/if}
 									</div>
 									<span
 										class="rounded-full px-2 py-0.5 text-[11px]"
 										style={card.color
 											? `background: color-mix(in srgb, ${card.color} 22%, transparent); color: color-mix(in srgb, ${card.color} 35%, #f8fafc);`
-											: 'background:#1e293b;color:#cbd5e1;'}
+											: `background: var(--app-glass-bg); color: var(--app-text-muted);`}
 									>
 										{card.leftCount} left
 									</span>
 								</div>
-								<p class="mt-1 text-xs text-slate-400">
+								<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 									{card.completedCount}/{card.courseCount} complete
 								</p>
-								<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
-									<div
-										class="h-full rounded-full transition-all duration-300"
-										style={`width:${card.progressPct}%; background:${card.color || '#64748b'};`}
-									></div>
+								<div class="mt-3">
+									<ProgressBar value={card.progressPct} size="sm" color={card.color || ''} />
 								</div>
 							</button>
 						{/each}
@@ -589,7 +587,7 @@ const hasPartialProgress = (nodeId: string) => {
 			{/if}
 
 			{#if filtered.length === 0}
-				<p class="py-2 text-sm text-slate-400">No courses match your filter.</p>
+				<p class="py-2 text-sm" style="color: var(--app-text-muted);">No courses match your filter.</p>
 			{/if}
 
 			<div class="flex flex-col">
@@ -605,6 +603,7 @@ const hasPartialProgress = (nodeId: string) => {
 									<a
 										href={`/learn/${node.slug}`}
 										class={`${courseCardClass(status)} text-inherit`}
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 									>
 										{#if locked}
 											<div
@@ -614,9 +613,9 @@ const hasPartialProgress = (nodeId: string) => {
 										{/if}
 										<div class="flex items-start justify-between gap-3">
 											<div class="min-w-0 flex-1">
-												<p class="truncate text-base font-semibold">{node.title}</p>
+												<p class="truncate text-base font-semibold" style="color: var(--app-text);">{node.title}</p>
 											</div>
-											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+											<span class="shrink-0 rounded-full border px-2 py-1 text-xs" style={teamChipStyleForNode(node.id)}>
 												{linkedTeamLabelForNode(node.id)}
 											</span>
 										</div>
@@ -625,11 +624,8 @@ const hasPartialProgress = (nodeId: string) => {
 												<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 											{/if}
 										</div>
-										<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-											<div
-												class="h-full rounded-full transition-all duration-300"
-												style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-											></div>
+										<div class="mt-2">
+											<ProgressBar value={progressPercentForCard(node.id, status)} size="sm" color={accentColorForNode(node.id) || ''} />
 										</div>
 									</a>
 								{/each}
@@ -644,6 +640,7 @@ const hasPartialProgress = (nodeId: string) => {
 									<a
 										href={`/learn/${node.slug}`}
 										class={`${courseCardClass(status)} text-inherit`}
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 									>
 										{#if locked}
 											<div
@@ -652,8 +649,8 @@ const hasPartialProgress = (nodeId: string) => {
 											></div>
 										{/if}
 										<div class="flex items-start justify-between gap-3">
-											<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
-											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+											<p class="min-w-0 flex-1 truncate text-base font-semibold" style="color: var(--app-text);">{node.title}</p>
+											<span class="shrink-0 rounded-full border px-2 py-1 text-xs" style={teamChipStyleForNode(node.id)}>
 												{linkedTeamLabelForNode(node.id)}
 											</span>
 										</div>
@@ -662,11 +659,8 @@ const hasPartialProgress = (nodeId: string) => {
 												<StatusChip label={statusLabel(status)} tone={statusTone(status)} />
 											{/if}
 										</div>
-										<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-											<div
-												class="h-full rounded-full transition-all duration-300"
-												style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-											></div>
+										<div class="mt-2">
+											<ProgressBar value={progressPercentForCard(node.id, status)} size="sm" color={accentColorForNode(node.id) || ''} />
 										</div>
 									</a>
 								{/each}
@@ -681,6 +675,7 @@ const hasPartialProgress = (nodeId: string) => {
 									<a
 										href={`/learn/${node.slug}`}
 										class={`${courseCardClass(status)} text-inherit`}
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 									>
 										{#if locked}
 											<div
@@ -689,19 +684,16 @@ const hasPartialProgress = (nodeId: string) => {
 											></div>
 										{/if}
 										<div class="flex items-start justify-between gap-3">
-											<p class="min-w-0 flex-1 truncate text-base font-semibold">{node.title}</p>
+											<p class="min-w-0 flex-1 truncate text-base font-semibold" style="color: var(--app-text);">{node.title}</p>
 											<span
-												class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200"
+												class="shrink-0 rounded-full border px-2 py-1 text-xs"
 												style={teamChipStyleForNode(node.id)}
 											>
 												{linkedTeamLabelForNode(node.id)}
 											</span>
 										</div>
-										<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-											<div
-												class="h-full rounded-full transition-all duration-300"
-												style={`width:${progressPercentForCard(node.id, status)}%; background:${accentColorForNode(node.id) || '#64748b'};`}
-											></div>
+										<div class="mt-2">
+											<ProgressBar value={progressPercentForCard(node.id, status)} size="sm" color={accentColorForNode(node.id) || ''} />
 										</div>
 									</a>
 								{/each}
@@ -712,18 +704,20 @@ const hasPartialProgress = (nodeId: string) => {
 
 				{#if completedPrimary.length > 0}
 					<div
-						class="fixed right-0 bottom-0 left-0 z-30 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur md:left-64"
+						class="fixed right-0 bottom-0 left-0 z-30 border-t backdrop-blur-xl md:left-64"
+						style="border-color: var(--app-glass-border); background: color-mix(in srgb, var(--app-surface) 95%, transparent);"
 					>
 						<div class="mx-auto w-full max-w-6xl px-6 md:px-10">
 							{#if showCompletedCourses}
-								<div class="max-h-[45vh] divide-y divide-slate-800/80 overflow-y-auto">
+								<div class="dashboard-dividers max-h-[45vh] divide-y overflow-y-auto">
 									{#each completedPrimary as node (node.id)}
 										<a
 											href={`/learn/${node.slug}`}
-											class="group flex items-start justify-between gap-3 py-2.5 text-slate-200 transition duration-150 hover:bg-slate-900/50 text-inherit"
+											class="group flex items-start justify-between gap-3 py-2.5 transition duration-150 text-inherit completed-row"
+											style="color: var(--app-text);"
 										>
 											<p class="min-w-0 flex-1 truncate text-sm font-medium">{node.title}</p>
-											<span class="shrink-0 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-200" style={teamChipStyleForNode(node.id)}>
+											<span class="shrink-0 rounded-full border px-2 py-1 text-xs" style={teamChipStyleForNode(node.id)}>
 												{linkedTeamLabelForNode(node.id)}
 											</span>
 										</a>
@@ -732,13 +726,14 @@ const hasPartialProgress = (nodeId: string) => {
 							{/if}
 							<button
 								type="button"
-								class={`flex w-full items-center justify-between py-4 text-left ${showCompletedCourses ? 'border-t border-slate-800/80' : ''}`}
+								class={`flex w-full items-center justify-between py-4 text-left ${showCompletedCourses ? 'border-t' : ''}`}
+								style={showCompletedCourses ? `border-color: var(--app-glass-border);` : ''}
 								onclick={() => (showCompletedCourses = !showCompletedCourses)}
 							>
-								<span class="text-sm font-semibold text-slate-200">
+								<span class="text-sm font-semibold" style="color: var(--app-text);">
 									Completed courses ({completedPrimary.length})
 								</span>
-								<span class="text-xs text-slate-400">{showCompletedCourses ? 'Hide' : 'Show'}</span>
+								<span class="text-xs" style="color: var(--app-text-muted);">{showCompletedCourses ? 'Hide' : 'Show'}</span>
 							</button>
 						</div>
 					</div>
@@ -749,3 +744,33 @@ const hasPartialProgress = (nodeId: string) => {
 		{/if}
 	</div>
 </section>
+
+<style>
+	.dashboard-dividers > :global(* + *) {
+		border-color: var(--app-glass-border);
+	}
+	.course-card {
+		box-shadow: var(--app-glass-shadow);
+	}
+	.course-card:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.course-card-completed {
+		opacity: 0.75;
+	}
+	.course-card-locked {
+		opacity: 0.55;
+	}
+	.scope-card:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+	}
+	.scope-chip:hover {
+		border-color: var(--app-glass-border-hover);
+		color: var(--app-text);
+	}
+	.completed-row:hover {
+		background: var(--app-glass-bg);
+	}
+</style>

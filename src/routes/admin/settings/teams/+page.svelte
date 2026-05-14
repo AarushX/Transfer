@@ -242,24 +242,33 @@
 <section class="space-y-5 pb-6">
 	<div class="flex items-end justify-between gap-3">
 		<div>
-			<a href="/admin/settings" class="text-xs text-slate-400">← Workspace</a>
-			<h1 class="text-2xl font-semibold">Teams</h1>
-			<p class="text-sm text-slate-400">Manage main teams, subteams, categories, and course targeting in a focused flow.</p>
+			<a href="/admin/settings" class="glass-back-link text-xs" style="color: var(--app-text-muted);">← Workspace</a>
+			<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Teams</h1>
+			<p class="text-sm" style="color: var(--app-text-muted);">Manage main teams, subteams, categories, and course targeting in a focused flow.</p>
 		</div>
 		<div class="grid grid-cols-3 gap-2 text-xs">
-			<div class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-center"><p class="text-slate-500">Main teams</p><p class="font-semibold">{teamGroups.length}</p></div>
-			<div class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-center"><p class="text-slate-500">Subteams</p><p class="font-semibold">{subteams.length}</p></div>
-			<div class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-center"><p class="text-slate-500">Categories</p><p class="font-semibold">{categories.length}</p></div>
+			<div class="rounded-lg border px-3 py-2 text-center" style="border-color: var(--app-glass-border); background: var(--app-surface);">
+				<p style="color: var(--app-text-muted);">Main teams</p>
+				<p class="font-semibold" style="color: var(--app-text);">{teamGroups.length}</p>
+			</div>
+			<div class="rounded-lg border px-3 py-2 text-center" style="border-color: var(--app-glass-border); background: var(--app-surface);">
+				<p style="color: var(--app-text-muted);">Subteams</p>
+				<p class="font-semibold" style="color: var(--app-text);">{subteams.length}</p>
+			</div>
+			<div class="rounded-lg border px-3 py-2 text-center" style="border-color: var(--app-glass-border); background: var(--app-surface);">
+				<p style="color: var(--app-text-muted);">Categories</p>
+				<p class="font-semibold" style="color: var(--app-text);">{categories.length}</p>
+			</div>
 		</div>
 	</div>
 
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
-		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">Saved.</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
-	<div class="sticky top-2 z-10 space-y-3 rounded-xl border border-slate-800 bg-slate-950/90 p-3 backdrop-blur">
+	<div class="sticky top-2 z-10 space-y-3 rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 		<TeamSelectionBar
 			{teamGroups}
 			{subteamsForSelectedTeam}
@@ -272,18 +281,19 @@
 			{#each sectionTabs as tab}
 				<button
 					type="button"
-					class={`rounded-full border px-3 py-1.5 text-sm transition ${
-						activeSection === tab.id
-							? 'border-yellow-400 bg-yellow-400/15 text-yellow-200'
-							: 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
-					}`}
+					class="glass-section-tab rounded-full border px-3 py-1.5 text-sm transition"
+					class:active={activeSection === tab.id}
+					style={activeSection === tab.id
+						? `border-color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: color-mix(in srgb, var(--app-accent) 80%, white);`
+						: `border-color: var(--app-glass-border); background: var(--app-surface); color: var(--app-text-muted);`}
 					onclick={() => (activeSection = tab.id)}
 				>
 					{tab.label}
 				</button>
 			{/each}
 			<select
-				class="ml-auto w-full rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-200 md:w-auto md:min-w-[260px]"
+				class="ml-auto w-full rounded-lg border px-2 py-1.5 text-sm backdrop-blur-sm md:w-auto md:min-w-[260px]"
+				style="border-color: var(--app-glass-border); background: var(--app-glass-bg); color: var(--app-input-text);"
 				value=""
 				onchange={(event) => applyQuickAccess((event.currentTarget as HTMLSelectElement).value)}
 			>
@@ -294,7 +304,7 @@
 			</select>
 		</div>
 		{#if sectionTabs.find((tab) => tab.id === activeSection)?.helper}
-			<p class="text-xs text-slate-400">{sectionTabs.find((tab) => tab.id === activeSection)?.helper}</p>
+			<p class="text-xs" style="color: var(--app-text-muted);">{sectionTabs.find((tab) => tab.id === activeSection)?.helper}</p>
 		{/if}
 	</div>
 
@@ -303,41 +313,44 @@
 			<div class="grid gap-4 lg:grid-cols-3">
 				<button
 					type="button"
-					class="group rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
+					class="glass-overview-card group rounded-xl border p-4 text-left transition backdrop-blur-xl"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					onclick={() => (activeSection = 'main')}
 				>
 					<div class="flex items-start justify-between gap-3">
 						<div>
-							<p class="text-xs uppercase tracking-wide text-slate-500">Main Team</p>
-							<p class="mt-1 font-semibold">{selectedTeamName}</p>
+							<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Main Team</p>
+							<p class="mt-1 font-semibold" style="color: var(--app-text);">{selectedTeamName}</p>
 						</div>
-						<span class="text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-slate-300">→</span>
+						<span class="transition group-hover:translate-x-0.5" style="color: var(--app-text-muted);">→</span>
 					</div>
 				</button>
 				<button
 					type="button"
-					class="group rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
+					class="glass-overview-card group rounded-xl border p-4 text-left transition backdrop-blur-xl"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					onclick={() => (activeSection = 'subteams')}
 				>
 					<div class="flex items-start justify-between gap-3">
 						<div>
-							<p class="text-xs uppercase tracking-wide text-slate-500">Subteam</p>
-							<p class="mt-1 font-semibold">{selectedSubteamName}</p>
+							<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Subteam</p>
+							<p class="mt-1 font-semibold" style="color: var(--app-text);">{selectedSubteamName}</p>
 						</div>
-						<span class="text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-slate-300">→</span>
+						<span class="transition group-hover:translate-x-0.5" style="color: var(--app-text-muted);">→</span>
 					</div>
 				</button>
 				<button
 					type="button"
-					class="group rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
+					class="glass-overview-card group rounded-xl border p-4 text-left transition backdrop-blur-xl"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					onclick={() => (activeSection = 'courses')}
 				>
 					<div class="flex items-start justify-between gap-3">
 						<div>
-							<p class="text-xs uppercase tracking-wide text-slate-500">Select Courses</p>
-							<p class="mt-1 font-semibold">{selectedTeamNodeIds.size} / {selectedSubteamNodeIds.size} selected</p>
+							<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Select Courses</p>
+							<p class="mt-1 font-semibold" style="color: var(--app-text);">{selectedTeamNodeIds.size} / {selectedSubteamNodeIds.size} selected</p>
 						</div>
-						<span class="text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-slate-300">→</span>
+						<span class="transition group-hover:translate-x-0.5" style="color: var(--app-text-muted);">→</span>
 					</div>
 				</button>
 			</div>
@@ -382,3 +395,10 @@
 		{/if}
 	</div>
 </section>
+
+<style>
+	.glass-back-link:hover { color: var(--app-text); }
+	.glass-section-tab:not(.active):hover { border-color: var(--app-glass-border-hover); background: var(--app-glass-bg-hover); }
+	.glass-overview-card:hover { background: var(--app-glass-bg-hover); border-color: var(--app-glass-border-hover); transform: translateY(-2px); }
+	.glass-overview-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--app-focus-ring); }
+</style>

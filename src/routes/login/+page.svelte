@@ -1,36 +1,37 @@
 <script lang="ts">
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+
 	let { data } = $props();
 	let showParentEmail = $state(false);
 </script>
 
-<section class="mx-auto max-w-md space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-6">
-	<h1 class="text-2xl font-semibold">Sign in</h1>
-	<p class="text-sm text-slate-300">Students, mentors, admins, and parents all sign in here with Google.</p>
+<GlassCard class="mx-auto max-w-md space-y-4">
+	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Sign in</h1>
+	<p class="text-sm" style="color: var(--app-text-muted);">Students, mentors, admins, and parents all sign in here with Google.</p>
 	{#if data?.error}
-		<p class="rounded bg-red-900/30 p-2 text-sm text-red-200">{data.error}</p>
+		<p class="rounded-xl p-2 text-sm" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); border: 1px solid color-mix(in srgb, var(--app-danger) 40%, transparent); color: color-mix(in srgb, var(--app-danger) 60%, white);">{data.error}</p>
 	{:else if data?.success}
-		<p class="rounded bg-emerald-900/30 p-2 text-sm text-emerald-200">{data.success}</p>
+		<p class="rounded-xl p-2 text-sm" style="background: color-mix(in srgb, var(--app-success) 15%, transparent); border: 1px solid color-mix(in srgb, var(--app-success) 40%, transparent); color: color-mix(in srgb, var(--app-success) 60%, white);">{data.success}</p>
 	{/if}
 	<form method="POST" action="/auth/google">
-		<button
-			class="w-full rounded bg-yellow-400 px-4 py-2 font-semibold text-slate-900"
-			type="submit"
-		>
+		<Button variant="primary" type="submit" class="w-full">
 			Continue with Google
-		</button>
+		</Button>
 	</form>
-	<button class="w-full rounded border border-slate-700 px-4 py-2 font-semibold text-slate-100" type="button" onclick={() => (showParentEmail = !showParentEmail)}>
+	<Button variant="secondary" class="w-full" onclick={() => (showParentEmail = !showParentEmail)}>
 		{showParentEmail ? 'Hide Parent Login' : 'Login as Parent'}
-	</button>
+	</Button>
 	{#if showParentEmail}
-		<form method="POST" action="/auth/email" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-			<p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Parent / Guardian Email Login</p>
+		<form method="POST" action="/auth/email" class="space-y-2 rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+			<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Parent / Guardian Email Login</p>
 			<input
 				type="email"
 				name="email"
 				required
 				autocomplete="email"
-				class="w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm"
+				class="w-full rounded-lg border px-3 py-2 text-sm backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 				placeholder="parent@example.com"
 			/>
 			<input
@@ -38,12 +39,14 @@
 				name="password"
 				required
 				autocomplete="current-password"
-				class="w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm"
+				class="w-full rounded-lg border px-3 py-2 text-sm backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 				placeholder="Password"
 			/>
 			<div class="grid grid-cols-2 gap-2">
 				<button
-					class="w-full rounded bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-900"
+					class="w-full rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+					style="background: var(--app-gradient-accent); color: var(--app-accent-text);"
 					type="submit"
 					name="intent"
 					value="login"
@@ -51,7 +54,8 @@
 					Parent Login
 				</button>
 				<button
-					class="w-full rounded border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100"
+					class="w-full rounded-lg border px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-button-secondary-text);"
 					type="submit"
 					name="intent"
 					value="signup"
@@ -61,5 +65,5 @@
 			</div>
 		</form>
 	{/if}
-	<p class="text-xs text-slate-400">Email/password works only for parent/guardian accounts. Everyone else should use Google.</p>
-</section>
+	<p class="text-xs" style="color: var(--app-text-muted);">Email/password works only for parent/guardian accounts. Everyone else should use Google.</p>
+</GlassCard>

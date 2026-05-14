@@ -1,9 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireApprovedParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
+import { requireParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const { user } = await requireApprovedParentPortal(locals);
+	const { user } = await requireParentPortal(locals);
 	const { students, selectedStudent } = await resolveParentStudentContext(
 		locals.supabase,
 		user.id,
@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	signUp: async ({ locals, request }) => {
-		const { user } = await requireApprovedParentPortal(locals);
+		const { user } = await requireParentPortal(locals);
 		const form = await request.formData();
 		const roleId = String(form.get('role_id') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
@@ -69,7 +69,7 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	cancelSignup: async ({ locals, request }) => {
-		const { user } = await requireApprovedParentPortal(locals);
+		const { user } = await requireParentPortal(locals);
 		const form = await request.formData();
 		const signupId = String(form.get('signup_id') ?? '').trim();
 		const studentUserId = String(form.get('student_user_id') ?? '').trim();

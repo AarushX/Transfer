@@ -1,48 +1,44 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	let { data, form } = $props();
 	const status = $derived(String(data.application?.status ?? 'not_started'));
-	const approved = $derived(status === 'approved');
+
+	const gi = "rounded-lg border px-3 py-2 backdrop-blur-sm";
+	const gs = "border-color: var(--app-glass-border); background: var(--app-glass-bg); color: var(--app-input-text);";
 </script>
 
 <section class="space-y-4">
 	<header>
-		<p class="text-xs font-medium uppercase tracking-wide text-slate-500">Parent Portal</p>
-		<h1 class="text-2xl font-semibold">Parent Dashboard</h1>
+		<p class="text-xs font-medium uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Portal</p>
+		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Parent Dashboard</h1>
 	</header>
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
-		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">Saved.</p>
+		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 	<div class="grid gap-4 md:grid-cols-3">
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<p class="text-xs uppercase tracking-wide text-slate-500">Parent Course</p>
-			<p class="mt-2 text-sm text-slate-300">WRT 2026-27 Parent Application Course</p>
-			<p class="mt-2 text-xs text-slate-400">Status: {status.replace('_', ' ')}</p>
-			<a href="/parent/course" class="mt-3 inline-block rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900">Open Course</a>
-		</div>
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4 md:col-span-2">
-			<p class="text-xs uppercase tracking-wide text-slate-500">Link Student Account</p>
-			<p class="mt-2 text-sm text-slate-300">Available after admin approval.</p>
+		<GlassCard>
+			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Parent Course</p>
+			<p class="mt-2 text-sm" style="color: var(--app-text);">WRT 2026-27 Parent Application Course</p>
+			<p class="mt-2 text-xs" style="color: var(--app-text-muted);">Status: {status.replaceAll('_', ' ')}</p>
+			<div class="mt-3"><Button variant="primary" href="/parent/course">Open Course</Button></div>
+		</GlassCard>
+		<GlassCard class="md:col-span-2">
+			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Link Student Account</p>
+			<p class="mt-2 text-sm" style="color: var(--app-text);">Enter the link code from your student's profile to connect accounts.</p>
 			<form method="POST" action="?/linkStudentByCode" class="mt-3 flex flex-wrap items-center gap-2">
-				<input
-					name="code"
-					required={approved}
-					disabled={!approved}
-					class="rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm uppercase disabled:opacity-50"
-					placeholder="AB12CD34"
-				/>
-				<button disabled={!approved} class="rounded bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50">
-					Link student
-				</button>
+				<input name="code" required class={gi + " text-sm uppercase"} style={gs} placeholder="AB12CD34" />
+				<button class="rounded-lg px-3 py-2 text-sm font-semibold" style="background: var(--app-button-secondary-bg); color: var(--app-button-secondary-text); border: 1px solid var(--app-button-secondary-border);">Link student</button>
 			</form>
-			<ul class="mt-3 space-y-1 text-sm text-slate-300">
+			<ul class="mt-3 space-y-1 text-sm" style="color: var(--app-text);">
 				{#each data.linkedStudents as student}
 					<li>{student.full_name || student.email}</li>
 				{:else}
-					<li class="text-slate-500">No linked students yet.</li>
+					<li style="color: var(--app-text-muted);">No linked students yet.</li>
 				{/each}
 			</ul>
-		</div>
+		</GlassCard>
 	</div>
 </section>

@@ -15,7 +15,8 @@
 		{#each images.slice(0, maxPreview) as image}
 			<button
 				type="button"
-				class="rounded focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+				class="rounded focus-visible:ring-2 focus-visible:outline-none"
+				style="--tw-ring-color: var(--app-focus-ring);"
 				onclick={(event) => {
 					event.stopPropagation();
 					onOpen?.(image);

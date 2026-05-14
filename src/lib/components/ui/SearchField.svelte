@@ -29,7 +29,7 @@
 			bind:value
 			{placeholder}
 			class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm shadow-none focus:ring-0 focus:outline-none"
-			style="color: var(--app-input-text); background-color: transparent !important; outline: none; box-shadow: none; appearance: none;"
+			style="color: var(--app-input-text); background-color: transparent !important; border: none !important; border-radius: 0 !important; outline: none; box-shadow: none; appearance: none;"
 		/>
 	</div>
 </label>

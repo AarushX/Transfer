@@ -5,6 +5,8 @@
 	import StatusChip from '$lib/components/ui/StatusChip.svelte';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 
 	type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type LearnBlock = {
@@ -281,9 +283,9 @@ let videoActionMessage = $state('');
 </script>
 
 <section class="space-y-4">
-	<div class="rounded-2xl border border-slate-800 bg-slate-900/55 p-5">
-		<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-			<a href="/dashboard" class="hover:text-slate-200">← Dashboard</a>
+	<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs" style="color: var(--app-text-muted);">
+			<a href="/dashboard" class="hover:brightness-125" style="color: var(--app-text-muted);">← Dashboard</a>
 		</div>
 		<div class="mt-2">
 			<PageHeader title={data.node.title} description={data.node.description ?? ''} />
@@ -292,24 +294,24 @@ let videoActionMessage = $state('');
 			<StatusChip label={statusInfo.label} tone={statusTone} />
 		</div>
 		{#if data.previewBypass}
-			<p class="mt-2 text-xs text-sky-300">
+			<p class="mt-2 text-xs" style="color: var(--app-info);">
 				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
 			</p>
 		{/if}
 	</div>
 
 	{#if awaitingMentor && !completed}
-		<div class="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-			<h2 class="mb-1 text-lg font-semibold">Awaiting mentor checkoff</h2>
-			<p class="text-sm text-slate-300">Your checkoff submission is ready for mentor review.</p>
+		<div class="rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+			<h2 class="mb-1 text-lg font-semibold" style="color: var(--app-text);">Awaiting mentor checkoff</h2>
+			<p class="text-sm" style="color: var(--app-text-muted);">Your checkoff submission is ready for mentor review.</p>
 			{#if data.reviewMentor}
-				<p class="mt-1 text-xs text-slate-400">
+				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 					Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
 				</p>
 			{/if}
 			{#if data.checkoffQrDataUrl}
-				<div class="mt-3 rounded border border-slate-700 bg-slate-800/60 p-3">
-					<p class="text-xs text-slate-300">
+				<div class="mt-3 rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
+					<p class="text-xs" style="color: var(--app-text-muted);">
 						Show this QR to a mentor. Scanning it approves this submitted checkoff directly.
 					</p>
 					<img
@@ -322,15 +324,15 @@ let videoActionMessage = $state('');
 		</div>
 	{/if}
 	{#if completed || allBlocksComplete}
-		<div class="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-			<h2 class="mb-1 text-lg font-semibold text-slate-100">Completed</h2>
-			<p class="text-sm text-slate-300">
+		<div class="rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+			<h2 class="mb-1 text-lg font-semibold" style="color: var(--app-text);">Completed</h2>
+			<p class="text-sm" style="color: var(--app-text-muted);">
 				You've finished this module{data.cert?.approved_at
 					? ` on ${new Date(data.cert.approved_at).toLocaleDateString()}`
 					: ''}.
 			</p>
 			{#if data.certMentor}
-				<p class="mt-1 text-xs text-slate-400">
+				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 					Approved by {data.certMentor.full_name || data.certMentor.email}.
 				</p>
 			{/if}
@@ -339,102 +341,113 @@ let videoActionMessage = $state('');
 
 	{#if locked}
 		<div
-			class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300"
+			class="space-y-3 rounded-xl border p-4 text-sm backdrop-blur-xl"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);"
 		>
 			<p>
 				This module is locked. Complete its prerequisites on the
 				<a class="text-yellow-300 underline" href="/dashboard">dashboard</a> first.
 			</p>
 			{#if prereqPlan.length > 0}
-				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
-					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
+				<div class="rounded border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Doable prerequisites
 					</p>
 					<div class="grid gap-1.5">
 						{#each doablePrereqs as row (row.id)}
 							<a
 								href={`/learn/${row.slug}`}
-								class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/70 px-2.5 py-2 text-xs hover:border-slate-600 hover:bg-slate-800"
+								class="flex items-center justify-between rounded border px-2.5 py-2 text-xs transition-colors"
+								style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+								onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; e.currentTarget.style.borderColor = 'var(--app-glass-border-hover)'; }}
+								onmouseleave={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg)'; e.currentTarget.style.borderColor = 'var(--app-glass-border)'; }}
 							>
 								<span class="truncate">
 									{row.title}
-									<span class="ml-1 text-[10px] text-slate-400">({row.complexity} prereq)</span>
+									<span class="ml-1 text-[10px]" style="color: var(--app-text-muted);">({row.complexity} prereq)</span>
 								</span>
 								<span
-									class="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300"
+									class="rounded-full px-1.5 py-0.5 text-[10px]"
+									style="background: var(--app-surface-alt); color: var(--app-text-muted);"
 								>
 									Doable now
 								</span>
 							</a>
 						{:else}
-							<p class="text-xs text-slate-400">No currently doable prerequisites.</p>
+							<p class="text-xs" style="color: var(--app-text-muted);">No currently doable prerequisites.</p>
 						{/each}
 					</div>
 				</div>
 
-				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
-					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
+				<div class="rounded border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Locked prerequisites
 					</p>
 					<div class="grid gap-1.5">
 						{#each lockedPrereqs as row (row.id)}
 							<a
 								href={`/learn/${row.slug}`}
-								class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/50 px-2.5 py-2 text-xs hover:border-slate-600 hover:bg-slate-800"
+								class="flex items-center justify-between rounded border px-2.5 py-2 text-xs transition-colors"
+								style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+								onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; e.currentTarget.style.borderColor = 'var(--app-glass-border-hover)'; }}
+								onmouseleave={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg)'; e.currentTarget.style.borderColor = 'var(--app-glass-border)'; }}
 							>
 								<span class="truncate">
 									{row.title}
-									<span class="ml-1 text-[10px] text-slate-500">({row.complexity} prereq)</span>
+									<span class="ml-1 text-[10px]" style="color: var(--app-text-muted);">({row.complexity} prereq)</span>
 								</span>
-								<span class="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
+								<span class="rounded-full px-1.5 py-0.5 text-[10px]" style="background: var(--app-surface-alt); color: var(--app-text-muted);">
 									Locked
 								</span>
 							</a>
 						{:else}
-							<p class="text-xs text-slate-400">No locked prerequisites.</p>
+							<p class="text-xs" style="color: var(--app-text-muted);">No locked prerequisites.</p>
 						{/each}
 					</div>
 				</div>
 
-				<div class="rounded border border-slate-700 bg-slate-900/50 p-3">
-					<p class="mb-1 text-[11px] font-semibold tracking-wide text-slate-300 uppercase">
+				<div class="rounded border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<p class="mb-1 text-[11px] font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Completed prerequisites
 					</p>
 					<div class="grid gap-1.5">
 						{#each completedPrereqs as row (row.id)}
 							<a
 								href={`/learn/${row.slug}`}
-								class="flex items-center justify-between rounded border border-slate-700 bg-slate-900/70 px-2.5 py-2 text-xs hover:border-slate-600 hover:bg-slate-800"
+								class="flex items-center justify-between rounded border px-2.5 py-2 text-xs transition-colors"
+								style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+								onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; e.currentTarget.style.borderColor = 'var(--app-glass-border-hover)'; }}
+								onmouseleave={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg)'; e.currentTarget.style.borderColor = 'var(--app-glass-border)'; }}
 							>
 								<span class="truncate">
 									{row.title}
-									<span class="ml-1 text-[10px] text-slate-400">({row.complexity} prereq)</span>
+									<span class="ml-1 text-[10px]" style="color: var(--app-text-muted);">({row.complexity} prereq)</span>
 								</span>
-								<span class="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
+								<span class="rounded-full px-1.5 py-0.5 text-[10px]" style="background: var(--app-surface-alt); color: var(--app-text-muted);">
 									Completed
 								</span>
 							</a>
 						{:else}
-							<p class="text-xs text-slate-400">No completed prerequisites yet.</p>
+							<p class="text-xs" style="color: var(--app-text-muted);">No completed prerequisites yet.</p>
 						{/each}
 					</div>
 				</div>
 			{/if}
 		</div>
 	{:else if blocks.length === 0}
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
+		<div class="rounded-xl border p-4 text-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">
 			No blocks have been added to this module yet. Ask a mentor to configure the course.
 		</div>
 	{:else}
 		<div class="space-y-4 pb-24">
 			{#if activeBlock}
 				{@const meta = blockTypeMeta(activeBlock.type)}
-				<div class={`space-y-4 rounded-xl border border-slate-700 bg-slate-900/75 p-5`}>
+				<div class="space-y-4 rounded-xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 					<div class="flex flex-wrap items-center gap-2">
 						<span class={`rounded-full px-2 py-0.5 text-xs ${meta.chip}`}>
 							{selectedBlockIndex + 1}. {meta.label}
 						</span>
-						<h2 class="text-lg font-semibold">{blockSummary(activeBlock)}</h2>
+						<h2 class="text-lg font-semibold" style="color: var(--app-text);">{blockSummary(activeBlock)}</h2>
 					</div>
 
 					{#if activeBlock.type === 'video'}
@@ -451,7 +464,7 @@ let videoActionMessage = $state('');
 							/>
 						{:else if activeBlock.config.video_url}
 							<div class="space-y-2">
-								<p class="text-sm text-slate-300">
+								<p class="text-sm" style="color: var(--app-text-muted);">
 									This video can't be embedded directly. Open it on YouTube to watch, then mark it
 									done.
 								</p>
@@ -459,37 +472,38 @@ let videoActionMessage = $state('');
 									href={activeBlock.config.video_url}
 									target="_blank"
 									rel="noopener noreferrer"
-									class="inline-flex rounded bg-slate-700 px-3 py-1.5 text-sm hover:bg-slate-600"
+									class="inline-flex rounded px-3 py-1.5 text-sm transition-colors"
+									style="background: var(--app-surface-alt); color: var(--app-text);"
 									>Open on YouTube ↗</a
 								>
 							</div>
 						{:else}
-							<p class="text-sm text-slate-400">No video URL configured for this block.</p>
+							<p class="text-sm" style="color: var(--app-text-muted);">No video URL configured for this block.</p>
 						{/if}
-						<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
+						<div class="flex flex-wrap items-center gap-3 border-t pt-3" style="border-color: var(--app-glass-border);">
 							{#if viewingCurrentStep}
-								<button
-									class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
+								<Button
+									variant="primary"
 									onclick={() => markBlockVideoDone(activeBlock)}
 									disabled={marking}
 								>
 									{marking ? 'Marking…' : 'I finished this video'}
-								</button>
-								<span class="text-xs text-slate-400">
+								</Button>
+								<span class="text-xs" style="color: var(--app-text-muted);">
 									Marks this video complete and unlocks the next block.
 								</span>
 								{#if videoActionMessage}
 									<p class="text-xs text-red-300">{videoActionMessage}</p>
 								{/if}
 							{:else}
-								<span class="text-xs text-slate-400">
+								<span class="text-xs" style="color: var(--app-text-muted);">
 									Viewing a completed step. Return to the current step to continue progress.
 								</span>
 							{/if}
 						</div>
 					{:else if activeBlock.type === 'quiz'}
 						{#if (activeBlock.config.questions ?? []).length === 0}
-							<p class="text-sm text-slate-400">
+							<p class="text-sm" style="color: var(--app-text-muted);">
 								No quiz questions configured yet. Ask a mentor to add some.
 							</p>
 						{:else}
@@ -507,14 +521,15 @@ let videoActionMessage = $state('');
 						<div class="space-y-3">
 							{#if c.content}
 								<div
-									class="rounded border border-slate-800 bg-slate-900/50 p-3 text-sm whitespace-pre-wrap text-slate-200"
+									class="rounded border p-3 text-sm whitespace-pre-wrap"
+									style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 								>
 									{c.content}
 								</div>
 							{/if}
 							{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-								<div class="rounded bg-slate-900/60 p-3">
-									<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+								<div class="rounded p-3" style="background: var(--app-glass-bg);">
+									<p class="mb-1 text-xs font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 										Resources
 									</p>
 									<ul class="space-y-1 text-sm">
@@ -531,23 +546,23 @@ let videoActionMessage = $state('');
 									</ul>
 								</div>
 							{/if}
-							<div class="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
+							<div class="flex flex-wrap items-center gap-3 border-t pt-3" style="border-color: var(--app-glass-border);">
 								{#if viewingCurrentStep}
-									<button
-										class="rounded bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-60"
+									<Button
+										variant="primary"
 										onclick={() => markBlockVideoDone(activeBlock)}
 										disabled={marking}
 									>
 										{marking ? 'Marking…' : 'I finished this reading'}
-									</button>
-									<span class="text-xs text-slate-400">
+									</Button>
+									<span class="text-xs" style="color: var(--app-text-muted);">
 										Marks this reading complete and unlocks the next block.
 									</span>
 									{#if videoActionMessage}
 										<p class="text-xs text-red-300">{videoActionMessage}</p>
 									{/if}
 								{:else}
-									<span class="text-xs text-slate-400">
+									<span class="text-xs" style="color: var(--app-text-muted);">
 										Viewing a completed step. Return to the current step to continue progress.
 									</span>
 								{/if}
@@ -556,14 +571,14 @@ let videoActionMessage = $state('');
 					{:else}
 						{@const c = activeBlock.config}
 						{#if c.directions}
-							<p class="text-sm whitespace-pre-wrap text-slate-300">{c.directions}</p>
+							<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text-muted);">{c.directions}</p>
 						{/if}
 						{#if c.show_mentor_checklist_to_students && Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
-							<div class="rounded bg-slate-900/60 p-3">
-								<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+							<div class="rounded p-3" style="background: var(--app-glass-bg);">
+								<p class="mb-1 text-xs font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 									Mentor checklist
 								</p>
-								<ul class="list-disc space-y-1 pl-5 text-sm text-slate-200">
+								<ul class="list-disc space-y-1 pl-5 text-sm" style="color: var(--app-text);">
 									{#each c.mentor_checklist as item}
 										<li>{item}</li>
 									{/each}
@@ -571,8 +586,8 @@ let videoActionMessage = $state('');
 							</div>
 						{/if}
 						{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-							<div class="rounded bg-slate-900/60 p-3">
-								<p class="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+							<div class="rounded p-3" style="background: var(--app-glass-bg);">
+								<p class="mb-1 text-xs font-semibold tracking-wide uppercase" style="color: var(--app-text-muted);">
 									Resources
 								</p>
 								<ul class="space-y-1 text-sm">
@@ -604,7 +619,8 @@ let videoActionMessage = $state('');
 									}
 								};
 							}}
-							class="space-y-3 rounded border border-slate-800 bg-slate-900/60 p-3"
+							class="space-y-3 rounded border p-3"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 						>
 							<input
 								type="hidden"
@@ -612,16 +628,17 @@ let videoActionMessage = $state('');
 								value={activeBlock.id}
 							/>
 							{#if blockedByMentor}
-								<p class="rounded border border-red-700 bg-red-900/30 p-2 text-xs text-red-200">
+								<p class="rounded border p-2 text-xs" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
 									This checkoff is blocked by a mentor. Resolve the feedback before further review.
 								</p>
 							{/if}
 							<label class="flex flex-col gap-1 text-sm">
-								<span class="text-slate-300">What did you complete?</span>
+								<span style="color: var(--app-text-muted);">What did you complete?</span>
 								<textarea
 									name="notes"
 									rows="3"
-									class="rounded bg-slate-800 px-2 py-2"
+									class="rounded px-2 py-2"
+									style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
 									placeholder="Describe what you built/demonstrated, tools used, and any issues."
 									disabled={blockedByMentor}>{data.submission?.notes ?? ''}</textarea
 								>
@@ -642,11 +659,12 @@ let videoActionMessage = $state('');
 										type="button"
 										onclick={openPhotoPicker}
 										disabled={blockedByMentor}
-										class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+										class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
+										style="background: var(--app-surface-alt); border-color: var(--app-glass-border); color: var(--app-text);"
 									>
 										Upload Photo or File
 									</button>
-									<span class="text-xs text-slate-400">
+									<span class="text-xs" style="color: var(--app-text-muted);">
 										{uploadPreviews.length > 0
 											? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
 											: 'PNG/JPG, up to 4 files'}
@@ -665,12 +683,14 @@ let videoActionMessage = $state('');
 											<img
 												src={photo}
 												alt="Checkoff submission preview"
-												class="h-24 w-full rounded border border-slate-800 object-cover"
+												class="h-24 w-full rounded border object-cover"
+												style="border-color: var(--app-glass-border);"
 											/>
 											<button
 												type="button"
 												onclick={() => removePhoto(idx)}
-												class="absolute top-1 right-1 rounded bg-slate-900/50 px-1.5 py-0.5 text-[11px] text-red-200"
+												class="absolute top-1 right-1 rounded px-1.5 py-0.5 text-[11px] text-red-200"
+												style="background: var(--app-glass-bg);"
 											>
 												Remove
 											</button>
@@ -679,25 +699,25 @@ let videoActionMessage = $state('');
 								</div>
 							{/if}
 							{#if checkoffMessage}
-								<p class="text-xs text-slate-300">{checkoffMessage}</p>
+								<p class="text-xs" style="color: var(--app-text-muted);">{checkoffMessage}</p>
 							{/if}
-							<button
-								class="rounded bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-60"
+							<Button
+								variant="primary"
 								type="submit"
 								disabled={blockedByMentor}
 							>
 								{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
-							</button>
+							</Button>
 						</form>
 						{#if data.review}
-							<div class="rounded border border-slate-800 bg-slate-900/40 p-3 text-sm">
-								<p class="font-semibold text-slate-200">Latest mentor feedback</p>
+							<div class="rounded border p-3 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+								<p class="font-semibold" style="color: var(--app-text);">Latest mentor feedback</p>
 								{#if data.reviewMentor}
-									<p class="mt-1 text-xs text-slate-400">
+									<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 										By {data.reviewMentor.full_name || data.reviewMentor.email}
 									</p>
 								{/if}
-								<p class="mt-1 whitespace-pre-wrap text-slate-300">
+								<p class="mt-1 whitespace-pre-wrap" style="color: var(--app-text-muted);">
 									{data.review.mentor_notes || 'No notes yet.'}
 								</p>
 								{#if data.review.status === 'needs_review'}
@@ -712,7 +732,7 @@ let videoActionMessage = $state('');
 									</p>
 								{/if}
 								{#if (data.review.checklist_results ?? []).length > 0}
-									<ul class="mt-2 list-disc pl-5 text-xs text-slate-300">
+									<ul class="mt-2 list-disc pl-5 text-xs" style="color: var(--app-text-muted);">
 										{#each data.review.checklist_results as row}
 											<li>{row.item}: {row.passed ? 'passed' : 'needs work'}</li>
 										{/each}
@@ -726,7 +746,8 @@ let videoActionMessage = $state('');
 
 			<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
 				<div
-					class="overflow-x-auto border-t border-slate-700 bg-slate-900/95 px-3 py-2 backdrop-blur"
+					class="overflow-x-auto border-t px-3 py-2 backdrop-blur-xl"
+					style="border-color: var(--app-glass-border); background: var(--app-glass-bg);"
 				>
 					<div class="flex min-w-max items-stretch gap-2">
 						{#each blocks as block, i (block.id)}
@@ -747,8 +768,9 @@ let videoActionMessage = $state('');
 										? 'border-emerald-700 bg-emerald-900/30 text-emerald-200'
 										: active
 											? 'border-yellow-400 bg-yellow-900/40 text-yellow-100'
-											: 'border-slate-700 bg-slate-800/60 text-slate-300'
-								} ${accessible ? 'hover:border-slate-500' : 'cursor-not-allowed opacity-70'}`}
+											: ''
+								} ${accessible ? '' : 'cursor-not-allowed opacity-70'}`}
+								style={!done && !active ? `background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);` : ''}
 							>
 								<p class="truncate font-semibold">{i + 1}. {blockSummary(block)}</p>
 								<p class="mt-1 text-[11px]">

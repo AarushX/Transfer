@@ -79,8 +79,8 @@
 
 {#if hasGraphData}
 	<div
-		class="h-[480px] overflow-hidden rounded-xl border border-slate-800 bg-slate-900"
-		style="--xy-background-color:#020617;--xy-controls-button-background-color:#0f172a;--xy-controls-button-color:#cbd5e1;"
+		class="h-[480px] overflow-hidden rounded-xl border backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); --xy-background-color: var(--app-bg); --xy-controls-button-background-color: var(--app-surface); --xy-controls-button-color: var(--app-text-muted);"
 	>
 		<SvelteFlow nodes={flowNodes} edges={flowEdges} fitView>
 			<Background />
@@ -88,7 +88,7 @@
 		</SvelteFlow>
 	</div>
 {:else}
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+	<div class="rounded-xl border p-4 text-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">
 		No prerequisite graph to show yet.
 	</div>
 {/if}

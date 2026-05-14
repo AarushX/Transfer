@@ -5,6 +5,8 @@
 	import SearchField from '$lib/components/ui/SearchField.svelte';
 	import SurfaceCard from '$lib/components/ui/SurfaceCard.svelte';
 	import StatusChip from '$lib/components/ui/StatusChip.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	import { createBrowserClient } from '@supabase/ssr';
 	import { env as publicEnv } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
@@ -174,44 +176,34 @@
 <section class="space-y-4">
 	<PageHeader title="Pending Checkoffs" description="Review submissions, evidence, and send actionable feedback.">
 		<div class="flex items-center gap-2">
-			<a
-				href="/scan"
-				class="rounded border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800"
-				>Scan hub</a
-			>
-			<a
-				href="/mentor/courses"
-				class="rounded bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600"
-				>Manage courses →</a
-			>
+			<Button variant="secondary" href="/scan">Scan hub</Button>
+			<Button variant="secondary" href="/mentor/courses">Manage courses →</Button>
 		</div>
 	</PageHeader>
 	{#if data.error || actionError}
-		<div class="rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-200">
+		<div class="rounded-xl border p-3 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
 			{data.error || actionError}
 		</div>
 	{/if}
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-3">
+	<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
 		<form method="GET" class="flex flex-wrap items-center gap-2">
-			<label for="scope" class="text-xs text-slate-400">Scope</label>
-			<select id="scope" name="scope" class="rounded bg-slate-800 px-2 py-1.5 text-sm">
+			<label for="scope" class="text-xs" style="color: var(--app-text-muted);">Scope</label>
+			<select id="scope" name="scope" class="rounded-lg border px-2 py-1.5 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
 				<option value="mine" selected={data.scope === 'mine'}>My teams</option>
 				<option value="all" selected={data.scope === 'all'}>All teams</option>
 			</select>
-			<select name="team" class="rounded bg-slate-800 px-2 py-1.5 text-sm">
+			<select name="team" class="rounded-lg border px-2 py-1.5 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
 				<option value="">All course teams</option>
 				{#each data.subteams as team}
 					<option value={team.id} selected={team.id === data.selectedTeamId}>{team.name}</option>
 				{/each}
 			</select>
-			<button class="rounded bg-slate-700 px-3 py-1.5 text-sm hover:bg-slate-600" type="submit"
-				>Apply</button
-			>
-			<a href="/mentor" class="rounded border border-slate-800 px-3 py-1.5 text-sm">Reset</a>
-			<a href="/teams" class="ml-auto text-xs text-yellow-300 underline">Edit team preferences</a>
+			<Button variant="secondary" size="sm" type="submit">Apply</Button>
+			<Button variant="ghost" size="sm" href="/mentor">Reset</Button>
+			<a href="/teams" class="ml-auto text-xs underline" style="color: var(--app-link);">Edit team preferences</a>
 		</form>
 		{#if data.scope === 'mine' && data.mentorTeamIds?.length === 0}
-			<p class="mt-2 text-xs text-amber-200">
+			<p class="mt-2 text-xs" style="color: var(--app-warning);">
 				No mentor teams selected yet, so "My teams" currently shows all checkoffs.
 			</p>
 		{/if}
@@ -225,12 +217,13 @@
 		<SearchField bind:value={queueSearch} placeholder="Search by student, course, or team..." />
 	</SurfaceCard>
 	{#if !filteredQueue.length}
-		<p class="text-slate-300">No students are waiting for checkoff.</p>
+		<p style="color: var(--app-text-muted);">No students are waiting for checkoff.</p>
 	{:else}
 		<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 			{#each filteredQueue as item}
 				<div
-					class="space-y-2 rounded-lg border border-slate-700 bg-slate-900/70 p-3 transition hover:border-slate-500"
+					class="glass-queue-card space-y-2 rounded-xl border p-3 backdrop-blur-xl transition"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					role="button"
 					tabindex="0"
 					onclick={() => (selectedItem = item)}
@@ -243,8 +236,8 @@
 				>
 					<div class="flex items-start justify-between gap-2">
 						<div class="min-w-0">
-							<p class="truncate font-semibold">{item.profile?.full_name || item.profile?.email}</p>
-							<p class="truncate text-xs text-slate-400">{item.node?.title}</p>
+							<p class="truncate font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
+							<p class="truncate text-xs" style="color: var(--app-text-muted);">{item.node?.title}</p>
 						</div>
 						<StatusChip label="Pending" tone="info" />
 					</div>
@@ -265,7 +258,8 @@
 					{/if}
 					<div class="flex gap-2 pt-1">
 						<button
-							class="flex-1 rounded bg-emerald-600 px-2 py-1.5 text-sm font-semibold hover:bg-emerald-500"
+							class="flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition"
+							style="background: var(--app-success); color: white;"
 							onclick={(event) => {
 								event.stopPropagation();
 								onApprove(item);
@@ -274,7 +268,8 @@
 							Accept
 						</button>
 						<button
-							class="flex-1 rounded bg-amber-600 px-2 py-1.5 text-sm font-semibold hover:bg-amber-500"
+							class="flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition"
+							style="background: var(--app-warning); color: white;"
 							onclick={(event) => {
 								event.stopPropagation();
 								onResetQuiz(item);
@@ -288,24 +283,24 @@
 		</div>
 	{/if}
 
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+	<GlassCard>
 		<div class="mb-2 flex items-center justify-between">
-			<h2 class="text-lg font-semibold">Past Checkoffs</h2>
-			<span class="text-xs text-slate-400">
+			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Past Checkoffs</h2>
+			<span class="text-xs" style="color: var(--app-text-muted);">
 				Most recent first · {data.historyTotal} total · page {data.historyPage} of {data.historyTotalPages}
 			</span>
 		</div>
 		<ul class="space-y-2 text-sm">
 			{#each data.history as h}
-				<li class="rounded border border-slate-800 bg-slate-900/40 p-2">
+				<li class="rounded-lg border p-2" style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);">
 					<div class="flex items-center justify-between gap-2">
-						<p>
+						<p style="color: var(--app-text);">
 							<span class="font-medium">{h.user?.full_name || h.user?.email}</span>
 							· {h.node?.title}
 						</p>
-						<span class="text-xs text-slate-400">{new Date(h.updated_at).toLocaleString()}</span>
+						<span class="text-xs" style="color: var(--app-text-muted);">{new Date(h.updated_at).toLocaleString()}</span>
 					</div>
-					<p class="mt-1 text-xs text-slate-400">
+					<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
 						{h.kind === 'approved'
 							? 'Approved'
 							: h.kind === 'blocked'
@@ -315,11 +310,11 @@
 									: 'Status update'}
 					</p>
 					{#if getHistoryNotes(h)}
-						<p class="mt-1 text-xs text-slate-300">{getHistoryNotes(h)}</p>
+						<p class="mt-1 text-xs" style="color: var(--app-text);">{getHistoryNotes(h)}</p>
 					{/if}
 				</li>
 			{:else}
-				<li class="text-slate-400">No past checkoffs yet.</li>
+				<li style="color: var(--app-text-muted);">No past checkoffs yet.</li>
 			{/each}
 		</ul>
 		{#if data.historyTotalPages > 1}
@@ -327,33 +322,36 @@
 				<a
 					href={historyHref(Math.max(1, data.historyPage - 1))}
 					aria-disabled={data.historyPage <= 1}
-					class={`rounded border px-3 py-1.5 ${
+					class={`rounded-lg border px-3 py-1.5 transition ${
 						data.historyPage <= 1
-							? 'pointer-events-none border-slate-800 text-slate-600'
-							: 'border-slate-700 hover:bg-slate-800'
+							? 'pointer-events-none opacity-40'
+							: ''
 					}`}
+					style="border-color: var(--app-glass-border); color: var(--app-text);"
 				>
 					Previous
 				</a>
-				<span class="text-xs text-slate-400">{data.historyPage} / {data.historyTotalPages}</span>
+				<span class="text-xs" style="color: var(--app-text-muted);">{data.historyPage} / {data.historyTotalPages}</span>
 				<a
 					href={historyHref(Math.min(data.historyTotalPages, data.historyPage + 1))}
 					aria-disabled={data.historyPage >= data.historyTotalPages}
-					class={`rounded border px-3 py-1.5 ${
+					class={`rounded-lg border px-3 py-1.5 transition ${
 						data.historyPage >= data.historyTotalPages
-							? 'pointer-events-none border-slate-800 text-slate-600'
-							: 'border-slate-700 hover:bg-slate-800'
+							? 'pointer-events-none opacity-40'
+							: ''
 					}`}
+					style="border-color: var(--app-glass-border); color: var(--app-text);"
 				>
 					Next
 				</a>
 			</div>
 		{/if}
-	</div>
+	</GlassCard>
 
 	{#if selectedItem}
 		<div
-			class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+			class="fixed inset-0 z-40 flex items-center justify-center p-4"
+			style="background: var(--app-overlay-scrim); background-color: color-mix(in srgb, var(--app-overlay-scrim) 70%, transparent);"
 			role="button"
 			tabindex="0"
 			onclick={() => (selectedItem = null)}
@@ -362,19 +360,20 @@
 			}}
 		>
 			<div
-				class="max-h-[95vh] w-full max-w-4xl overflow-auto rounded-xl border border-slate-800 bg-slate-900 p-4"
+				class="max-h-[95vh] w-full max-w-4xl overflow-auto rounded-xl border p-4 backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 				onclick={(event) => event.stopPropagation()}
 			>
 				<div class="mb-3 flex items-center justify-between">
-					<h2 class="text-lg font-semibold">Full Review</h2>
-					<button
-						class="rounded border border-slate-800 px-3 py-1 text-sm"
+					<h2 class="text-lg font-semibold" style="color: var(--app-text);">Full Review</h2>
+					<Button
+						variant="secondary"
+						size="sm"
 						onclick={(event) => {
 							event.stopPropagation();
 							selectedItem = null;
 						}}
-						>Close</button
-					>
+					>Close</Button>
 				</div>
 				<CheckoffCard
 					item={selectedItem}
@@ -405,3 +404,13 @@
 		</div>
 	{/if}
 </section>
+
+<style>
+	.glass-queue-card {
+		transition: background 0.2s ease, border-color 0.2s ease;
+	}
+	.glass-queue-card:hover {
+		background: var(--app-glass-bg-hover);
+		border-color: var(--app-glass-border-hover);
+	}
+</style>

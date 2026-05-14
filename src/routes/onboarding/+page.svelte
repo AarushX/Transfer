@@ -1,4 +1,6 @@
 <script lang="ts">
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 	const currentByGroup = $derived(
 		new Map((data.current as any[]).map((row: any) => [String(row.team_group_id), String(row.team_id)]))
@@ -52,19 +54,19 @@
 </script>
 
 <section class="mx-auto max-w-xl space-y-4">
-	<div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-		<h1 class="text-2xl font-semibold">Onboarding</h1>
-		<p class="text-sm text-slate-400">Choose your team and subteam to unlock your required courses.</p>
-	</div>
+	<GlassCard>
+		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">Onboarding</h1>
+		<p class="text-sm" style="color: var(--app-text-muted);">Choose your team and subteam to unlock your required courses.</p>
+	</GlassCard>
 
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{/if}
 
-	<form method="POST" action="?/save" class="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+	<form method="POST" action="?/save" class="space-y-3 rounded-xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
 		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Main team</span>
-			<select class="rounded bg-slate-800 px-2 py-2" name="primary_team_group_id" bind:value={selectedPrimaryTeamGroupId} required>
+			<span style="color: var(--app-text-muted);">Main team</span>
+			<select class="rounded px-2 py-2" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name="primary_team_group_id" bind:value={selectedPrimaryTeamGroupId} required>
 				<option value="">Select main team</option>
 				{#each teamGroups as team}
 					<option value={team.id}>{team.name}</option>
@@ -75,8 +77,8 @@
 			{@const categorySlug = String(category.slug)}
 			{@const options = subteamsByDesignator.get(categorySlug) ?? []}
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-slate-300">{category.name} subteam</span>
-				<select class="rounded bg-slate-800 px-2 py-2" name={`team_id_${categorySlug}`} required>
+				<span style="color: var(--app-text-muted);">{category.name} subteam</span>
+				<select class="rounded px-2 py-2" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name={`team_id_${categorySlug}`} required>
 					<option value="">Select {String(category.name).toLowerCase()} subteam</option>
 					{#each options as subteam}
 						<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === subteam.id}>
@@ -86,6 +88,6 @@
 				</select>
 			</label>
 		{/each}
-		<button class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900">Continue</button>
+		<Button variant="primary" type="submit">Continue</Button>
 	</form>
 </section>

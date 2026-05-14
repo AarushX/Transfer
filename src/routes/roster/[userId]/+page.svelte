@@ -1,4 +1,6 @@
 <script lang="ts">
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 
 	const categoryTone = (slug: string) => {
@@ -6,7 +8,7 @@
 		if (slug === 'business') return 'bg-amber-900/30 text-amber-100 border-amber-700/50';
 		if (slug.startsWith('frc')) return 'bg-blue-900/30 text-blue-100 border-blue-700/50';
 		if (slug.startsWith('ftc')) return 'bg-indigo-900/30 text-indigo-100 border-indigo-700/50';
-		return 'bg-slate-800 text-slate-200 border-slate-700';
+		return 'text-slate-200';
 	};
 	const statusLabel = (status: string) =>
 		({
@@ -35,74 +37,76 @@
 
 <section class="space-y-6">
 	<div>
-		<a href="/roster" class="text-xs text-slate-400">← Back to roster</a>
-		<h1 class="mt-1 text-2xl font-semibold">{data.member.full_name || data.member.email}</h1>
-		<p class="text-sm text-slate-400">{data.member.email} · {data.member.role}</p>
+		<a href="/roster" class="text-xs" style="color: var(--app-text-muted);">← Back to roster</a>
+		<h1 class="mt-1 text-2xl font-semibold" style="color: var(--app-text);">{data.member.full_name || data.member.email}</h1>
+		<p class="text-sm" style="color: var(--app-text-muted);">{data.member.email} · {data.member.role}</p>
 	</div>
 	{#if form?.error}
-		<p class="rounded border border-red-700 bg-red-900/30 p-2 text-sm text-red-200">{form.error}</p>
+		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
 	{:else if form?.ok}
-		<p class="rounded border border-emerald-700 bg-emerald-900/30 p-2 text-sm text-emerald-200">Saved.</p>
+		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
 	{/if}
 
 	<div class="grid gap-4 md:grid-cols-3">
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<p class="text-xs uppercase tracking-wide text-slate-400">Rank</p>
-			<p class="mt-1 text-lg font-semibold">{data.rankSummary?.rank?.name ?? 'Rookie'}</p>
-			<p class="text-sm text-slate-300">{data.rankSummary?.rank?.medal_label ?? 'Bronze Medal'}</p>
-			<p class="mt-2 text-xs text-slate-400">{data.rankSummary?.totalPoints ?? 0} total points</p>
-			<p class="text-xs text-slate-500">
+		<GlassCard>
+			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Rank</p>
+			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.rank?.name ?? 'Rookie'}</p>
+			<p class="text-sm" style="color: var(--app-text-muted);">{data.rankSummary?.rank?.medal_label ?? 'Bronze Medal'}</p>
+			<p class="mt-2 text-xs" style="color: var(--app-text-muted);">{data.rankSummary?.totalPoints ?? 0} total points</p>
+			<p class="text-xs" style="color: var(--app-text-muted);">
 				Courses {data.rankSummary?.coursePoints ?? 0} + Attendance {data.rankSummary?.attendancePoints ?? 0}
 			</p>
-		</div>
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<p class="text-xs uppercase tracking-wide text-slate-400">Completions</p>
-			<p class="mt-1 text-lg font-semibold">{data.rankSummary?.courseCompletions ?? 0}</p>
-			<p class="text-xs text-slate-400">Completed courses</p>
-		</div>
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<p class="text-xs uppercase tracking-wide text-slate-400">Attendance</p>
-			<p class="mt-1 text-lg font-semibold">{data.rankSummary?.attendanceDays ?? 0}</p>
-			<p class="text-xs text-slate-400">Distinct attendance days</p>
-		</div>
+		</GlassCard>
+		<GlassCard>
+			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Completions</p>
+			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.courseCompletions ?? 0}</p>
+			<p class="text-xs" style="color: var(--app-text-muted);">Completed courses</p>
+		</GlassCard>
+		<GlassCard>
+			<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">Attendance</p>
+			<p class="mt-1 text-lg font-semibold" style="color: var(--app-text);">{data.rankSummary?.attendanceDays ?? 0}</p>
+			<p class="text-xs" style="color: var(--app-text-muted);">Distinct attendance days</p>
+		</GlassCard>
 	</div>
 
-	<div id="course-results" class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-		<h2 class="text-lg font-semibold">Course and Test Results</h2>
-		<div class="mt-3 space-y-2">
-			{#each data.courseResults as course}
-				<div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p class="font-medium">{course.nodes?.title}</p>
-							<p class="text-xs text-slate-500">{course.nodes?.slug}</p>
+	<GlassCard>
+		<div id="course-results">
+			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Course and Test Results</h2>
+			<div class="mt-3 space-y-2">
+				{#each data.courseResults as course}
+					<div class="rounded-lg border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+						<div class="flex items-start justify-between gap-3">
+							<div>
+								<p class="font-medium" style="color: var(--app-text);">{course.nodes?.title}</p>
+								<p class="text-xs" style="color: var(--app-text-muted);">{course.nodes?.slug}</p>
+							</div>
+							<span class="rounded px-2 py-0.5 text-xs" style="background: var(--app-surface-alt); color: var(--app-text);">{statusLabel(course.status)}</span>
 						</div>
-						<span class="rounded bg-slate-800 px-2 py-0.5 text-xs">{statusLabel(course.status)}</span>
+						<p class="mt-2 text-xs" style="color: var(--app-text-muted);">
+							Quiz score: {course.quiz_score ?? '—'} · Quiz passed: {course.quiz_passed_at ? new Date(course.quiz_passed_at).toLocaleString() : '—'} · Approved: {course.approved_at ? new Date(course.approved_at).toLocaleString() : '—'}
+						</p>
+						<div class="mt-2 flex flex-wrap gap-1">
+							{#each course.categories as category}
+								<span class={`rounded border px-2 py-0.5 text-[11px] ${categoryTone(category.slug)}`}>
+									{category.name}
+								</span>
+							{/each}
+						</div>
 					</div>
-					<p class="mt-2 text-xs text-slate-400">
-						Quiz score: {course.quiz_score ?? '—'} · Quiz passed: {course.quiz_passed_at ? new Date(course.quiz_passed_at).toLocaleString() : '—'} · Approved: {course.approved_at ? new Date(course.approved_at).toLocaleString() : '—'}
-					</p>
-					<div class="mt-2 flex flex-wrap gap-1">
-						{#each course.categories as category}
-							<span class={`rounded border px-2 py-0.5 text-[11px] ${categoryTone(category.slug)}`}>
-								{category.name}
-							</span>
-						{/each}
-					</div>
-				</div>
-			{:else}
-				<p class="text-sm text-slate-400">No course records yet.</p>
-			{/each}
+				{:else}
+					<p class="text-sm" style="color: var(--app-text-muted);">No course records yet.</p>
+				{/each}
+			</div>
 		</div>
-	</div>
+	</GlassCard>
 
 	{#if data.canManageUsers}
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<h2 class="text-lg font-semibold">Admin: Team assignments</h2>
+		<GlassCard>
+			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Admin: Team assignments</h2>
 			<form method="POST" action="?/setUserTeams" class="mt-3 space-y-2">
 				<label class="flex flex-col gap-1 text-xs">
-					<span>Main team</span>
-					<select class="rounded bg-slate-800 px-2 py-1.5" name="primary_team_group_id" required>
+					<span style="color: var(--app-text);">Main team</span>
+					<select class="rounded px-2 py-1.5" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name="primary_team_group_id" required>
 						<option value="">Select main team</option>
 						{#each data.teamGroups as teamGroup}
 							<option value={teamGroup.id} selected={String(teamGroup.id) === String(data.currentPrimaryTeamGroupId)}>
@@ -114,8 +118,8 @@
 				{#each data.requiredCategories as category}
 					{@const categorySlug = String(category.slug)}
 					<label class="flex flex-col gap-1 text-xs">
-						<span>{categorySlug} subteam</span>
-						<select class="rounded bg-slate-800 px-2 py-1.5" name={`team_id_${categorySlug}`} required>
+						<span style="color: var(--app-text);">{categorySlug} subteam</span>
+						<select class="rounded px-2 py-1.5" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name={`team_id_${categorySlug}`} required>
 							<option value="">Select {categorySlug} subteam</option>
 							{#each data.subteams as subteam}
 								{#if String(subteam.category_slug ?? '') === categorySlug}
@@ -127,9 +131,9 @@
 						</select>
 					</label>
 				{/each}
-				<button class="rounded border border-slate-700 px-2 py-1 text-xs">Save team assignments</button>
+				<Button variant="secondary" size="sm" type="submit">Save team assignments</Button>
 			</form>
-		</div>
+		</GlassCard>
 	{/if}
 
 </section>

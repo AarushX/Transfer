@@ -4,45 +4,86 @@ let cachedIconDataUrl: string | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+const themeDefaults: Record<string, string> = {
+	background: '#0b1220',
+	surface: '#121a2b',
+	surfaceAlt: '#1a2438',
+	border: '#2a3754',
+	text: '#e6edf7',
+	textMuted: '#9fb0cc',
+	accent: '#8b5cf6',
+	accentText: '#ffffff',
+	success: '#22c55e',
+	warning: '#f59e0b',
+	danger: '#f43f5e',
+	info: '#06b6d4',
+	link: '#60a5fa',
+	linkHover: '#3b82f6',
+	inputBg: '#111a2e',
+	inputText: '#e6edf7',
+	tableHeaderBg: '#1a2438',
+	tableRowHover: '#182136',
+	overlayScrim: '#020617',
+	focusRing: '#a78bfa',
+	buttonSecondaryBg: '#1a2438',
+	buttonSecondaryText: '#d6e2f5',
+	buttonSecondaryBorder: '#334766'
+};
+
+const themeColumnMap: [string, string][] = [
+	['background', 'color_background'],
+	['surface', 'color_surface'],
+	['surfaceAlt', 'color_surface_alt'],
+	['border', 'color_border'],
+	['text', 'color_text'],
+	['textMuted', 'color_text_muted'],
+	['accent', 'color_accent'],
+	['accentText', 'color_accent_text'],
+	['success', 'color_success'],
+	['warning', 'color_warning'],
+	['danger', 'color_danger'],
+	['info', 'color_info'],
+	['link', 'color_link'],
+	['linkHover', 'color_link_hover'],
+	['inputBg', 'color_input_bg'],
+	['inputText', 'color_input_text'],
+	['tableHeaderBg', 'color_table_header_bg'],
+	['tableRowHover', 'color_table_row_hover'],
+	['overlayScrim', 'color_overlay_scrim'],
+	['focusRing', 'color_focus_ring'],
+	['buttonSecondaryBg', 'color_button_secondary_bg'],
+	['buttonSecondaryText', 'color_button_secondary_text'],
+	['buttonSecondaryBorder', 'color_button_secondary_border']
+];
+
+function extractTheme(row: Record<string, unknown> | null): Record<string, string> {
+	const theme: Record<string, string> = {};
+	for (const [key, col] of themeColumnMap) {
+		theme[key] = String((row as any)?.[col] ?? themeDefaults[key]);
+	}
+	return theme;
+}
+
 export const load = async ({ locals }) => {
 	const { session, user, profile } = await locals.safeGetSession();
 
-	let org: { name?: string | null } | null = null;
-	let theme: Record<string, string> = {
-		background: '#0b1220',
-		surface: '#121a2b',
-		surfaceAlt: '#1a2438',
-		border: '#2a3754',
-		text: '#e6edf7',
-		textMuted: '#9fb0cc',
-		accent: '#8b5cf6',
-		accentText: '#ffffff',
-		success: '#22c55e',
-		warning: '#f59e0b',
-		danger: '#f43f5e',
-		info: '#06b6d4',
-		link: '#60a5fa',
-		linkHover: '#3b82f6',
-		inputBg: '#111a2e',
-		inputText: '#e6edf7',
-		tableHeaderBg: '#1a2438',
-		tableRowHover: '#182136',
-		overlayScrim: '#020617',
-		focusRing: '#a78bfa',
-		buttonSecondaryBg: '#1a2438',
-		buttonSecondaryText: '#d6e2f5',
-		buttonSecondaryBorder: '#334766'
-	};
-	let iconDataUrl = '';
+	let orgName = cachedOrgName;
+	let theme = cachedTheme ?? { ...themeDefaults };
+	let iconDataUrl = cachedIconDataUrl ?? '';
 	let needsOnboarding = false;
-	if (!cachedOrgName || Date.now() > cacheExpiresAt || user) {
+
+	const stale = !cachedOrgName || Date.now() > cacheExpiresAt;
+
+	if (stale || user) {
+		const orgColumns =
+			'name,icon_data_url,' + themeColumnMap.map(([, col]) => col).join(',');
+
 		const orgPromise = locals.supabase
 			.from('org_settings')
-			.select(
-				'name,color_background,color_surface,color_surface_alt,color_border,color_text,color_text_muted,color_accent,color_accent_text,icon_data_url,color_success,color_warning,color_danger,color_info,color_link,color_link_hover,color_input_bg,color_input_text,color_table_header_bg,color_table_row_hover,color_overlay_scrim,color_focus_ring,color_button_secondary_bg,color_button_secondary_text,color_button_secondary_border'
-			)
+			.select(orgColumns)
 			.eq('id', 1)
 			.maybeSingle();
+
 		if (user) {
 			const [orgResp, currentResp, primaryResp, requiredResp] = await Promise.all([
 				orgPromise,
@@ -53,38 +94,18 @@ export const load = async ({ locals }) => {
 					.select('slug')
 					.eq('is_required_onboarding', true)
 			]);
-			org = orgResp.data;
-			theme = {
-				background: String(orgResp.data?.color_background ?? '#0b1220'),
-				surface: String(orgResp.data?.color_surface ?? '#121a2b'),
-				surfaceAlt: String(orgResp.data?.color_surface_alt ?? '#1a2438'),
-				border: String(orgResp.data?.color_border ?? '#2a3754'),
-				text: String(orgResp.data?.color_text ?? '#e6edf7'),
-				textMuted: String(orgResp.data?.color_text_muted ?? '#9fb0cc'),
-				accent: String(orgResp.data?.color_accent ?? '#8b5cf6'),
-				accentText: String(orgResp.data?.color_accent_text ?? '#ffffff'),
-				success: String(orgResp.data?.color_success ?? '#22c55e'),
-				warning: String(orgResp.data?.color_warning ?? '#f59e0b'),
-				danger: String(orgResp.data?.color_danger ?? '#f43f5e'),
-				info: String(orgResp.data?.color_info ?? '#06b6d4'),
-				link: String(orgResp.data?.color_link ?? '#60a5fa'),
-				linkHover: String(orgResp.data?.color_link_hover ?? '#3b82f6'),
-				inputBg: String(orgResp.data?.color_input_bg ?? '#111a2e'),
-				inputText: String(orgResp.data?.color_input_text ?? '#e6edf7'),
-				tableHeaderBg: String(orgResp.data?.color_table_header_bg ?? '#1a2438'),
-				tableRowHover: String(orgResp.data?.color_table_row_hover ?? '#182136'),
-				overlayScrim: String(orgResp.data?.color_overlay_scrim ?? '#020617'),
-				focusRing: String(orgResp.data?.color_focus_ring ?? '#a78bfa'),
-				buttonSecondaryBg: String(orgResp.data?.color_button_secondary_bg ?? '#1a2438'),
-				buttonSecondaryText: String(orgResp.data?.color_button_secondary_text ?? '#d6e2f5'),
-				buttonSecondaryBorder: String(orgResp.data?.color_button_secondary_border ?? '#334766')
-			};
-			iconDataUrl = String(orgResp.data?.icon_data_url ?? '');
+
+			const org = orgResp.data as Record<string, unknown> | null;
+			orgName = String(org?.name ?? 'Workspace');
+			theme = extractTheme(org);
+			iconDataUrl = String(org?.icon_data_url ?? '');
+
 			const currentTeams = currentResp.data ?? [];
 			const selectedDesignators = new Set(
 				currentTeams.map((row: any) => String(row.category_slug ?? '')).filter(Boolean)
 			);
 			const required = (requiredResp.data ?? []).map((row: any) => String(row.slug));
+
 			if (profile?.is_parent_guardian) {
 				needsOnboarding = false;
 			} else {
@@ -95,38 +116,13 @@ export const load = async ({ locals }) => {
 			}
 		} else {
 			const orgResp = await orgPromise;
-			org = orgResp.data;
-			theme = {
-				background: String(orgResp.data?.color_background ?? '#0b1220'),
-				surface: String(orgResp.data?.color_surface ?? '#121a2b'),
-				surfaceAlt: String(orgResp.data?.color_surface_alt ?? '#1a2438'),
-				border: String(orgResp.data?.color_border ?? '#2a3754'),
-				text: String(orgResp.data?.color_text ?? '#e6edf7'),
-				textMuted: String(orgResp.data?.color_text_muted ?? '#9fb0cc'),
-				accent: String(orgResp.data?.color_accent ?? '#8b5cf6'),
-				accentText: String(orgResp.data?.color_accent_text ?? '#ffffff'),
-				success: String(orgResp.data?.color_success ?? '#22c55e'),
-				warning: String(orgResp.data?.color_warning ?? '#f59e0b'),
-				danger: String(orgResp.data?.color_danger ?? '#f43f5e'),
-				info: String(orgResp.data?.color_info ?? '#06b6d4'),
-				link: String(orgResp.data?.color_link ?? '#60a5fa'),
-				linkHover: String(orgResp.data?.color_link_hover ?? '#3b82f6'),
-				inputBg: String(orgResp.data?.color_input_bg ?? '#111a2e'),
-				inputText: String(orgResp.data?.color_input_text ?? '#e6edf7'),
-				tableHeaderBg: String(orgResp.data?.color_table_header_bg ?? '#1a2438'),
-				tableRowHover: String(orgResp.data?.color_table_row_hover ?? '#182136'),
-				overlayScrim: String(orgResp.data?.color_overlay_scrim ?? '#020617'),
-				focusRing: String(orgResp.data?.color_focus_ring ?? '#a78bfa'),
-				buttonSecondaryBg: String(orgResp.data?.color_button_secondary_bg ?? '#1a2438'),
-				buttonSecondaryText: String(orgResp.data?.color_button_secondary_text ?? '#d6e2f5'),
-				buttonSecondaryBorder: String(orgResp.data?.color_button_secondary_border ?? '#334766')
-			};
-			iconDataUrl = String(orgResp.data?.icon_data_url ?? '');
+			const org = orgResp.data as Record<string, unknown> | null;
+			orgName = String(org?.name ?? 'Workspace');
+			theme = extractTheme(org);
+			iconDataUrl = String(org?.icon_data_url ?? '');
 		}
-	}
 
-	if (!cachedOrgName || Date.now() > cacheExpiresAt || user) {
-		cachedOrgName = org?.name ?? 'Workspace';
+		cachedOrgName = orgName;
 		cachedTheme = theme;
 		cachedIconDataUrl = iconDataUrl;
 		cacheExpiresAt = Date.now() + CACHE_TTL_MS;
@@ -136,7 +132,7 @@ export const load = async ({ locals }) => {
 		session,
 		user,
 		profile,
-		orgName: cachedOrgName,
+		orgName: cachedOrgName!,
 		orgTheme: cachedTheme ?? theme,
 		orgIconDataUrl: cachedIconDataUrl ?? iconDataUrl,
 		needsOnboarding

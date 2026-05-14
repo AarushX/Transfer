@@ -1,5 +1,6 @@
 <script lang="ts">
 	import QRScanner from '$lib/components/QRScanner.svelte';
+	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	let result = $state<any>(null);
 	let error = $state('');
 
@@ -20,19 +21,19 @@
 </script>
 
 <section class="space-y-4">
-	<h1 class="text-2xl font-semibold">QR Scanner</h1>
-	<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+	<h1 class="text-2xl font-semibold" style="color: var(--app-text);">QR Scanner</h1>
+	<GlassCard>
 		<QRScanner {onDecoded} />
-	</div>
-	{#if error}<p class="text-red-300">{error}</p>{/if}
+	</GlassCard>
+	{#if error}<p style="color: var(--app-danger);">{error}</p>{/if}
 	{#if result}
-		<div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-			<p class="font-semibold">{result.profile?.full_name || result.profile?.email}</p>
-			<ul class="mt-2 list-disc pl-5 text-sm text-slate-300">
+		<GlassCard>
+			<p class="font-semibold" style="color: var(--app-text);">{result.profile?.full_name || result.profile?.email}</p>
+			<ul class="mt-2 list-disc pl-5 text-sm" style="color: var(--app-text);">
 				{#each result.certifications ?? [] as cert}
 					<li>{cert.nodes?.title}</li>
 				{/each}
 			</ul>
-		</div>
+		</GlassCard>
 	{/if}
 </section>

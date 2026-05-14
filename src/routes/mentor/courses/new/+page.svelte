@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 	const selectableCategories = $derived(
 		(data.trainingCategories as Array<any>).filter((c) => c.parent_id != null)
@@ -22,28 +23,30 @@
 
 <section class="space-y-4">
 	<div>
-		<a href="/mentor/courses" class="text-xs text-slate-400">← All courses</a>
-		<h1 class="text-2xl font-semibold">New course</h1>
-		<p class="text-sm text-slate-400">
+		<a href="/mentor/courses" class="text-xs" style="color: var(--app-text-muted);">← All courses</a>
+		<h1 class="text-2xl font-semibold" style="color: var(--app-text);">New course</h1>
+		<p class="text-sm" style="color: var(--app-text-muted);">
 			Create the module shell. You'll add video, quiz, reading, and skills check blocks in the builder after
 			saving.
 		</p>
 	</div>
 
 	{#if form?.error}
-		<div class="rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-200">
+		<div class="rounded-xl border p-3 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
 			{form.error}
 		</div>
 	{/if}
 
 	<form
 		method="POST"
-		class="grid gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-2"
+		class="grid gap-3 rounded-xl border p-4 backdrop-blur-xl md:grid-cols-2"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 	>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Title</span>
+			<span style="color: var(--app-text);">Title</span>
 			<input
-				class="rounded bg-slate-800 px-2 py-2"
+				class="rounded-lg border px-2 py-2 backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 				name="title"
 				value={v('title')}
 				placeholder="Drill Press Basics"
@@ -51,26 +54,24 @@
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-sm">
-			<span class="text-slate-300">Slug</span>
+			<span style="color: var(--app-text);">Slug</span>
 			<input
-				class="rounded bg-slate-800 px-2 py-2"
+				class="rounded-lg border px-2 py-2 backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 				name="slug"
 				value={v('slug')}
 				placeholder="drill-press-basics (auto from title if blank)"
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-sm md:col-span-2">
-			<span class="text-slate-300">Description</span>
-			<textarea class="rounded bg-slate-800 px-2 py-2" name="description" rows="3"
+			<span style="color: var(--app-text);">Description</span>
+			<textarea class="rounded-lg border px-2 py-2 backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);" name="description" rows="3"
 				>{v('description')}</textarea
 			>
 		</label>
 		<div class="flex justify-end gap-2 md:col-span-2">
-			<a href="/mentor/courses" class="rounded border border-slate-800 px-4 py-2 text-sm">Cancel</a>
-			<button
-				class="rounded bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900"
-				type="submit">Create course</button
-			>
+			<Button variant="ghost" href="/mentor/courses">Cancel</Button>
+			<Button variant="primary" type="submit">Create course</Button>
 		</div>
 	</form>
 </section>

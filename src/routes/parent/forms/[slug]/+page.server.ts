@@ -1,10 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { toDriveDownloadUrl } from '$lib/utils/drive-links';
-import { requireApprovedParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
+import { requireParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const { user } = await requireApprovedParentPortal(locals);
+	const { user } = await requireParentPortal(locals);
 	const { students, selectedStudent } = await resolveParentStudentContext(
 		locals.supabase,
 		user.id,
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 export const actions: Actions = {
 	submitForm: async ({ locals, params, request }) => {
-		const { user } = await requireApprovedParentPortal(locals);
+		const { user } = await requireParentPortal(locals);
 		const form = await request.formData();
 		const studentUserId = String(form.get('student_user_id') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();

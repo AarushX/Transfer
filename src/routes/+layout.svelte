@@ -30,12 +30,15 @@
 		{ href: '/surveys', label: 'Applications', match: (p) => p.startsWith('/surveys') },
 		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },
 		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') },
+		{ href: '/lettering', label: 'Lettering', match: (p) => p.startsWith('/lettering') },
+		{ href: '/outreach', label: 'Outreach', match: (p) => p.startsWith('/outreach') },
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
 	const parentPrimary: NavItem[] = [
-		{ href: '/dashboard', label: 'Dashboard' },
-		{ href: '/carpool', label: 'Carpool', match: (p) => p.startsWith('/carpool') },
-		{ href: '/forms', label: 'Forms', match: (p) => p.startsWith('/forms') }
+		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
+		{ href: '/parent/carpool', label: 'Carpool', match: (p) => p.startsWith('/parent/carpool') },
+		{ href: '/parent/forms', label: 'Forms', match: (p) => p.startsWith('/parent/forms') },
+		{ href: '/parent/hours', label: 'Volunteer Hours', match: (p) => p.startsWith('/parent/hours') }
 	];
 	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;
 
@@ -66,6 +69,7 @@
 			label: 'Machine shop',
 			match: (p) => p.startsWith('/mentor/machines')
 		},
+		{ href: '/mentor/outreach', label: 'Hours verification', match: (p) => p.startsWith('/mentor/outreach') },
 		{ href: '/roster', label: 'Roster', match: (p) => p.startsWith('/roster') }
 	];
 
@@ -74,12 +78,15 @@
 		{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
 		{ href: '/admin/content', label: 'Content' },
 		{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
+		{ href: '/admin/lettering', label: 'Lettering', match: (p) => p.startsWith('/admin/lettering') },
 		{ href: '/admin/attendance', label: 'Attendance' },
 		{ href: '/admin/audit', label: 'Audit log' }
 	];
 
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
 	const isAttendanceKiosk = $derived(page.url.pathname === '/attendance');
+	const isLoggedOut = $derived(!data.user);
+	const isLoginPage = $derived(page.url.pathname === '/login');
 	const themeVars = $derived(
 		`--app-bg:${data.orgTheme?.background ?? '#0b1220'};` +
 			`--app-surface:${data.orgTheme?.surface ?? '#121a2b'};` +
@@ -159,28 +166,28 @@
 	<meta name="theme-color" content="#020617" />
 </svelte:head>
 
-{#if isAttendanceKiosk}
-	<main class="min-h-dvh bg-slate-950 text-slate-100" style={themeVars}>
+{#if isAttendanceKiosk || isLoggedOut || isLoginPage}
+	<main class="flex min-h-dvh items-center justify-center" style="{themeVars} background: var(--app-bg); color: var(--app-text);">
 		{@render children()}
 	</main>
 {:else}
 	<div
-		class="flex min-h-dvh bg-slate-950 text-slate-100 md:h-screen md:overflow-hidden"
+		class="mesh-bg flex min-h-dvh md:h-screen md:overflow-hidden"
 		style={`${themeVars} background: var(--app-bg); color: var(--app-text);`}
 	>
 		<!-- Sidebar -->
 		<aside
-			class={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-700 bg-slate-900 pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
-			style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
+			class={`sidebar-glass fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
 		>
-			<div class="flex items-center justify-between border-b border-slate-700 px-5 py-5">
+			<div class="flex items-center justify-between border-b px-5 py-5" style="border-color: var(--app-glass-border);">
 				<a href="/dashboard" class="block leading-tight">
-					<p class="text-[11px] font-medium tracking-[0.18em] text-slate-500 uppercase">Transfer</p>
-					<p class="mt-0.5 text-sm font-semibold text-slate-100">{data.orgName}</p>
+					<p class="text-[11px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">Transfer</p>
+					<p class="mt-0.5 text-sm font-semibold" style="color: var(--app-text);">{data.orgName}</p>
 				</a>
 				<button
 					type="button"
-					class="rounded p-1 text-slate-400 hover:bg-slate-800 md:hidden"
+					class="nav-btn rounded p-1 md:hidden"
+					style="color: var(--app-text-muted);"
 					aria-label="Close navigation"
 					onclick={() => (mobileOpen = false)}
 				>
@@ -195,7 +202,7 @@
 			</div>
 
 			<nav class="flex-1 overflow-y-auto px-3 py-4 text-sm">
-				<p class="px-2 pb-2 text-[10px] font-medium tracking-[0.18em] text-slate-500 uppercase">
+				<p class="px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 					Workspace
 				</p>
 				<ul class="space-y-0.5">
@@ -204,21 +211,15 @@
 							<a
 								href={item.href}
 								onclick={() => (mobileOpen = false)}
-								class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${
-									item.href === '/onboarding'
-										? isActive(item, page.url.pathname)
-											? 'shadow-sm'
-											: ''
-										: isActive(item, page.url.pathname)
-											? 'bg-slate-700 text-white shadow-sm'
-											: 'text-slate-300 hover:bg-slate-800'
-								}`}
+								class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
 								style={
 									item.href === '/onboarding'
 										? isActive(item, page.url.pathname)
 											? `background: var(--app-accent); color: var(--app-accent-text);`
 											: `background: color-mix(in srgb, var(--app-accent) 22%, transparent); color: color-mix(in srgb, var(--app-accent) 55%, white);`
-										: ''
+										: isActive(item, page.url.pathname)
+											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+											: `color: var(--app-text-muted);`
 								}
 							>
 								{item.label}
@@ -228,9 +229,7 @@
 				</ul>
 
 				{#if canMentor}
-					<p
-						class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] text-slate-500 uppercase"
-					>
+					<p class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Mentor
 					</p>
 					<ul class="space-y-0.5">
@@ -239,7 +238,10 @@
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${isActive(item, page.url.pathname) ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800'}`}
+									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+									style={isActive(item, page.url.pathname)
+										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+										: `color: var(--app-text-muted);`}
 								>
 									{item.label}
 								</a>
@@ -249,9 +251,7 @@
 				{/if}
 
 				{#if canAdmin}
-					<p
-						class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] text-slate-500 uppercase"
-					>
+					<p class="mt-6 px-2 pb-2 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Admin
 					</p>
 					<ul class="space-y-0.5">
@@ -260,7 +260,10 @@
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${isActive(item, page.url.pathname) ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800'}`}
+									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+									style={isActive(item, page.url.pathname)
+										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+										: `color: var(--app-text-muted);`}
 								>
 									{item.label}
 								</a>
@@ -271,9 +274,9 @@
 			</nav>
 
 			{#if data.user && data.profile}
-				<div class="border-t border-slate-700 p-3">
+				<div class="border-t p-3" style="border-color: var(--app-glass-border);">
 					{#if canParent}
-						<div class="flex items-center gap-3 rounded-md p-2">
+						<div class="flex items-center gap-3 rounded-lg p-2">
 							<Avatar
 								name={data.profile.full_name}
 								email={data.profile.email}
@@ -283,10 +286,10 @@
 								ringClass="ring-sky-400"
 							/>
 							<div class="min-w-0 flex-1 leading-tight">
-								<p class="truncate text-sm font-medium text-slate-100">
+								<p class="truncate text-sm font-medium" style="color: var(--app-text);">
 									{data.profile.full_name || data.profile.email}
 								</p>
-								<p class="truncate text-[11px] tracking-wider text-slate-500 uppercase">
+								<p class="truncate text-[11px] tracking-wider uppercase" style="color: var(--app-text-muted);">
 									{roleLabel}
 								</p>
 							</div>
@@ -295,7 +298,7 @@
 						<a
 							href="/profile"
 							onclick={() => (mobileOpen = false)}
-							class="flex touch-manipulation items-center gap-3 rounded-md p-2 hover:bg-slate-800"
+							class="nav-btn flex touch-manipulation items-center gap-3 rounded-lg p-2"
 						>
 							<Avatar
 								name={data.profile.full_name}
@@ -306,10 +309,10 @@
 								ringClass="ring-sky-400"
 							/>
 							<div class="min-w-0 flex-1 leading-tight">
-								<p class="truncate text-sm font-medium text-slate-100">
+								<p class="truncate text-sm font-medium" style="color: var(--app-text);">
 									{data.profile.full_name || data.profile.email}
 								</p>
-								<p class="truncate text-[11px] tracking-wider text-slate-500 uppercase">
+								<p class="truncate text-[11px] tracking-wider uppercase" style="color: var(--app-text-muted);">
 									{roleLabel}
 								</p>
 							</div>
@@ -318,7 +321,10 @@
 					<form method="POST" action="/auth/signout" class="mt-2">
 						<button
 							type="submit"
-							class="w-full rounded-md border border-slate-600 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
+							class="w-full rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+							style="border-color: var(--app-glass-border); color: var(--app-text-muted); background: transparent;"
+							onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; }}
+							onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; }}
 						>
 							Sign out
 						</button>
@@ -330,7 +336,8 @@
 		<!-- Scrim on mobile -->
 		{#if mobileOpen}
 			<button
-				class="fixed inset-0 z-30 bg-black/30 md:hidden"
+				class="fixed inset-0 z-30 backdrop-blur-sm md:hidden"
+				style="background: color-mix(in srgb, var(--app-overlay-scrim) 40%, transparent);"
 				aria-label="Close navigation"
 				onclick={() => (mobileOpen = false)}
 			></button>
@@ -339,12 +346,13 @@
 		<div class="flex min-h-dvh min-w-0 flex-1 flex-col md:min-h-0">
 			<!-- Mobile top bar -->
 			<header
-				class="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-4 py-3 md:hidden"
-				style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
+				class="flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl md:hidden"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 			>
 				<button
 					type="button"
-					class="rounded p-1 text-slate-300 hover:bg-slate-800"
+					class="nav-btn rounded p-1"
+					style="color: var(--app-text-muted);"
 					aria-label="Open navigation"
 					onclick={() => (mobileOpen = true)}
 				>
@@ -356,7 +364,7 @@
 						/></svg
 					>
 				</button>
-				<p class="min-w-0 flex-1 truncate px-3 text-center text-sm font-semibold">
+				<p class="min-w-0 flex-1 truncate px-3 text-center text-sm font-semibold" style="color: var(--app-text);">
 					Transfer · {data.orgName}
 				</p>
 				{#if data.profile}
@@ -373,18 +381,19 @@
 				{/if}
 			</header>
 			{#if showInstallButton}
-				<div class="border-b border-slate-800 bg-slate-900 px-4 py-2 md:hidden">
+				<div class="border-b px-4 py-2 md:hidden" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
 					<button
 						type="button"
 						onclick={handleInstallClick}
-						class="w-full rounded-md border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-200 active:bg-sky-500/20"
+						class="w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+						style="border-color: color-mix(in srgb, var(--app-info) 40%, transparent); background: color-mix(in srgb, var(--app-info) 10%, transparent); color: color-mix(in srgb, var(--app-info) 60%, white);"
 					>
 						Install app
 					</button>
 				</div>
 			{/if}
 
-			<main class="flex-1 bg-slate-950 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10" style="background: var(--app-bg); color: var(--app-text);">
+			<main class="relative z-[1] flex-1 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10" style="color: var(--app-text);">
 				<div class="mx-auto w-full max-w-6xl">
 					{@render children()}
 				</div>
@@ -392,3 +401,26 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.sidebar-glass {
+		background: var(--app-glass-bg);
+		border-color: var(--app-glass-border);
+		color: var(--app-text);
+		backdrop-filter: blur(24px) saturate(1.4);
+		-webkit-backdrop-filter: blur(24px) saturate(1.4);
+	}
+	.nav-link {
+		transition: all 0.15s ease;
+	}
+	.nav-link:hover {
+		background: var(--app-glass-bg-hover) !important;
+		color: var(--app-text) !important;
+	}
+	.nav-btn {
+		transition: background 0.15s ease;
+	}
+	.nav-btn:hover {
+		background: var(--app-glass-bg-hover);
+	}
+</style>

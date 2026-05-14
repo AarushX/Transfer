@@ -1,9 +1,8 @@
-import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { requireApprovedParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
+import { requireParentPortal, resolveParentStudentContext } from '$lib/server/parent-access';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const { user } = await requireApprovedParentPortal(locals);
+	const { user } = await requireParentPortal(locals);
 	const { students, selectedStudent } = await resolveParentStudentContext(
 		locals.supabase,
 		user.id,

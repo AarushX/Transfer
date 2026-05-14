@@ -24,6 +24,26 @@
 	--app-button-secondary-bg: #1a2438;
 	--app-button-secondary-text: #d6e2f5;
 	--app-button-secondary-border: #334766;
+
+	/* Glass tokens */
+	--app-glass-bg: color-mix(in srgb, var(--app-surface) 50%, transparent);
+	--app-glass-bg-hover: color-mix(in srgb, var(--app-surface) 68%, transparent);
+	--app-glass-border: color-mix(in srgb, var(--app-text) 10%, transparent);
+	--app-glass-border-hover: color-mix(in srgb, var(--app-text) 18%, transparent);
+	--app-glass-shine: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--app-text) 6%, transparent) 0%,
+		transparent 50%
+	);
+	--app-glass-shadow:
+		0 8px 32px -4px color-mix(in srgb, var(--app-bg) 70%, transparent),
+		0 2px 8px -2px color-mix(in srgb, var(--app-bg) 40%, transparent);
+	--app-gradient-accent: linear-gradient(135deg, var(--app-accent), var(--app-info));
+
+	/* Mesh gradient orbs — positioned via the .mesh-bg class */
+	--app-mesh-1: var(--app-accent);
+	--app-mesh-2: var(--app-info);
+	--app-mesh-3: color-mix(in srgb, var(--app-accent) 60%, var(--app-danger));
 }
 
 html,
@@ -33,6 +53,24 @@ body {
 	color: var(--app-text);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+	letter-spacing: -0.011em;
+}
+
+.mesh-bg {
+	position: relative;
+}
+
+.mesh-bg::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background:
+		radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, var(--app-mesh-1) 12%, transparent) 0%, transparent 60%),
+		radial-gradient(ellipse 60% 80% at 85% 75%, color-mix(in srgb, var(--app-mesh-2) 10%, transparent) 0%, transparent 60%),
+		radial-gradient(ellipse 50% 50% at 50% 10%, color-mix(in srgb, var(--app-mesh-3) 6%, transparent) 0%, transparent 50%);
 }
 
 body {
@@ -63,11 +101,25 @@ select,
 textarea {
 	background-color: var(--app-input-bg);
 	color: var(--app-input-text);
+	border: 1px solid var(--app-glass-border);
+	border-radius: 0.75rem;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:hover:not(:focus):not(:disabled),
+select:hover:not(:focus):not(:disabled),
+textarea:hover:not(:focus):not(:disabled) {
+	border-color: var(--app-glass-border-hover);
 }
 
 input:focus,
 select:focus,
-textarea:focus,
+textarea:focus {
+	outline: none;
+	border-color: var(--app-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 15%, transparent);
+}
+
 button:focus-visible,
 a:focus-visible {
 	outline: 2px solid var(--app-focus-ring);
@@ -118,4 +170,12 @@ a[class*='hover:bg-slate-8']:hover {
 		overflow: hidden;
 		overscroll-behavior-y: none;
 	}
+}
+
+/* GPU-accelerate heavy backdrop-filter elements */
+.backdrop-blur-xl,
+[style*="backdrop-filter"] {
+	will-change: transform;
+	-webkit-transform: translateZ(0);
+	transform: translateZ(0);
 }

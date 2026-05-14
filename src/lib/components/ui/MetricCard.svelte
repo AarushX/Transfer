@@ -14,13 +14,16 @@
 	} = $props();
 </script>
 
-<article class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+<article
+	class="rounded-xl border p-4 backdrop-blur-xl"
+	style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+>
 	<div class="flex items-start justify-between gap-2">
-		<p class="text-xs font-medium tracking-wide text-slate-400 uppercase">{label}</p>
+		<p class="text-xs font-medium tracking-wide uppercase" style="color: var(--app-text-muted);">{label}</p>
 		<StatusChip label={tone} {tone} />
 	</div>
-	<p class="mt-2 text-2xl font-semibold text-slate-100">{value}</p>
+	<p class="mt-2 text-2xl font-semibold" style="color: var(--app-text);">{value}</p>
 	{#if note}
-		<p class="mt-1 text-xs text-slate-400">{note}</p>
+		<p class="mt-1 text-xs" style="color: var(--app-text-muted);">{note}</p>
 	{/if}
 </article>
