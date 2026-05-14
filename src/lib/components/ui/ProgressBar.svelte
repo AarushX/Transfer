@@ -16,26 +16,21 @@
 	} = $props();
 
 	const pct = $derived(Math.min(100, Math.max(0, (value / max) * 100)));
-	const barHeight = $derived(size === 'sm' ? 'h-1.5' : 'h-2.5');
-	const fillStyle = $derived(
-		color
-			? `width: ${pct}%; background: ${color};`
-			: `width: ${pct}%; background: var(--app-gradient-accent);`
-	);
+	const barHeight = $derived(size === 'sm' ? '6px' : '8px');
 </script>
 
 {#if label || showPercent}
 	<div class="mb-1.5 flex items-baseline justify-between text-xs">
 		{#if label}<span style="color: var(--app-text-muted);">{label}</span>{/if}
-		{#if showPercent}<span class="font-medium" style="color: var(--app-text);">{Math.round(pct)}%</span>{/if}
+		{#if showPercent}<span class="mono font-medium" style="color: var(--app-text);">{Math.round(pct)}%</span>{/if}
 	</div>
 {/if}
 <div
-	class={`w-full overflow-hidden rounded-full ${barHeight}`}
-	style="background: color-mix(in srgb, var(--app-surface-alt) 60%, transparent);"
+	class="aurora-progress"
+	style="height: {barHeight};"
 >
 	<div
-		class={`${barHeight} rounded-full transition-all duration-300`}
-		style={fillStyle}
+		class="aurora-progress-fill"
+		style="width: {pct}%;{color ? ` background: ${color};` : ''}"
 	></div>
 </div>

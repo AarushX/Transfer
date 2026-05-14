@@ -43,14 +43,12 @@
 		background: var(--app-glass-bg);
 		border-color: var(--app-glass-border);
 		box-shadow: var(--app-glass-shadow);
-		transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+		backdrop-filter: blur(20px) saturate(140%);
+		-webkit-backdrop-filter: blur(20px) saturate(140%);
+		transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
 	}
 	.glass-card-hover:hover {
 		background: var(--app-glass-bg-hover);
 		border-color: var(--app-glass-border-hover);
-		transform: translateY(-1px);
-		box-shadow:
-			var(--app-glass-shadow),
-			0 0 20px -4px color-mix(in srgb, var(--app-accent) 10%, transparent);
 	}
 </style>

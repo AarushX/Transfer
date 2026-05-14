@@ -60,13 +60,15 @@
 		transform: scale(0.97);
 	}
 	.btn-primary {
-		background: var(--app-gradient-accent);
-		color: var(--app-accent-text);
-		box-shadow: 0 2px 12px -2px color-mix(in srgb, var(--app-accent) 35%, transparent);
+		background: var(--aurora);
+		color: white;
+		box-shadow: 0 4px 24px -6px color-mix(in srgb, var(--app-accent) 60%, transparent),
+					inset 0 1px 0 0 color-mix(in srgb, white 25%, transparent);
 	}
 	.btn-primary:hover:not(:disabled) {
-		box-shadow: 0 4px 20px -2px color-mix(in srgb, var(--app-accent) 50%, transparent);
-		filter: brightness(1.1);
+		box-shadow: 0 8px 32px -6px color-mix(in srgb, var(--app-accent) 80%, transparent),
+					inset 0 1px 0 0 color-mix(in srgb, white 25%, transparent);
+		filter: brightness(1.08);
 	}
 	.btn-secondary {
 		background: var(--app-glass-bg);
