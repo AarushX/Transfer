@@ -1,13 +1,15 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { requireParentPortal, listActiveLinkedStudents } from '$lib/server/parent-access';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await requireParentPortal(locals);
+	const service = createSupabaseServiceClient();
 
-	const students = await listActiveLinkedStudents(locals.supabase, user.id);
+	const students = await listActiveLinkedStudents(service, user.id);
 
-	const { data: season } = await locals.supabase
+	const { data: season } = await service
 		.from('lettering_seasons')
 		.select('id,label,start_date,end_date')
 		.eq('is_active', true)
@@ -17,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return { students, season: null, myHours: [] };
 	}
 
-	const { data: myHours } = await locals.supabase
+	const { data: myHours } = await service
 		.from('parent_volunteer_hours')
 		.select('id,parent_user_id,student_user_id,season_id,hours,activity_date,description,verification_status,rejection_reason,created_at,student:profiles!parent_volunteer_hours_student_user_id_fkey(full_name,email)')
 		.eq('parent_user_id', user.id)
@@ -37,6 +39,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	logHours: async ({ locals, request }) => {
 		const { user } = await requireParentPortal(locals);
+		const service = createSupabaseServiceClient();
 
 		const form = await request.formData();
 		const studentUserId = String(form.get('student_user_id') ?? '').trim();
@@ -49,18 +52,18 @@ export const actions: Actions = {
 		if (!activityDate) return fail(400, { error: 'Please select a date.' });
 		if (!description) return fail(400, { error: 'Please enter a description.' });
 
-		const students = await listActiveLinkedStudents(locals.supabase, user.id);
+		const students = await listActiveLinkedStudents(service, user.id);
 		const linked = students.find((s) => s.id === studentUserId);
 		if (!linked) return fail(403, { error: 'Student is not linked to your account.' });
 
-		const { data: season } = await locals.supabase
+		const { data: season } = await service
 			.from('lettering_seasons')
 			.select('id')
 			.eq('is_active', true)
 			.maybeSingle();
 		if (!season) return fail(400, { error: 'No active season.' });
 
-		const { error: insertErr } = await locals.supabase
+		const { error: insertErr } = await service
 			.from('parent_volunteer_hours')
 			.insert({
 				parent_user_id: user.id,

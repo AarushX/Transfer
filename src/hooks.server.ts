@@ -1,10 +1,11 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import type { Session, User } from '@supabase/supabase-js';
-import { createSupabaseServerClient } from '$lib/server/supabase';
+import { createSupabaseServerClient, createSupabaseServiceClient } from '$lib/server/supabase';
 import { isAdmin, isMentor, isParentGuardian } from '$lib/roles';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
+const serviceClient = createSupabaseServiceClient();
 
 type ProfileRow = NonNullable<Awaited<ReturnType<App.Locals['safeGetSession']>>['profile']>;
 
@@ -27,7 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			} = await event.locals.supabase.auth.getUser();
 			if (userError || !user) return { session: null, user: null, profile: null };
 
-			const { data: profile } = await event.locals.supabase
+			const { data: profile } = await serviceClient
 				.from('profiles')
 				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url')
 				.eq('id', user.id)

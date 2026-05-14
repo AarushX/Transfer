@@ -1,17 +1,19 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireParentPortal, listActiveLinkedStudents } from '$lib/server/parent-access';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await requireParentPortal(locals);
+	const service = createSupabaseServiceClient();
 
 	const [{ data: application }, linkedStudents] = await Promise.all([
-		locals.supabase
+		service
 			.from('parent_applications')
 			.select('id,status,phone,relationship,notes,application_payload,submitted_at,reviewed_at')
 			.eq('parent_user_id', user.id)
 			.maybeSingle(),
-		listActiveLinkedStudents(locals.supabase, user.id)
+		listActiveLinkedStudents(service, user.id)
 	]);
 
 	return { application: application ?? null, linkedStudents };
@@ -20,6 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	linkStudentByCode: async ({ locals, request }) => {
 		const { user } = await requireParentPortal(locals);
+		const service = createSupabaseServiceClient();
 
 		const form = await request.formData();
 		const code = String(form.get('code') ?? '')
@@ -28,7 +31,7 @@ export const actions: Actions = {
 			.replace(/[^A-Z0-9]/g, '');
 		if (!code) return fail(400, { error: 'Enter a student link code.' });
 
-		const { data: codeRow, error: codeError } = await locals.supabase
+		const { data: codeRow, error: codeError } = await service
 			.from('parent_link_codes')
 			.select('id,student_user_id,expires_at,used_at')
 			.eq('code', code)
@@ -41,7 +44,7 @@ export const actions: Actions = {
 		}
 
 		const studentUserId = String(codeRow.student_user_id);
-		const { data: existing } = await locals.supabase
+		const { data: existing } = await service
 			.from('parent_student_links')
 			.select('id,status')
 			.eq('parent_user_id', user.id)
@@ -52,13 +55,13 @@ export const actions: Actions = {
 		}
 
 		if (existing?.id) {
-			const { error: updateError } = await locals.supabase
+			const { error: updateError } = await service
 				.from('parent_student_links')
 				.update({ status: 'active', updated_at: new Date().toISOString() })
 				.eq('id', existing.id);
 			if (updateError) return fail(400, { error: updateError.message });
 		} else {
-			const { error: insertError } = await locals.supabase.from('parent_student_links').insert({
+			const { error: insertError } = await service.from('parent_student_links').insert({
 				parent_user_id: user.id,
 				student_user_id: studentUserId,
 				status: 'active'
@@ -66,7 +69,7 @@ export const actions: Actions = {
 			if (insertError) return fail(400, { error: insertError.message });
 		}
 
-		const { error: markError } = await locals.supabase
+		const { error: markError } = await service
 			.from('parent_link_codes')
 			.update({ used_at: new Date().toISOString(), used_by_parent_user_id: user.id })
 			.eq('id', codeRow.id);

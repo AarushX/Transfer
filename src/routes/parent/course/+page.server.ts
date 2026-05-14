@@ -1,11 +1,13 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireParentPortal } from '$lib/server/parent-access';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await requireParentPortal(locals);
+	const service = createSupabaseServiceClient();
 
-	const { data: application } = await locals.supabase
+	const { data: application } = await service
 		.from('parent_applications')
 		.select('id,status,phone,relationship,notes,application_payload,submitted_at,reviewed_at')
 		.eq('parent_user_id', user.id)
@@ -17,6 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	saveDraft: async ({ locals, request }) => {
 		const { user } = await requireParentPortal(locals);
+		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 
 		const payload: Record<string, string> = {};
@@ -28,7 +31,7 @@ export const actions: Actions = {
 		const relationship = String(form.get('relationship') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
 
-		const { data: existing } = await locals.supabase
+		const { data: existing } = await service
 			.from('parent_applications')
 			.select('id,status')
 			.eq('parent_user_id', user.id)
@@ -38,7 +41,7 @@ export const actions: Actions = {
 			if (existing.status === 'approved') {
 				return fail(400, { error: 'Your application is already approved.' });
 			}
-			const { error } = await locals.supabase
+			const { error } = await service
 				.from('parent_applications')
 				.update({
 					phone,
@@ -50,7 +53,7 @@ export const actions: Actions = {
 				.eq('id', existing.id);
 			if (error) return fail(400, { error: error.message });
 		} else {
-			const { error } = await locals.supabase.from('parent_applications').insert({
+			const { error } = await service.from('parent_applications').insert({
 				parent_user_id: user.id,
 				phone,
 				relationship,
@@ -66,6 +69,7 @@ export const actions: Actions = {
 
 	submitForApproval: async ({ locals, request }) => {
 		const { user } = await requireParentPortal(locals);
+		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 
 		const payload: Record<string, string> = {};
@@ -80,7 +84,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Phone and relationship are required.' });
 		}
 
-		const { data: existing } = await locals.supabase
+		const { data: existing } = await service
 			.from('parent_applications')
 			.select('id,status')
 			.eq('parent_user_id', user.id)
@@ -90,7 +94,7 @@ export const actions: Actions = {
 			if (existing.status === 'approved') {
 				return fail(400, { error: 'Your application is already approved.' });
 			}
-			const { error } = await locals.supabase
+			const { error } = await service
 				.from('parent_applications')
 				.update({
 					phone,
@@ -104,7 +108,7 @@ export const actions: Actions = {
 				.eq('id', existing.id);
 			if (error) return fail(400, { error: error.message });
 		} else {
-			const { error } = await locals.supabase.from('parent_applications').insert({
+			const { error } = await service.from('parent_applications').insert({
 				parent_user_id: user.id,
 				phone,
 				relationship,
