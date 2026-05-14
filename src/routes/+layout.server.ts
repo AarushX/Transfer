@@ -85,20 +85,14 @@ export const load = async ({ locals }) => {
 			.maybeSingle();
 
 		if (user) {
-			const [orgResp, currentResp, primaryResp, requiredResp, leadTeamResp, leadSubteamResp] = await Promise.all([
+			const [orgResp, currentResp, primaryResp, requiredResp] = await Promise.all([
 				orgPromise,
 				locals.supabase.from('profile_teams').select('team_id,category_slug').eq('user_id', user.id),
 				locals.supabase.from('profile_primary_teams').select('team_group_id,team_groups(name,designator)').eq('user_id', user.id).maybeSingle(),
 				locals.supabase
 					.from('subteam_categories')
 					.select('slug')
-					.eq('is_required_onboarding', true),
-				profile?.lead_team_group_id
-					? locals.supabase.from('team_groups').select('id,name,designator').eq('id', profile.lead_team_group_id).maybeSingle()
-					: Promise.resolve({ data: null } as any),
-				profile?.lead_subteam_id
-					? locals.supabase.from('subteams').select('id,name').eq('id', profile.lead_subteam_id).maybeSingle()
-					: Promise.resolve({ data: null } as any)
+					.eq('is_required_onboarding', true)
 			]);
 
 			const org = orgResp.data as Record<string, unknown> | null;
@@ -138,20 +132,40 @@ export const load = async ({ locals }) => {
 	let leadTeamName: string | null = null;
 	let leadSubteamName: string | null = null;
 	if (user) {
-		const [primaryResp2, leadResp, leadSubResp] = await Promise.all([
-			locals.supabase.from('profile_primary_teams').select('team_groups(name,designator)').eq('user_id', user.id).maybeSingle(),
-			profile?.lead_team_group_id
-				? locals.supabase.from('team_groups').select('name,designator').eq('id', profile.lead_team_group_id).maybeSingle()
-				: Promise.resolve({ data: null } as any),
-			profile?.lead_subteam_id
-				? locals.supabase.from('subteams').select('name').eq('id', profile.lead_subteam_id).maybeSingle()
-				: Promise.resolve({ data: null } as any)
-		]);
-		const pt = primaryResp2.data?.team_groups as any;
+		const { data: primaryRow } = await locals.supabase
+			.from('profile_primary_teams')
+			.select('team_groups(name,designator)')
+			.eq('user_id', user.id)
+			.maybeSingle();
+		const pt = (primaryRow as any)?.team_groups;
 		if (pt) primaryTeamName = pt.designator ? `${pt.name} · ${pt.designator}` : pt.name;
-		const lt = leadResp.data as any;
-		if (lt) leadTeamName = lt.designator ? `${lt.name} · ${lt.designator}` : lt.name;
-		leadSubteamName = (leadSubResp.data as any)?.name ?? null;
+
+		// Fetch lead info via a defensive query — column may not exist if migration hasn't run yet
+		try {
+			const { data: leadFields } = await locals.supabase
+				.from('profiles')
+				.select('lead_team_group_id,lead_subteam_id')
+				.eq('id', user.id)
+				.maybeSingle();
+			if ((leadFields as any)?.lead_team_group_id) {
+				const { data: tg } = await locals.supabase
+					.from('team_groups')
+					.select('name,designator')
+					.eq('id', (leadFields as any).lead_team_group_id)
+					.maybeSingle();
+				if (tg) leadTeamName = tg.designator ? `${tg.name} · ${tg.designator}` : tg.name;
+			}
+			if ((leadFields as any)?.lead_subteam_id) {
+				const { data: st } = await locals.supabase
+					.from('subteams')
+					.select('name')
+					.eq('id', (leadFields as any).lead_subteam_id)
+					.maybeSingle();
+				leadSubteamName = st?.name ?? null;
+			}
+		} catch {
+			// Migration not applied yet — graceful no-op
+		}
 	}
 
 	return {

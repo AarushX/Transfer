@@ -30,7 +30,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			const { data: profile } = await serviceClient
 				.from('profiles')
-				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url,clickup_signed_up,lead_team_group_id,lead_subteam_id')
+				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url')
 				.eq('id', user.id)
 				.single();
 

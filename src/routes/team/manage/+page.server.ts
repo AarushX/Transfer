@@ -10,15 +10,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user || !profile) throw redirect(303, '/login');
 
-	const isLeadOfTeam = Boolean(profile.lead_team_group_id);
-	const isLeadOfSubteam = Boolean(profile.lead_subteam_id);
-	if (!isLeadOfTeam && !isLeadOfSubteam && !isAdmin(profile)) throw redirect(303, '/team');
-
 	const service = createSupabaseServiceClient();
 
+	let leadTeamGroupId: string | null = null;
+	let leadSubteamId: string | null = null;
+	try {
+		const { data: leadFields } = await service
+			.from('profiles')
+			.select('lead_team_group_id,lead_subteam_id')
+			.eq('id', user.id)
+			.maybeSingle();
+		leadTeamGroupId = (leadFields as any)?.lead_team_group_id ?? null;
+		leadSubteamId = (leadFields as any)?.lead_subteam_id ?? null;
+	} catch {
+		// Migration not applied
+	}
+
+	const isLeadOfTeam = Boolean(leadTeamGroupId);
+	const isLeadOfSubteam = Boolean(leadSubteamId);
+	if (!isLeadOfTeam && !isLeadOfSubteam && !isAdmin(profile)) throw redirect(303, '/team');
+
 	const scopeIds: string[] = [];
-	if (profile.lead_team_group_id) scopeIds.push(profile.lead_team_group_id);
-	if (profile.lead_subteam_id) scopeIds.push(profile.lead_subteam_id);
+	if (leadTeamGroupId) scopeIds.push(leadTeamGroupId);
+	if (leadSubteamId) scopeIds.push(leadSubteamId);
 
 	const { data: pages } = await service
 		.from('pages')
@@ -32,11 +46,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		? await service.from('page_blocks').select('*').in('page_id', pageIds).order('sort_order')
 		: { data: [] };
 
-	const { data: teamGroup } = profile.lead_team_group_id
-		? await service.from('team_groups').select('id,name,designator').eq('id', profile.lead_team_group_id).maybeSingle()
+	const { data: teamGroup } = leadTeamGroupId
+		? await service.from('team_groups').select('id,name,designator').eq('id', leadTeamGroupId).maybeSingle()
 		: { data: null };
-	const { data: subteam } = profile.lead_subteam_id
-		? await service.from('subteams').select('id,name').eq('id', profile.lead_subteam_id).maybeSingle()
+	const { data: subteam } = leadSubteamId
+		? await service.from('subteams').select('id,name').eq('id', leadSubteamId).maybeSingle()
 		: { data: null };
 
 	const blocksByPage = new Map<string, any[]>();
@@ -67,11 +81,16 @@ export const actions: Actions = {
 		if (!['team_group', 'subteam'].includes(scopeKind)) return fail(400, { error: 'Invalid scope.' });
 		if (!['content', 'redirect'].includes(kind)) return fail(400, { error: 'Invalid kind.' });
 
-		const scopeId = scopeKind === 'team_group' ? profile.lead_team_group_id : profile.lead_subteam_id;
+		const service = createSupabaseServiceClient();
+		const { data: leadFields } = await service
+			.from('profiles')
+			.select('lead_team_group_id,lead_subteam_id')
+			.eq('id', user.id)
+			.maybeSingle();
+		const scopeId = scopeKind === 'team_group' ? (leadFields as any)?.lead_team_group_id : (leadFields as any)?.lead_subteam_id;
 		if (!scopeId) return fail(403, { error: 'You are not a lead for this scope.' });
 		if (kind === 'redirect' && !redirectUrl) return fail(400, { error: 'Redirect URL required.' });
 
-		const service = createSupabaseServiceClient();
 		const slug = slugify(title) || 'page';
 		const { error } = await service.from('pages').insert({
 			scope_kind: scopeKind,

@@ -5,9 +5,19 @@ import { createSupabaseServiceClient } from '$lib/server/supabase';
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user || !profile) throw redirect(303, '/login');
-	return {
-		clickupSignedUp: profile.clickup_signed_up ?? false
-	};
+
+	let clickupSignedUp = false;
+	try {
+		const { data } = await locals.supabase
+			.from('profiles')
+			.select('clickup_signed_up')
+			.eq('id', user.id)
+			.maybeSingle();
+		clickupSignedUp = (data as any)?.clickup_signed_up === true;
+	} catch {
+		// Migration not yet applied
+	}
+	return { clickupSignedUp };
 };
 
 export const actions: Actions = {

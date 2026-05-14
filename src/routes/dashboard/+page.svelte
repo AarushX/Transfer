@@ -496,7 +496,7 @@ const inProgressCount = $derived(inProgressPrimary.length);
 		{#if heroNode}
 			<div class="fade-up aurora-border">
 				<div class="hero-glass relative overflow-hidden rounded-[17px] p-6 md:p-7" style="background: var(--app-surface);">
-					<svg class="pointer-events-none absolute inset-0 h-full w-full" style="opacity: 0.16;" aria-hidden="true">
+					<svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 800 200" preserveAspectRatio="none" style="opacity: 0.16;" aria-hidden="true">
 						<defs>
 							<linearGradient id="hero-line" x1="0" y1="0" x2="1" y2="0">
 								<stop offset="0%" stop-color="#8b5cf6" />
@@ -504,7 +504,7 @@ const inProgressCount = $derived(inProgressPrimary.length);
 							</linearGradient>
 						</defs>
 						<path d="M 60 0 V 60 H 200 V 120 H 360" stroke="url(#hero-line)" stroke-width="1.2" fill="none" />
-						<path d="M 100% 40 L 80% 40 L 80% 80 L 60% 80" stroke="url(#hero-line)" stroke-width="1.2" fill="none" />
+						<path d="M 800 40 L 640 40 L 640 80 L 480 80" stroke="url(#hero-line)" stroke-width="1.2" fill="none" />
 						<circle cx="200" cy="60" r="3" fill="#8b5cf6" />
 						<circle cx="360" cy="120" r="3" fill="#06b6d4" />
 					</svg>
