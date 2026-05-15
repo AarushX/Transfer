@@ -63,7 +63,6 @@
 		{ href: '/admin/settings', label: 'Settings', icon: 'settings' },
 		{ href: '/admin/settings/teams', label: 'Teams', icon: 'building', match: (p) => p.startsWith('/admin/settings/teams') },
 		{ href: '/admin/content', label: 'Content', icon: 'file' },
-		{ href: '/admin/audit', label: 'Audit log', icon: 'list' },
 		{ href: '/admin/attendance', label: 'Attendance', icon: 'calendar' },
 		{ href: '/admin/lettering', label: 'Lettering rules', icon: 'award', match: (p) => p.startsWith('/admin/lettering') }
 	];
@@ -246,12 +245,11 @@
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg py-1 pl-9 pr-2.5 text-xs"
+									class="nav-link flex items-center gap-2 rounded-lg pl-9 pr-2.5 py-1 text-xs"
 									style={isActive(item, page.url.pathname)
 										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
 										: `color: var(--app-text-muted);`}
 								>
-									<span style="opacity:.5;">·</span>
 									<span class="truncate">{item.label}</span>
 								</a>
 							</li>

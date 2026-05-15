@@ -19,8 +19,8 @@
 <div class="space-y-3">
 	<div class="rounded-2xl border p-4 backdrop-blur-xl text-center" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
 		<p class="text-[10px] tracking-[0.18em] uppercase font-bold" style="color: var(--app-text-muted);">Passport QR</p>
-		<div class="mx-auto mt-2" style="max-width: 70%;">
-			<PassportQR qrDataUrl={passportQrDataUrl} />
+		<div class="mt-2">
+			<PassportQR qrDataUrl={passportQrDataUrl} compact />
 		</div>
 	</div>
 
