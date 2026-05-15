@@ -119,7 +119,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const service = createSupabaseServiceClient();
 		const { data: rosterProfileIds } = await service
 			.from('profile_teams')
-			.select('user_id,category_slug')
+			.select('user_id,team_id,category_slug,teams(name)')
 			.eq('team_group_id', primaryTeamGroupId);
 		const ids = Array.from(new Set((rosterProfileIds ?? []).map((r: any) => r.user_id)));
 		if (ids.length > 0) {
@@ -127,12 +127,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from('profiles')
 				.select('id,full_name,email,is_mentor,is_lead,role,base_role,avatar_url')
 				.in('id', ids);
-			const categoryNameBySlug = new Map((subteamCategories ?? []).map((c: any) => [c.slug, c.name]));
 			const categoryByUser = new Map<string, string[]>();
 			for (const r of rosterProfileIds ?? []) {
 				if (!r.category_slug || r.category_slug === 'general') continue;
 				const list = categoryByUser.get(r.user_id) ?? [];
-				list.push(categoryNameBySlug.get(r.category_slug) ?? r.category_slug);
+				const displayName = (r as any).teams?.name ?? r.category_slug;
+				if (!list.includes(displayName)) list.push(displayName);
 				categoryByUser.set(r.user_id, list);
 			}
 			roster = (rosterRows ?? []).map((r: any) => ({

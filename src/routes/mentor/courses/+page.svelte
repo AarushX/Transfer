@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/Button.svelte';
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
-	import GlassTable from '$lib/components/ui/GlassTable.svelte';
 	let { data, form } = $props();
 	const teamsById = $derived(
 		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
@@ -42,125 +41,284 @@
 	};
 </script>
 
-<section class="space-y-6">
-	<div class="fade-up flex items-center justify-between">
-		<div>
-			<a href="/mentor" class="text-xs" style="color: var(--app-text-muted);">← Mentor home</a>
-			<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Mentor Panel</p>
-			<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Courses</span></h1>
-			<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
-				<span class="mono">{data.nodes.length}</span> module{data.nodes.length === 1 ? '' : 's'} in the catalog.
-			</p>
+<section class="space-y-5">
+
+	<!-- Header -->
+	<div class="fade-up flex items-start justify-between gap-4">
+		<div class="flex items-center gap-3">
+			<div>
+				<p class="eyebrow-label" style="margin-bottom: 4px;">Mentor Panel</p>
+				<div class="flex items-center gap-2.5">
+					<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Courses</span></h1>
+					<span
+						class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
+						style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 30%, transparent);"
+					>
+						{data.nodes.length}
+					</span>
+				</div>
+			</div>
 		</div>
-		<div class="flex items-center gap-2">
-			<Button variant="primary" href="/mentor/courses/new">+ New course</Button>
+		<div class="flex shrink-0 items-center gap-2 pt-1">
 			{#if (data.templates ?? []).length > 0}
-				<Button variant="secondary" onclick={() => (showTemplatePanel = !showTemplatePanel)}>Use template</Button>
+				<Button variant="ghost" onclick={() => (showTemplatePanel = !showTemplatePanel)}>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity:.7;">
+						<rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+						<rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+						<rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+						<rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+					</svg>
+					Use template
+				</Button>
 			{/if}
+			<Button variant="primary" href="/mentor/courses/new">
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+					<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+				New course
+			</Button>
 		</div>
 	</div>
-	{#if showTemplatePanel && (data.templates ?? []).length > 0}
-		<form method="POST" action="?/createFromTemplate" class="grid gap-2 rounded-xl border p-3 md:grid-cols-4" style="border-color: var(--app-info); background: color-mix(in srgb, var(--app-info) 8%, transparent);">
-			<select
-				name="template_id"
-				class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm"
-				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-				bind:value={selectedTemplateId}
-			>
-				{#each data.templates as template (template.id)}
-					<option value={template.id}>{template.name}</option>
-				{/each}
-			</select>
-			<input
-				name="title"
-				class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm"
-				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-				bind:value={newTitle}
-				placeholder="Course title"
-				required
-			/>
-			<input
-				name="slug"
-				class="rounded-lg border px-2 py-2 text-xs backdrop-blur-sm"
-				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-				bind:value={newSlug}
-				placeholder="Slug (optional)"
-			/>
-			<div class="flex gap-2">
-				<Button variant="secondary" size="sm" type="submit">Create</Button>
-				<Button variant="ghost" size="sm" onclick={() => (showTemplatePanel = false)}>Cancel</Button>
-			</div>
-		</form>
-	{/if}
+
+	<!-- Error banner -->
 	{#if form?.error}
-		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
+		<div
+			class="flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 85%, white);"
+		>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="shrink:0; opacity:.9;">
+				<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+				<path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+			</svg>
+			{form.error}
+		</div>
 	{/if}
 
+	<!-- Template panel (collapsible) -->
+	{#if showTemplatePanel && (data.templates ?? []).length > 0}
+		<div
+			class="overflow-hidden rounded-2xl border backdrop-blur-xl"
+			style="background: color-mix(in srgb, var(--app-info) 6%, var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-info) 35%, var(--app-glass-border)); box-shadow: var(--app-glass-shadow);"
+		>
+			<div class="flex items-center justify-between border-b px-4 py-3" style="border-color: color-mix(in srgb, var(--app-info) 20%, var(--app-glass-border));">
+				<div class="flex items-center gap-2">
+					<span
+						class="inline-flex h-5 w-5 items-center justify-center rounded-md"
+						style="background: color-mix(in srgb, var(--app-info) 20%, transparent); color: var(--app-info);"
+					>
+						<svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+							<rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+							<rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+							<rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+							<rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+						</svg>
+					</span>
+					<span class="text-sm font-semibold" style="color: var(--app-text);">Create from template</span>
+				</div>
+				<button
+					onclick={() => (showTemplatePanel = false)}
+					class="flex h-6 w-6 items-center justify-center rounded-md transition-colors"
+					style="color: var(--app-text-muted);"
+					aria-label="Close template panel"
+				>
+					<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+						<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+					</svg>
+				</button>
+			</div>
+			<form method="POST" action="?/createFromTemplate" class="grid gap-3 p-4 md:grid-cols-4">
+				<div class="flex flex-col gap-1">
+					<label class="text-xs font-medium" style="color: var(--app-text-muted);">Template</label>
+					<select
+						name="template_id"
+						class="rounded-lg border px-3 py-2 text-sm transition-colors"
+						style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none;"
+						bind:value={selectedTemplateId}
+					>
+						{#each data.templates as template (template.id)}
+							<option value={template.id}>{template.name}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex flex-col gap-1">
+					<label class="text-xs font-medium" style="color: var(--app-text-muted);">Course title</label>
+					<input
+						name="title"
+						class="rounded-lg border px-3 py-2 text-sm transition-colors"
+						style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none;"
+						bind:value={newTitle}
+						placeholder="e.g. Pneumatics Basics"
+						required
+					/>
+				</div>
+				<div class="flex flex-col gap-1">
+					<label class="text-xs font-medium" style="color: var(--app-text-muted);">Slug <span style="color: var(--app-text-dim);">(optional)</span></label>
+					<input
+						name="slug"
+						class="rounded-lg border px-3 py-2 font-mono text-sm transition-colors"
+						style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none;"
+						bind:value={newSlug}
+						placeholder="pneumatics-basics"
+					/>
+				</div>
+				<div class="flex items-end gap-2">
+					<Button variant="primary" size="sm" type="submit">Create course</Button>
+					<Button variant="ghost" size="sm" onclick={() => (showTemplatePanel = false)}>Cancel</Button>
+				</div>
+			</form>
+		</div>
+	{/if}
+
+	<!-- Filter row -->
 	<form
 		method="GET"
-		class="fade-up flex flex-wrap items-end gap-2 rounded-2xl border p-3 backdrop-blur-xl"
+		class="fade-up flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-3 backdrop-blur-xl"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;"
 	>
-		<label class="flex flex-1 flex-col gap-1 text-xs" style="color: var(--app-text-muted);">
-			<span>Search title</span>
+		<div class="relative flex-1" style="min-width: 180px;">
+			<svg
+				width="14" height="14" viewBox="0 0 16 16" fill="none"
+				class="pointer-events-none absolute top-1/2 -translate-y-1/2"
+				style="left: 10px; color: var(--app-text-dim);"
+			>
+				<circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+				<path d="M10.5 10.5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+			</svg>
 			<input
 				name="q"
 				value={data.filter.q}
-				placeholder="e.g. pneumatics"
-				class="rounded-lg border px-2 py-2 text-sm backdrop-blur-sm"
-				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+				placeholder="Search courses…"
+				class="w-full rounded-xl border py-2 pr-3 text-sm transition-colors"
+				style="padding-left: 32px; background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none;"
 			/>
-		</label>
-		<label class="flex flex-col gap-1 text-xs" style="color: var(--app-text-muted);">
-			<span>Team</span>
-			<select name="team" class="rounded-lg border px-2 py-2 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
-				<option value="">All teams</option>
-				{#each (data.teams as any[]) as team}
-					<option value={team.id} selected={team.id === data.filter.team}>
-						{teamGroupsById.get(String(team.team_group_id ?? ''))?.name
-							? `${teamGroupsById.get(String(team.team_group_id ?? ''))?.name}: `
-							: ''}{team.name}
-					</option>
-				{/each}
-			</select>
-		</label>
-		<Button variant="secondary" size="sm" type="submit">Apply</Button>
+		</div>
+		<select
+			name="team"
+			class="rounded-xl border px-3 py-2 text-sm transition-colors"
+			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none; min-width: 150px;"
+		>
+			<option value="">All teams</option>
+			{#each (data.teams as any[]) as team}
+				<option value={team.id} selected={team.id === data.filter.team}>
+					{teamGroupsById.get(String(team.team_group_id ?? ''))?.name
+						? `${teamGroupsById.get(String(team.team_group_id ?? ''))?.name}: `
+						: ''}{team.name}
+				</option>
+			{/each}
+		</select>
+		<Button variant="secondary" size="sm" type="submit">Filter</Button>
 		{#if data.filter.q || data.filter.team}
-			<Button variant="ghost" size="sm" href="/mentor/courses">Reset</Button>
+			<Button variant="ghost" size="sm" href="/mentor/courses">Clear</Button>
 		{/if}
 	</form>
 
-	<GlassTable>
-		<thead>
-			<tr>
-				<th>Title</th>
-				<th>Slug</th>
-				<th>Teams</th>
-				<th class="text-right">Actions</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each data.nodes as node (node.id)}
-				<tr>
-					<td class="font-medium">{node.title}</td>
-					<td style="color: var(--app-text-muted);">{node.slug}</td>
-					<td>
-						<div class="flex max-w-[28rem] flex-nowrap gap-1 overflow-x-auto pb-1 whitespace-nowrap">
-							{#each teamNamesForNode(node.id) as label}
-								<span class="shrink-0 rounded-lg px-2 py-0.5 text-xs" style="background: var(--app-surface-alt); color: var(--app-text);">{label}</span>
-							{/each}
-						</div>
-					</td>
-					<td class="text-right">
-						<Button variant="ghost" size="sm" href={`/learn/${node.slug}?preview=1`} class="mr-2">Preview</Button>
-						<Button variant="secondary" size="sm" href={`/mentor/courses/${node.slug}`}>Edit</Button>
-					</td>
-				</tr>
+	<!-- Course list -->
+	{#if data.nodes.length === 0}
+		<div
+			class="flex flex-col items-center justify-center gap-4 rounded-2xl border py-16 text-center"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+		>
+			<div
+				class="flex h-14 w-14 items-center justify-center rounded-2xl"
+				style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 25%, transparent);"
+			>
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: var(--app-accent);">
+					<rect x="3" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
+					<rect x="14" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
+					<rect x="3" y="14" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
+					<rect x="14" y="14" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
+				</svg>
+			</div>
+			<div>
+				<p class="text-sm font-semibold" style="color: var(--app-text);">
+					{data.filter.q || data.filter.team ? 'No courses match your filters' : 'No courses yet'}
+				</p>
+				<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
+					{data.filter.q || data.filter.team
+						? 'Try adjusting your search or filter criteria.'
+						: 'Create your first course to get started.'}
+				</p>
+			</div>
+			{#if data.filter.q || data.filter.team}
+				<Button variant="ghost" size="sm" href="/mentor/courses">Clear filters</Button>
 			{:else}
-				<tr>
-					<td colspan="4" class="px-3 py-6 text-center" style="color: var(--app-text-muted);">No courses found.</td>
-				</tr>
+				<Button variant="primary" href="/mentor/courses/new">
+					<svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+						<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+					</svg>
+					New course
+				</Button>
+			{/if}
+		</div>
+	{:else}
+		<div class="space-y-2">
+			{#each data.nodes as node (node.id)}
+				{@const teamLabels = teamNamesForNode(node.id)}
+				{@const hasNoTeam = teamLabels.length === 1 && teamLabels[0] === 'No team targets'}
+				<div
+					class="group flex items-center gap-4 rounded-2xl border px-5 py-4 backdrop-blur-xl transition-all duration-200"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+				>
+					<!-- Course icon -->
+					<div
+						class="hidden shrink-0 sm:flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-200"
+						style="background: color-mix(in srgb, var(--app-accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 20%, transparent);"
+					>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color: var(--app-accent);">
+							<path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+							<path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</div>
+
+					<!-- Title + meta -->
+					<div class="min-w-0 flex-1">
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="truncate text-base font-semibold" style="color: var(--app-text);">{node.title}</span>
+							<code
+								class="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs"
+								style="background: color-mix(in srgb, var(--app-text-muted) 10%, transparent); color: var(--app-text-muted); border: 1px solid color-mix(in srgb, var(--app-text-muted) 15%, transparent);"
+							>{node.slug}</code>
+						</div>
+						<div class="mt-2 flex flex-wrap gap-1.5">
+							{#if hasNoTeam}
+								<span
+									class="inline-flex items-center rounded-md px-2 py-0.5 text-xs"
+									style="background: color-mix(in srgb, var(--app-text-muted) 8%, transparent); color: var(--app-text-dim); border: 1px solid color-mix(in srgb, var(--app-text-muted) 12%, transparent);"
+								>
+									No team targets
+								</span>
+							{:else}
+								{#each teamLabels as label}
+									<span
+										class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+										style="background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, var(--app-text)); border: 1px solid color-mix(in srgb, var(--app-success) 20%, transparent);"
+									>
+										{label}
+									</span>
+								{/each}
+							{/if}
+						</div>
+					</div>
+
+					<!-- Actions -->
+					<div class="flex shrink-0 items-center gap-2 opacity-70 transition-opacity duration-150 group-hover:opacity-100">
+						<Button variant="ghost" size="sm" href={`/learn/${node.slug}?preview=1`}>
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+								<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.4"/>
+								<circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.4"/>
+							</svg>
+							Preview
+						</Button>
+						<Button variant="secondary" size="sm" href={`/mentor/courses/${node.slug}`}>
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+								<path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+							</svg>
+							Edit
+						</Button>
+					</div>
+				</div>
 			{/each}
-		</tbody>
-	</GlassTable>
+		</div>
+	{/if}
 </section>

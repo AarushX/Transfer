@@ -139,7 +139,10 @@ export const load = async ({ locals }) => {
 			.eq('user_id', user.id)
 			.maybeSingle();
 		const pt = (primaryRow as any)?.team_groups;
-		if (pt) primaryTeamName = pt.designator ? `${pt.name} · ${pt.designator}` : pt.name;
+		if (pt) {
+			const des = pt.designator && pt.designator.toLowerCase() !== 'general' ? ` · ${pt.designator}` : '';
+			primaryTeamName = `${pt.name}${des}`;
+		}
 		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
 
 		// Load subteams the user is on within their primary team_group

@@ -55,9 +55,6 @@
 			label: 'Manage',
 			items: [
 				{ href: '/mentor/courses', label: 'Courses', match: (p) => p.startsWith('/mentor/courses') },
-				{ href: '/mentor/surveys', label: 'Surveys', match: (p) => p.startsWith('/mentor/surveys') },
-				{ href: '/mentor/forms', label: 'Forms', match: (p) => p.startsWith('/mentor/forms') },
-				{ href: '/mentor/carpool', label: 'Carpool', match: (p) => p.startsWith('/mentor/carpool') },
 				{ href: '/mentor/machines', label: 'Machines', match: (p) => p.startsWith('/mentor/machines') }
 			]
 		},
@@ -83,7 +80,6 @@
 			label: 'People',
 			items: [
 				{ href: '/admin/users', label: 'Users & leads', match: (p) => p.startsWith('/admin/users') },
-				{ href: '/admin/parents', label: 'Parent approvals', match: (p) => p.startsWith('/admin/parents') },
 				{ href: '/admin/attendance', label: 'Attendance' }
 			]
 		},
@@ -239,7 +235,8 @@
 				</ul>
 
 				{#if !canParent && data.primaryTeamName}
-					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
+					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase truncate" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
 						{data.primaryTeamName}
 					</p>
 					<ul class="space-y-0.5">
@@ -276,7 +273,8 @@
 				{/if}
 
 				{#if canMentor}
-					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
+					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
 						Mentor
 					</p>
 					{#each mentorNav as group, gi (group.label)}
@@ -300,7 +298,8 @@
 				{/if}
 
 				{#if canAdmin}
-					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
+					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
 						Admin
 					</p>
 					{#each adminNav as group, gi (group.label)}

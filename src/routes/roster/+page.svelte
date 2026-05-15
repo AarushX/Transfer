@@ -49,14 +49,6 @@
 		</GlassCard>
 	{/if}
 
-	<GlassCard>
-		<h2 class="font-semibold" style="color: var(--app-text);">Bottlenecks</h2>
-		<ul class="mt-2 list-disc pl-5 text-sm" style="color: var(--app-text-muted);">
-			{#each data.bottlenecks as b}
-				<li>{b.node}: {b.count} waiting</li>
-			{/each}
-		</ul>
-	</GlassCard>
 	<div class="fade-up overflow-x-auto rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
 		<table class="min-w-full text-sm">
 			<thead class="text-left" style="background: var(--app-table-header-bg);">
