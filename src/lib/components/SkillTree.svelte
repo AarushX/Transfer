@@ -115,8 +115,6 @@
 		return result;
 	});
 
-	const contentWidth = $derived(Math.max(800, ...layoutNodes.map((n) => n.x + 120)));
-	const contentHeight = $derived(Math.max(600, ...layoutNodes.map((n) => n.y + 100)));
 	const nodeMap = $derived(new Map(layoutNodes.map((n) => [n.id, n])));
 
 	const edges = $derived.by(() => {
@@ -172,16 +170,30 @@
 	);
 
 	function fitView() {
-		if (!containerEl) return;
+		if (!containerEl || layoutNodes.length === 0) return;
 		const cw = containerEl.clientWidth;
 		const ch = containerEl.clientHeight;
 		const pad = 60;
-		const zx = cw / (contentWidth + pad * 2);
-		const zy = ch / (contentHeight + pad * 2);
+
+		const xs = layoutNodes.map((n) => n.x);
+		const ys = layoutNodes.map((n) => n.y);
+		const minX = Math.min(...xs) - NODE_R;
+		const maxX = Math.max(...xs) + NODE_R;
+		const minY = Math.min(...ys) - NODE_R;
+		const maxY = Math.max(...ys) + NODE_R + 20; // +20 for label below node
+
+		const bboxW = maxX - minX;
+		const bboxH = maxY - minY;
+
+		const zx = cw / (bboxW + pad * 2);
+		const zy = ch / (bboxH + pad * 2);
 		const z = Math.min(zx, zy, MAX_ZOOM);
 		zoom = Math.max(z, MIN_ZOOM);
-		panX = (cw - contentWidth * zoom) / 2;
-		panY = (ch - contentHeight * zoom) / 2;
+
+		const bboxCenterX = (minX + maxX) / 2;
+		const bboxCenterY = (minY + maxY) / 2;
+		panX = cw / 2 - bboxCenterX * zoom;
+		panY = ch / 2 - bboxCenterY * zoom;
 	}
 
 	function handleWheel(e: WheelEvent) {
@@ -220,6 +232,17 @@
 	function handlePointerUp(e: PointerEvent) {
 		isPanning = false;
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		if (!didPan) {
+			const target = e.target as Element | null;
+			const nodeGroup = target?.closest('g[data-node-id]') as SVGElement | null;
+			const nodeId = nodeGroup?.getAttribute('data-node-id');
+			if (nodeId) {
+				const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
+				if (node) {
+					selected = selected?.id === nodeId ? null : node;
+				}
+			}
+		}
 	}
 
 	// Touch pinch-to-zoom
@@ -260,7 +283,7 @@
 	<div
 		bind:this={containerEl}
 		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 75vh; min-height: 400px; touch-action: none; user-select: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
 		onwheel={handleWheel}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
@@ -315,11 +338,9 @@
 				{@const color = STATE_COLOR[node.state] ?? '#475569'}
 				{@const isLocked = node.state === 'locked'}
 				{@const isSelected = selected?.id === node.id}
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<g
-					style="cursor: pointer;"
-					onclick={(e) => { if (!didPan) { selected = isSelected ? null : node; } }}
+					data-node-id={node.id}
 					onmouseenter={() => (hovered = node)}
 					onmouseleave={() => (hovered = null)}
 				>
@@ -339,22 +360,22 @@
 						stroke-width={node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 2 : 1.2}
 						opacity={isLocked ? 0.5 : 1} />
 					<foreignObject x={node.x - NODE_R} y={node.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2}>
-						<div style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked ? '#475569' : 'white'};">
+						<div style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked ? '#475569' : 'white'}; pointer-events: none; cursor: inherit;">
 							{#if node.state === 'completed'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polyline points="4 12 10 18 20 6"/></svg>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; pointer-events: none;"><polyline points="4 12 10 18 20 6"/></svg>
 							{:else if node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending'}
-								<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width: 18px; height: 18px;"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+								<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width: 18px; height: 18px; pointer-events: none;"><polygon points="6 4 20 12 6 20 6 4"/></svg>
 							{:else if node.state === 'mentor_checkoff_pending'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; pointer-events: none;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
 							{:else if node.state === 'available'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; pointer-events: none;"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
 							{:else}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; pointer-events: none;"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
 							{/if}
 						</div>
 					</foreignObject>
 					<text x={node.x} y={node.y + NODE_R + 18} text-anchor="middle"
-						fill={isLocked ? '#475569' : '#e6edf7'} font-size="11" font-weight="600" style="font-family: Inter, sans-serif;">
+						fill={isLocked ? '#475569' : '#e6edf7'} font-size="11" font-weight="600" style="font-family: Inter, sans-serif; pointer-events: none;">
 						{node.title}
 					</text>
 				</g>
