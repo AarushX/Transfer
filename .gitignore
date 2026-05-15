@@ -31,3 +31,6 @@ coverage
 # Supabase local
 /supabase/.temp
 /supabase/.branches
+
+# Superpowers brainstorm sessions
+.superpowers/
