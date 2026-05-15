@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import SidebarIcons from '$lib/components/SidebarIcons.svelte';
 	import { isAdmin, isMentor, isParentGuardian, roleBadgeParts } from '$lib/roles';
 	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 
@@ -18,78 +19,53 @@
 	let installPromptEvent = $state<any>(null);
 	let showInstallButton = $state(false);
 
-	type NavItem = { href: string; label: string; match?: (p: string) => boolean };
-	type NavGroup = { label: string; items: NavItem[] };
+	type NavItem = { href: string; label: string; icon: string; match?: (p: string) => boolean };
 
-	const memberPrimary: NavItem[] = [
-		...(data.needsOnboarding
-			? [{ href: '/onboarding', label: 'Onboarding', match: (p: string) => p.startsWith('/onboarding') }]
-			: []),
-		{ href: '/dashboard', label: 'Dashboard' },
-		{ href: '/clickup', label: 'ClickUp', match: (p) => p.startsWith('/clickup') },
-		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
-	];
+	const primary: NavItem[] = canParent
+		? [
+				{ href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+				{
+					href: '/parent/volunteer',
+					label: 'Volunteering',
+					icon: 'heart',
+					match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool')
+				}
+			]
+		: [
+				...(data.needsOnboarding
+					? [{ href: '/onboarding', label: 'Onboarding', icon: 'shieldcheck', match: (p: string) => p.startsWith('/onboarding') }]
+					: []),
+				{ href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+				{ href: '/clickup', label: 'ClickUp', icon: 'clickup', match: (p: string) => p.startsWith('/clickup') },
+				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') }
+			];
+
 	const teamSection: NavItem[] = [
-		{ href: '/team', label: 'Team Page', match: (p) => p === '/team' }
+		{ href: '/team', label: 'Team Page', icon: 'team', match: (p) => p === '/team' }
 	];
+
 	const subteamLinks: NavItem[] = (data.userSubteams ?? []).map((s: { slug: string; name: string }) => ({
 		href: `/team/${s.slug}`,
 		label: s.name,
+		icon: 'team',
 		match: (p: string) => p === `/team/${s.slug}`
 	}));
-	const parentPrimary: NavItem[] = [
-		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
-		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool') }
-	];
-	const primary: NavItem[] = canParent ? parentPrimary : memberPrimary;
 
-	const mentorNav: NavGroup[] = [
-		{
-			label: 'Queue',
-			items: [
-				{ href: '/mentor', label: 'Checkoffs', match: (p) => p === '/mentor' },
-				{ href: '/admin/volunteer', label: 'Volunteer verification', match: (p) => p.startsWith('/admin/volunteer') }
-			]
-		},
-		{
-			label: 'Manage',
-			items: [
-				{ href: '/mentor/courses', label: 'Courses', match: (p) => p.startsWith('/mentor/courses') },
-				{ href: '/mentor/machines', label: 'Machines', match: (p) => p.startsWith('/mentor/machines') }
-			]
-		},
-		{
-			label: 'Roster',
-			items: [
-				{ href: '/roster', label: 'Roster', match: (p) => p.startsWith('/roster') }
-			]
-		}
+	const mentorNav: NavItem[] = [
+		{ href: '/mentor', label: 'Checkoffs', icon: 'checkoffs', match: (p) => p === '/mentor' },
+		{ href: '/mentor/courses', label: 'Courses', icon: 'courses', match: (p) => p.startsWith('/mentor/courses') },
+		{ href: '/mentor/machines', label: 'Machines', icon: 'machines', match: (p) => p.startsWith('/mentor/machines') },
+		{ href: '/roster', label: 'Roster', icon: 'roster', match: (p) => p.startsWith('/roster') },
+		{ href: '/admin/volunteer', label: 'Volunteer verification', icon: 'shieldcheck', match: (p) => p.startsWith('/admin/volunteer') }
 	];
 
-	const adminNav: NavGroup[] = [
-		{
-			label: 'Workspace',
-			items: [
-				{ href: '/admin/settings', label: 'Settings' },
-				{ href: '/admin/settings/teams', label: 'Teams', match: (p) => p.startsWith('/admin/settings/teams') },
-				{ href: '/admin/content', label: 'Content' },
-				{ href: '/admin/audit', label: 'Audit log' }
-			]
-		},
-		{
-			label: 'People',
-			items: [
-				{ href: '/admin/users', label: 'Users & leads', match: (p) => p.startsWith('/admin/users') },
-				{ href: '/admin/attendance', label: 'Attendance' }
-			]
-		},
-		{
-			label: 'Season',
-			items: [
-				{ href: '/admin/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/admin/volunteer') },
-				{ href: '/admin/lettering', label: 'Lettering rules', match: (p) => p.startsWith('/admin/lettering') }
-			]
-		}
+	const adminNav: NavItem[] = [
+		{ href: '/admin/settings', label: 'Settings', icon: 'settings' },
+		{ href: '/admin/settings/teams', label: 'Teams', icon: 'building', match: (p) => p.startsWith('/admin/settings/teams') },
+		{ href: '/admin/content', label: 'Content', icon: 'file' },
+		{ href: '/admin/audit', label: 'Audit log', icon: 'list' },
+		{ href: '/admin/attendance', label: 'Attendance', icon: 'calendar' },
+		{ href: '/admin/lettering', label: 'Lettering rules', icon: 'award', match: (p) => p.startsWith('/admin/lettering') }
 	];
 
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
@@ -188,17 +164,23 @@
 		<aside
 			class={`sidebar-glass fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
 		>
-			<div class="flex items-center justify-between border-b px-5 py-5" style="border-color: var(--app-glass-border);">
-				<a href="/dashboard" class="block leading-tight">
-					<p class="text-[11px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">Transfer</p>
-					<p class="mt-0.5 text-sm font-semibold" style="color: var(--app-text);">{data.orgName}</p>
-				</a>
+			<!-- Workspace header -->
+			<a href="/dashboard" class="flex items-center gap-2.5 border-b px-4 py-4" style="border-color: var(--app-glass-border);">
+				{#if data.orgIconDataUrl}
+					<img src={data.orgIconDataUrl} alt="" class="h-6 w-6 rounded" />
+				{:else}
+					<div class="h-6 w-6 rounded" style="background: linear-gradient(135deg, var(--app-info), var(--app-accent));"></div>
+				{/if}
+				<div class="min-w-0 flex-1 leading-tight">
+					<p class="text-[9px] font-bold tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">Transfer</p>
+					<p class="truncate text-[13px] font-semibold" style="color: var(--app-text);">{data.orgName}</p>
+				</div>
 				<button
 					type="button"
-					class="nav-btn rounded p-1 md:hidden"
+					class="nav-btn ml-auto shrink-0 rounded p-1 md:hidden"
 					style="color: var(--app-text-muted);"
 					aria-label="Close navigation"
-					onclick={() => (mobileOpen = false)}
+					onclick={(e) => { e.preventDefault(); mobileOpen = false; }}
 				>
 					<svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5"
 						><path
@@ -208,64 +190,69 @@
 						/></svg
 					>
 				</button>
-			</div>
+			</a>
 
-			<nav class="flex-1 overflow-y-auto px-3 py-4 text-sm">
+			<nav class="flex-1 overflow-y-auto px-2 py-3 text-sm">
+				{#snippet navRow(item: NavItem, opts: { badge?: number } = {})}
+					<a
+						href={item.href}
+						onclick={() => (mobileOpen = false)}
+						class="nav-link group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
+						style={isActive(item, page.url.pathname)
+							? `background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 35%, transparent), color-mix(in srgb, var(--app-accent) 20%, transparent)); color: var(--app-text);`
+							: `color: var(--app-text-muted);`}
+					>
+						<SidebarIcons name={item.icon as any} />
+						<span class="truncate">{item.label}</span>
+						{#if opts.badge && opts.badge > 0}
+							<span
+								data-role="queue-badge"
+								class="ml-auto rounded-md px-1.5 py-0 text-[10px] font-semibold"
+								style="background: color-mix(in srgb, var(--app-accent) 25%, transparent); color: var(--app-accent);"
+							>{opts.badge}</span>
+						{/if}
+					</a>
+				{/snippet}
+
+				{#snippet sectionLabel(label: string, pill: string = '')}
+					<div class="relative mx-1 mt-4 mb-1.5 pt-2">
+						<div class="absolute inset-x-2 top-0 h-px" style="background: linear-gradient(90deg, transparent, var(--app-glass-border), transparent);"></div>
+						<div class="flex items-center gap-1.5 px-2">
+							<p class="text-[11px] font-semibold" style="color: var(--app-text-muted);">{label}</p>
+							{#if pill}
+								<span
+									class="rounded-md px-1.5 py-0 text-[9px] font-semibold tracking-wider uppercase"
+									style="background: var(--app-glass-bg); color: var(--app-text-muted); border: 1px solid var(--app-glass-border);"
+								>{pill}</span>
+							{/if}
+						</div>
+					</div>
+				{/snippet}
+
 				<ul class="space-y-0.5">
 					{#each primary as item (item.href)}
-						<li>
-							<a
-								href={item.href}
-								onclick={() => (mobileOpen = false)}
-								class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-								style={
-									item.href === '/onboarding'
-										? isActive(item, page.url.pathname)
-											? `background: var(--app-accent); color: var(--app-accent-text);`
-											: `background: color-mix(in srgb, var(--app-accent) 22%, transparent); color: color-mix(in srgb, var(--app-accent) 55%, white);`
-										: isActive(item, page.url.pathname)
-											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-											: `color: var(--app-text-muted);`
-								}
-							>
-								{item.label}
-							</a>
-						</li>
+						<li>{@render navRow(item)}</li>
 					{/each}
 				</ul>
 
 				{#if !canParent && data.primaryTeamName}
-					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
-					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase truncate" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
-						{data.primaryTeamName}
-					</p>
+					{@render sectionLabel(data.primaryTeamName)}
 					<ul class="space-y-0.5">
 						{#each teamSection as item (item.href)}
-							<li>
-								<a
-									href={item.href}
-									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-									style={isActive(item, page.url.pathname)
-										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-										: `color: var(--app-text-muted);`}
-								>
-									{item.label}
-								</a>
-							</li>
+							<li>{@render navRow(item)}</li>
 						{/each}
 						{#each subteamLinks as item (item.href)}
 							<li>
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg py-1 pl-6 pr-2.5 text-xs"
+									class="nav-link flex items-center gap-2 rounded-lg py-1 pl-9 pr-2.5 text-xs"
 									style={isActive(item, page.url.pathname)
 										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
 										: `color: var(--app-text-muted);`}
 								>
-									<span class="opacity-50">·</span>
-									{item.label}
+									<span style="opacity:.5;">·</span>
+									<span class="truncate">{item.label}</span>
 								</a>
 							</li>
 						{/each}
@@ -273,53 +260,21 @@
 				{/if}
 
 				{#if canMentor}
-					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
-					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
-						Mentor
-					</p>
-					{#each mentorNav as group, gi (group.label)}
-						<ul class={['space-y-0.5', gi > 0 ? 'mt-1' : ''].filter(Boolean).join(' ')}>
-							{#each group.items as item (item.href)}
-								<li>
-									<a
-										href={item.href}
-										onclick={() => (mobileOpen = false)}
-										class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-										style={isActive(item, page.url.pathname)
-											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-											: `color: var(--app-text-muted);`}
-									>
-										{item.label}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					{/each}
+					{@render sectionLabel('Mentor')}
+					<ul class="space-y-0.5">
+						{#each mentorNav as item (item.href)}
+							<li>{@render navRow(item, { badge: item.label === 'Checkoffs' ? (data.mentorQueueCount ?? 0) : 0 })}</li>
+						{/each}
+					</ul>
 				{/if}
 
 				{#if canAdmin}
-					<div class="mx-2 mt-5 mb-1.5 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"></div>
-					<p class="px-2 pb-1 text-[9px] font-bold tracking-[0.22em] uppercase" style="color: color-mix(in srgb, var(--app-text-muted) 80%, transparent);">
-						Admin
-					</p>
-					{#each adminNav as group, gi (group.label)}
-						<ul class={['space-y-0.5', gi > 0 ? 'mt-1' : ''].filter(Boolean).join(' ')}>
-							{#each group.items as item (item.href)}
-								<li>
-									<a
-										href={item.href}
-										onclick={() => (mobileOpen = false)}
-										class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-										style={isActive(item, page.url.pathname)
-											? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
-											: `color: var(--app-text-muted);`}
-									>
-										{item.label}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					{/each}
+					{@render sectionLabel('Admin')}
+					<ul class="space-y-0.5">
+						{#each adminNav as item (item.href)}
+							<li>{@render navRow(item)}</li>
+						{/each}
+					</ul>
 				{/if}
 			</nav>
 
