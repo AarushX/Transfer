@@ -8,8 +8,7 @@ import { isMentor } from '$lib/roles';
  */
 export async function computeMentorQueueCount(
 	supabase: SupabaseClient,
-	_userId: string,
-	profile: { is_mentor?: boolean | null; role?: string | null; base_role?: string | null } | null
+	profile: { is_mentor?: boolean; role?: string | null; base_role?: string | null } | null
 ): Promise<number> {
 	if (!profile || !isMentor(profile)) return 0;
 	const { count, error } = await supabase

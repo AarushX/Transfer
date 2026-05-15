@@ -5,7 +5,7 @@ describe('computeMentorQueueCount', () => {
 	it('returns 0 for non-mentors', async () => {
 		const supabase = { from: vi.fn() };
 		const profile = { is_mentor: false };
-		expect(await computeMentorQueueCount(supabase as any, 'u1', profile as any)).toBe(0);
+		expect(await computeMentorQueueCount(supabase as any, profile as any)).toBe(0);
 		expect(supabase.from).not.toHaveBeenCalled();
 	});
 
@@ -16,9 +16,10 @@ describe('computeMentorQueueCount', () => {
 		};
 		const supabase = { from: vi.fn().mockReturnValue(queueQuery) };
 		const profile = { is_mentor: true };
-		const result = await computeMentorQueueCount(supabase as any, 'u1', profile as any);
+		const result = await computeMentorQueueCount(supabase as any, profile as any);
 		expect(result).toBe(4);
 		expect(supabase.from).toHaveBeenCalledWith('certifications');
+		expect(queueQuery.eq).toHaveBeenCalledWith('status', 'mentor_checkoff_pending');
 	});
 
 	it('returns 0 when the query errors', async () => {
@@ -28,13 +29,13 @@ describe('computeMentorQueueCount', () => {
 		};
 		const supabase = { from: vi.fn().mockReturnValue(queueQuery) };
 		const profile = { is_mentor: true };
-		const result = await computeMentorQueueCount(supabase as any, 'u1', profile as any);
+		const result = await computeMentorQueueCount(supabase as any, profile as any);
 		expect(result).toBe(0);
 	});
 
 	it('returns 0 for null profile', async () => {
 		const supabase = { from: vi.fn() };
-		expect(await computeMentorQueueCount(supabase as any, 'u1', null)).toBe(0);
+		expect(await computeMentorQueueCount(supabase as any, null)).toBe(0);
 		expect(supabase.from).not.toHaveBeenCalled();
 	});
 });

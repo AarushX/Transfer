@@ -1,3 +1,5 @@
+import { computeMentorQueueCount } from '$lib/server/sidebar-data';
+
 let cachedOrgName: string | null = null;
 let cachedTheme: Record<string, string> | null = null;
 let cachedIconDataUrl: string | null = null;
@@ -191,8 +193,7 @@ export const load = async ({ locals }) => {
 
 	let mentorQueueCount = 0;
 	if (user && profile) {
-		const { computeMentorQueueCount } = await import('$lib/server/sidebar-data');
-		mentorQueueCount = await computeMentorQueueCount(locals.supabase, user.id, profile);
+		mentorQueueCount = await computeMentorQueueCount(locals.supabase, profile);
 	}
 
 	return {
