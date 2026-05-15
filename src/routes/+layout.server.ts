@@ -131,14 +131,32 @@ export const load = async ({ locals }) => {
 	let primaryTeamName: string | null = null;
 	let leadTeamName: string | null = null;
 	let leadSubteamName: string | null = null;
+	let userSubteams: Array<{ slug: string; name: string }> = [];
 	if (user) {
 		const { data: primaryRow } = await locals.supabase
 			.from('profile_primary_teams')
-			.select('team_groups(name,designator)')
+			.select('team_group_id,team_groups(name,designator)')
 			.eq('user_id', user.id)
 			.maybeSingle();
 		const pt = (primaryRow as any)?.team_groups;
 		if (pt) primaryTeamName = pt.designator ? `${pt.name} · ${pt.designator}` : pt.name;
+		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
+
+		// Load subteams the user is on within their primary team_group
+		if (primaryTeamGroupId) {
+			const [{ data: profileTeamsRows }, { data: subteamCategoryRows }] = await Promise.all([
+				locals.supabase
+					.from('profile_teams')
+					.select('category_slug')
+					.eq('user_id', user.id)
+					.eq('team_group_id', primaryTeamGroupId),
+				locals.supabase.from('subteam_categories').select('slug,name,sort_order').order('sort_order')
+			]);
+			const slugs = new Set((profileTeamsRows ?? []).map((r: any) => r.category_slug).filter(Boolean));
+			userSubteams = (subteamCategoryRows ?? [])
+				.filter((c: any) => slugs.has(c.slug))
+				.map((c: any) => ({ slug: c.slug, name: c.name }));
+		}
 
 		// Fetch lead info via a defensive query — column may not exist if migration hasn't run yet
 		try {
@@ -178,6 +196,7 @@ export const load = async ({ locals }) => {
 		needsOnboarding,
 		primaryTeamName,
 		leadTeamName,
-		leadSubteamName
+		leadSubteamName,
+		userSubteams
 	};
 };

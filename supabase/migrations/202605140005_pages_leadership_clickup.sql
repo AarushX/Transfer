@@ -1,4 +1,4 @@
--- Lead-managed pages system, ClickUp signup tracking, leadership assignments, drop manual hours
+-- Leadership assignments, ClickUp tracking, team notes, drop manual hours
 
 -- 1. Drop manual volunteer hours (full schema removal)
 drop table if exists public.volunteer_hour_logs cascade;
@@ -10,104 +10,46 @@ alter table public.profiles
 	add column if not exists lead_team_group_id uuid references public.team_groups(id) on delete set null,
 	add column if not exists lead_subteam_id uuid references public.subteams(id) on delete set null;
 
--- 3. Pages — owned by team_group (team lead), subteam (subteam lead), or admin (dashboard)
-create table if not exists public.pages (
-	id uuid primary key default gen_random_uuid(),
-	scope_kind text not null check (scope_kind in ('team_group', 'subteam', 'dashboard')),
-	scope_id uuid,
-	title text not null,
-	slug text not null,
-	kind text not null default 'content' check (kind in ('content', 'redirect', 'application')),
-	redirect_url text,
-	application_survey_id uuid references public.surveys(id) on delete set null,
-	sort_order int not null default 0,
-	created_by uuid references public.profiles(id) on delete set null,
-	created_at timestamptz not null default now(),
+-- 3. Team notes — body of notes shared by everyone on the team, editable by leads.
+-- subteam_category_slug = '' means team-wide notes. Non-empty = subteam-specific notes.
+create table if not exists public.team_notes (
+	team_group_id uuid not null references public.team_groups(id) on delete cascade,
+	subteam_category_slug text not null default '',
+	body text not null default '',
+	updated_by uuid references public.profiles(id) on delete set null,
 	updated_at timestamptz not null default now(),
-	unique (scope_kind, scope_id, slug)
+	primary key (team_group_id, subteam_category_slug)
 );
-create index if not exists idx_pages_scope on public.pages(scope_kind, scope_id, sort_order);
-
--- 4. Page blocks — ordered content blocks within a page
-create table if not exists public.page_blocks (
-	id uuid primary key default gen_random_uuid(),
-	page_id uuid not null references public.pages(id) on delete cascade,
-	kind text not null check (kind in ('heading', 'text', 'link', 'image', 'embed', 'divider')),
-	payload jsonb not null default '{}',
-	sort_order int not null default 0,
-	created_at timestamptz not null default now(),
-	updated_at timestamptz not null default now()
-);
-create index if not exists idx_page_blocks_page on public.page_blocks(page_id, sort_order);
 
 -- RLS
-alter table public.pages enable row level security;
-alter table public.page_blocks enable row level security;
+alter table public.team_notes enable row level security;
 
-create policy "pages_read_all_authenticated" on public.pages for select using (auth.role() = 'authenticated');
+-- Anyone authenticated can read
+create policy "team_notes_read" on public.team_notes for select using (auth.role() = 'authenticated');
 
--- Page write: admin, or team lead for their team_group, or subteam lead for their subteam
-create policy "pages_admin_all" on public.pages for all using (public.is_admin()) with check (public.is_admin());
+-- Admins can write anywhere
+create policy "team_notes_admin_all" on public.team_notes for all using (public.is_admin()) with check (public.is_admin());
 
-create policy "pages_team_lead_write" on public.pages for insert with check (
-	scope_kind = 'team_group'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_team_group_id = scope_id)
+-- Team leads can write team-wide notes for their team_group + any of its subteams
+create policy "team_notes_team_lead_write" on public.team_notes for insert with check (
+	exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_team_group_id = team_group_id)
 );
-create policy "pages_team_lead_update" on public.pages for update using (
-	scope_kind = 'team_group'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_team_group_id = scope_id)
-);
-create policy "pages_team_lead_delete" on public.pages for delete using (
-	scope_kind = 'team_group'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_team_group_id = scope_id)
+create policy "team_notes_team_lead_update" on public.team_notes for update using (
+	exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_team_group_id = team_group_id)
 );
 
-create policy "pages_subteam_lead_write" on public.pages for insert with check (
-	scope_kind = 'subteam'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_subteam_id = scope_id)
-);
-create policy "pages_subteam_lead_update" on public.pages for update using (
-	scope_kind = 'subteam'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_subteam_id = scope_id)
-);
-create policy "pages_subteam_lead_delete" on public.pages for delete using (
-	scope_kind = 'subteam'
-	and exists (select 1 from public.profiles p where p.id = auth.uid() and p.lead_subteam_id = scope_id)
-);
-
-create policy "page_blocks_read" on public.page_blocks for select using (auth.role() = 'authenticated');
-create policy "page_blocks_admin_all" on public.page_blocks for all using (public.is_admin()) with check (public.is_admin());
-
-create policy "page_blocks_lead_write" on public.page_blocks for insert with check (
+-- Subteam leads can write notes for their subteam category (any team_group)
+create policy "team_notes_subteam_lead_write" on public.team_notes for insert with check (
 	exists (
-		select 1 from public.pages pg
-		join public.profiles pr on pr.id = auth.uid()
-		where pg.id = page_id
-		and (
-			(pg.scope_kind = 'team_group' and pr.lead_team_group_id = pg.scope_id)
-			or (pg.scope_kind = 'subteam' and pr.lead_subteam_id = pg.scope_id)
-		)
+		select 1 from public.profiles p
+		join public.subteams s on s.id = p.lead_subteam_id
+		where p.id = auth.uid() and s.slug = subteam_category_slug
 	)
 );
-create policy "page_blocks_lead_update" on public.page_blocks for update using (
+create policy "team_notes_subteam_lead_update" on public.team_notes for update using (
 	exists (
-		select 1 from public.pages pg
-		join public.profiles pr on pr.id = auth.uid()
-		where pg.id = page_id
-		and (
-			(pg.scope_kind = 'team_group' and pr.lead_team_group_id = pg.scope_id)
-			or (pg.scope_kind = 'subteam' and pr.lead_subteam_id = pg.scope_id)
-		)
-	)
-);
-create policy "page_blocks_lead_delete" on public.page_blocks for delete using (
-	exists (
-		select 1 from public.pages pg
-		join public.profiles pr on pr.id = auth.uid()
-		where pg.id = page_id
-		and (
-			(pg.scope_kind = 'team_group' and pr.lead_team_group_id = pg.scope_id)
-			or (pg.scope_kind = 'subteam' and pr.lead_subteam_id = pg.scope_id)
-		)
+		select 1 from public.profiles p
+		join public.subteams s on s.id = p.lead_subteam_id
+		where p.id = auth.uid() and s.slug = subteam_category_slug
 	)
 );

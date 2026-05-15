@@ -30,11 +30,13 @@
 		{ href: '/scan', label: 'Scan', match: (p) => p.startsWith('/scan') }
 	];
 	const teamSection: NavItem[] = [
-		{ href: '/team', label: 'Team Page', match: (p) => p === '/team' || p.startsWith('/team/') && !p.startsWith('/team/manage') }
+		{ href: '/team', label: 'Team Page', match: (p) => p === '/team' }
 	];
-	const leadSection: NavItem[] = (data.leadTeamName || data.leadSubteamName)
-		? [{ href: '/team/manage', label: 'Manage Pages', match: (p) => p.startsWith('/team/manage') }]
-		: [];
+	const subteamLinks: NavItem[] = (data.userSubteams ?? []).map((s: { slug: string; name: string }) => ({
+		href: `/team/${s.slug}`,
+		label: s.name,
+		match: (p: string) => p === `/team/${s.slug}`
+	}));
 	const parentPrimary: NavItem[] = [
 		{ href: '/parent/dashboard', label: 'Dashboard', match: (p) => p.startsWith('/parent/dashboard') || p === '/parent' || p === '/parent/course' },
 		{ href: '/parent/volunteer', label: 'Volunteering', match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool') }
@@ -255,16 +257,17 @@
 								</a>
 							</li>
 						{/each}
-						{#each leadSection as item (item.href)}
+						{#each subteamLinks as item (item.href)}
 							<li>
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+									class="nav-link flex items-center gap-2 rounded-lg py-1 pl-6 pr-2.5 text-xs"
 									style={isActive(item, page.url.pathname)
-										? `background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);`
+										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
 										: `color: var(--app-text-muted);`}
 								>
+									<span class="opacity-50">·</span>
 									{item.label}
 								</a>
 							</li>

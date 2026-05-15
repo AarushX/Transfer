@@ -1,16 +1,21 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import Button from '$lib/components/ui/Button.svelte';
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
-	import SkillTree from '$lib/components/SkillTree.svelte';
-	let { data } = $props();
+	let { data, form } = $props();
+
+	let editingNotes = $state(false);
+	let notesDraft = $state(data.notes ?? '');
+
+	$effect(() => {
+		notesDraft = data.notes ?? '';
+	});
 
 	const statusLabel = (s: string) =>
 		s === 'completed' ? 'Done'
 		: s === 'in_progress' ? 'In progress'
 		: s === 'quiz_pending' ? 'Quiz pending'
 		: s === 'awaiting_checkoff' ? 'Awaiting checkoff'
-		: s === 'available' ? 'Start'
+		: s === 'available' ? 'Available'
 		: 'Locked';
 
 	const statusColor = (s: string) =>
@@ -19,135 +24,154 @@
 		: s === 'available' ? 'var(--app-accent)'
 		: 'var(--app-text-dim)';
 
-	const switchTeam = (tgId: string) => {
-		const u = new URL(page.url);
-		u.searchParams.set('team', tgId);
-		goto(u.pathname + '?' + u.searchParams.toString(), { keepFocus: true });
-	};
-
-	const teamGroupPages = $derived((data.leadPages ?? []).filter((p: any) => p.scope_kind === 'team_group'));
-	const subteamPages = $derived((data.leadPages ?? []).filter((p: any) => p.scope_kind === 'subteam'));
-
-	const pctComplete = $derived(
-		data.totalCount > 0 ? Math.round((data.completedCount / data.totalCount) * 100) : 0
-	);
+	const completed = $derived((data.courses ?? []).filter((c: any) => c.status === 'completed').length);
+	const total = $derived((data.courses ?? []).length);
+	const inProgress = $derived((data.courses ?? []).filter((c: any) => ['in_progress', 'quiz_pending', 'awaiting_checkoff'].includes(c.status)));
+	const pct = $derived(total > 0 ? Math.round((completed / total) * 100) : 0);
 </script>
 
-<section class="space-y-4">
-	{#if (data.myTeamGroups ?? []).length === 0}
+<section class="space-y-6">
+	{#if !data.teamGroup}
 		<GlassCard>
 			<p class="text-sm" style="color: var(--app-text-muted);">You haven't been assigned to a team yet. Visit <a href="/onboarding" class="underline" style="color: var(--app-accent);">Onboarding</a> to pick your team.</p>
 		</GlassCard>
 	{:else}
-		<!-- Chips bar -->
-		<div class="fade-up flex flex-wrap items-center gap-2">
-			{#each data.myTeamGroups as tg (tg.id)}
-				{@const isActive = tg.id === data.selectedTeamGroupId}
-				<button
-					type="button"
-					onclick={() => switchTeam(tg.id)}
-					class="rounded-full border px-4 py-1.5 text-sm font-medium transition-all"
-					style={isActive
-						? `background: ${tg.color_hex || 'var(--app-accent)'}; border-color: transparent; color: white;`
-						: `background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);`}
-				>
-					{tg.name}{tg.designator ? ` · ${tg.designator}` : ''}
-				</button>
-			{/each}
+		<header class="fade-up">
+			<p class="eyebrow-label" style="margin-bottom: 4px;">{data.teamGroup.designator ?? 'Team'}</p>
+			<h1 class="text-2xl font-bold tracking-tight" style="color: var(--app-text);">
+				<span class="gradient-text">{data.teamGroup.name}</span>
+			</h1>
+		</header>
+
+		<!-- ═══════════ COURSES AT TOP — MODERN UI ═══════════ -->
+		<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
+			<div class="flex items-end justify-between">
+				<div>
+					<p class="text-xs uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Coursework</p>
+					<p class="mt-0.5 text-lg font-bold" style="color: var(--app-text);">
+						{completed} <span class="text-sm font-medium" style="color: var(--app-text-muted);">/ {total} completed</span>
+					</p>
+				</div>
+				<div class="text-right">
+					<p class="text-2xl font-bold" style="color: {pct === 100 ? 'var(--app-success)' : 'var(--app-accent)'};">{pct}%</p>
+				</div>
+			</div>
+			<div class="h-1.5 w-full overflow-hidden rounded-full" style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
+				<div class="h-full rounded-full transition-all" style="width: {pct}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"></div>
+			</div>
+
+			{#if inProgress.length > 0}
+				<div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+					{#each inProgress as c (c.id)}
+						<a href={`/learn/${c.slug}`} class="group flex w-48 shrink-0 flex-col gap-1.5 rounded-xl border p-3 transition-all hover:scale-[1.02]"
+							style="background: linear-gradient(135deg, color-mix(in srgb, var(--app-warning) 12%, var(--app-glass-bg)), var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-warning) 35%, var(--app-glass-border));">
+							<span class="inline-block w-fit rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider" style="background: color-mix(in srgb, var(--app-warning) 18%, transparent); color: var(--app-warning);">{statusLabel(c.status)}</span>
+							<p class="text-sm font-semibold leading-tight" style="color: var(--app-text);">{c.title}</p>
+							<p class="mt-auto text-[10px] font-medium" style="color: var(--app-accent);">Continue →</p>
+						</a>
+					{/each}
+				</div>
+			{/if}
+
+			<div class="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+				{#each data.courses as c (c.id)}
+					<a href={`/learn/${c.slug}`} class="group relative overflow-hidden rounded-xl border p-3 transition-all hover:translate-y-[-1px]"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+						<div class="flex items-start justify-between gap-2">
+							<p class="flex-1 text-sm font-medium leading-tight" style="color: var(--app-text);">{c.title}</p>
+							<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full border" style="border-color: {statusColor(c.status)}; background: {c.status === 'completed' ? statusColor(c.status) : 'transparent'};">
+								{#if c.status === 'completed'}
+									<svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M3 8l3 3 7-7" /></svg>
+								{/if}
+							</span>
+						</div>
+						<p class="mt-1.5 text-[10px] font-medium uppercase tracking-wider" style="color: {statusColor(c.status)};">{statusLabel(c.status)}</p>
+					</a>
+				{/each}
+			</div>
+			{#if total === 0}
+				<GlassCard><p class="text-sm" style="color: var(--app-text-muted);">No courses assigned to this team yet.</p></GlassCard>
+			{/if}
 		</div>
 
-		<!-- Lead-managed page tabs (team-level first, then subteam) -->
-		{#if teamGroupPages.length > 0 || subteamPages.length > 0}
-			<div class="fade-up flex flex-wrap items-center gap-1.5" style="animation-delay: 0.05s;">
-				<a href={page.url.pathname + page.url.search} class="rounded-lg px-3 py-1 text-xs font-medium" style="background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-text);">Team Page</a>
-				{#each teamGroupPages as p (p.id)}
-					{#if p.kind === 'redirect'}
-						<a href={p.redirect_url} target="_blank" rel="noopener" class="rounded-lg border px-3 py-1 text-xs font-medium" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">{p.title} ↗</a>
-					{:else}
-						<a href={`/team/${p.slug}?team=${data.selectedTeamGroupId}`} class="rounded-lg border px-3 py-1 text-xs font-medium" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">{p.title}</a>
-					{/if}
-				{/each}
-				{#if subteamPages.length > 0}
-					<span class="text-[10px]" style="color: var(--app-text-dim);">·</span>
-					{#each subteamPages as p (p.id)}
-						{#if p.kind === 'redirect'}
-							<a href={p.redirect_url} target="_blank" rel="noopener" class="rounded-lg border px-3 py-1 text-xs font-medium" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">{p.title} ↗</a>
-						{:else}
-							<a href={`/team/${p.slug}?team=${data.selectedTeamGroupId}`} class="rounded-lg border px-3 py-1 text-xs font-medium" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);">{p.title}</a>
-						{/if}
-					{/each}
+		<!-- ═══════════ NOTES ═══════════ -->
+		<div class="fade-up" style="animation-delay: 0.1s;">
+			<div class="flex items-end justify-between">
+				<div>
+					<p class="text-xs uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Team Notes</p>
+					<p class="text-xs" style="color: var(--app-text-dim);">{data.canEditNotes ? 'Visible to everyone · editable by team leads' : 'Posted by team leads'}</p>
+				</div>
+				{#if data.canEditNotes && !editingNotes}
+					<Button variant="ghost" size="sm" onclick={() => { editingNotes = true; notesDraft = data.notes ?? ''; }}>Edit</Button>
 				{/if}
 			</div>
-		{/if}
-
-		<!-- 1/3 + 2/3 grid -->
-		<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-			<!-- LEFT: courses as nested task list -->
-			<div class="space-y-3">
-				<GlassCard compact>
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-xs uppercase tracking-wider" style="color: var(--app-text-muted);">Progress</p>
-							<p class="mt-0.5 text-lg font-bold" style="color: var(--app-text);">{data.completedCount} / {data.totalCount}</p>
+			<div class="mt-2 rounded-2xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+				{#if editingNotes}
+					<form method="POST" action="?/saveNotes" class="space-y-2">
+						<input type="hidden" name="team_group_id" value={data.teamGroup.id} />
+						<textarea name="body" bind:value={notesDraft} rows="8" placeholder="Add team notes here — announcements, meeting times, links, anything the team should see." class="w-full rounded-lg border bg-transparent px-3 py-2 text-sm" style="border-color: var(--app-glass-border); color: var(--app-input-text);"></textarea>
+						<div class="flex items-center gap-2">
+							<Button variant="primary" size="sm" type="submit">Save</Button>
+							<Button variant="ghost" size="sm" onclick={() => { editingNotes = false; notesDraft = data.notes ?? ''; }}>Cancel</Button>
 						</div>
-						<div class="text-right">
-							<p class="text-xs" style="color: var(--app-text-dim);">{pctComplete}%</p>
-						</div>
-					</div>
-					<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full" style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
-						<div class="h-full rounded-full transition-all" style="width: {pctComplete}%; background: var(--app-accent);"></div>
-					</div>
-				</GlassCard>
-
-				<div class="rounded-2xl border" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-					<p class="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">Courses</p>
-					<ul class="max-h-[60vh] overflow-y-auto">
-						{#each data.courses as course (course.id)}
-							<li>
-								<a
-									href={`/learn/${course.slug}`}
-									class="flex items-center gap-2 border-b px-4 py-2.5 transition-colors hover:bg-white/5"
-									style="border-color: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"
-								>
-									<span class="grid h-4 w-4 shrink-0 place-items-center rounded-full border" style="border-color: {statusColor(course.status)}; background: {course.status === 'completed' ? statusColor(course.status) : 'transparent'};">
-										{#if course.status === 'completed'}
-											<svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5"><path d="M3 8l3 3 7-7" /></svg>
-										{/if}
-									</span>
-									<span class="flex-1 truncate text-sm" style="color: var(--app-text);">{course.title}</span>
-									<span class="shrink-0 text-[10px] font-medium uppercase tracking-wider" style="color: {statusColor(course.status)};">{statusLabel(course.status)}</span>
-								</a>
-							</li>
-						{/each}
-						{#if data.courses.length === 0}
-							<li class="px-4 py-6 text-center text-xs" style="color: var(--app-text-dim);">No courses for this team yet.</li>
-						{/if}
-					</ul>
-				</div>
-			</div>
-
-			<!-- RIGHT: rank + graph -->
-			<div class="space-y-3">
-				<div class="grid gap-3 sm:grid-cols-3">
-					<GlassCard compact>
-						<p class="text-xs uppercase tracking-wider" style="color: var(--app-text-muted);">RR</p>
-						<p class="mt-0.5 text-xl font-bold" style="color: var(--app-accent);">{data.rrTotal}</p>
-					</GlassCard>
-					<GlassCard compact>
-						<p class="text-xs uppercase tracking-wider" style="color: var(--app-text-muted);">Segments</p>
-						<p class="mt-0.5 text-xl font-bold" style="color: var(--app-text);">{data.segmentCompletions}</p>
-					</GlassCard>
-					<GlassCard compact>
-						<p class="text-xs uppercase tracking-wider" style="color: var(--app-text-muted);">Shop Hours</p>
-						<p class="mt-0.5 text-xl font-bold" style="color: var(--app-text);">{Math.floor(data.totalHours)}</p>
-					</GlassCard>
-				</div>
-
-				<div class="rounded-2xl border overflow-hidden" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-					<p class="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">Skill Graph</p>
-					<SkillTree nodes={data.nodes} statuses={data.nodeStatuses} prerequisites={data.nodePrereqs} />
-				</div>
+					</form>
+				{:else if data.notes}
+					<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text);">{data.notes}</p>
+				{:else}
+					<p class="text-sm italic" style="color: var(--app-text-dim);">No notes yet.</p>
+				{/if}
 			</div>
 		</div>
+
+		{#if form?.error}
+			<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
+		{:else if form?.ok}
+			<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
+		{/if}
+
+		<!-- ═══════════ ROSTER (lead-only) ═══════════ -->
+		{#if data.roster && data.roster.length > 0}
+			<div class="fade-up" style="animation-delay: 0.15s;">
+				<div class="flex items-end justify-between">
+					<div>
+						<p class="text-xs uppercase tracking-[0.18em]" style="color: var(--app-text-muted);">Roster</p>
+						<p class="text-xs" style="color: var(--app-text-dim);">{data.roster.length} member{data.roster.length !== 1 ? 's' : ''} · visible to team leads only</p>
+					</div>
+				</div>
+				<div class="mt-2 overflow-hidden rounded-2xl border" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<table class="w-full text-sm">
+						<thead style="background: var(--app-table-header-bg);">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">Member</th>
+								<th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">Subteams</th>
+								<th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--app-text-muted);">Roles</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each data.roster as m (m.id)}
+								<tr class="border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 50%, transparent);">
+									<td class="px-4 py-2.5">
+										<p class="text-sm font-medium" style="color: var(--app-text);">{m.full_name || m.email}</p>
+										<p class="text-[11px]" style="color: var(--app-text-dim);">{m.email}</p>
+									</td>
+									<td class="px-4 py-2.5">
+										<div class="flex flex-wrap gap-1">
+											{#each m.categories as c}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-info) 12%, transparent); color: var(--app-info);">{c}</span>{/each}
+										</div>
+									</td>
+									<td class="px-4 py-2.5">
+										<div class="flex flex-wrap gap-1">
+											{#if m.role === 'admin' || m.base_role === 'admin'}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);">admin</span>{/if}
+											{#if m.is_mentor}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent);">mentor</span>{/if}
+											{#if m.is_lead}<span class="rounded-full px-2 py-0.5 text-[10px]" style="background: color-mix(in srgb, var(--app-info) 15%, transparent); color: var(--app-info);">lead</span>{/if}
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </section>
