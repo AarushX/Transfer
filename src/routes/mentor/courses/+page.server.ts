@@ -1,6 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { isMentor } from '$lib/roles';
+import { fetchCourseAggregates } from '$lib/server/course-aggregates';
 
 const slugify = (value: string) =>
 	value
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	let query = locals.supabase
 		.from('nodes')
-		.select('id,title,slug')
+		.select('id,title,slug,subteam_id')
 		.order('title', { ascending: true });
 
 	if (q) query = query.ilike('title', `%${q}%`);
@@ -47,8 +48,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 	const filteredNodes =
 		teamFilter && teamFilter.trim()
-			? (nodes ?? []).filter((node: any) => teamIdsByNode.get(String(node.id))?.has(teamFilter))
+			? (nodes ?? []).filter(
+					(node: any) =>
+						teamIdsByNode.get(String(node.id))?.has(teamFilter) ||
+						String(node.subteam_id ?? '') === String(teamFilter)
+				)
 			: nodes ?? [];
+
+	const nodeIds = (filteredNodes ?? []).map((n: any) => String(n.id));
+	const [aggregates, { data: prereqEdges }] = await Promise.all([
+		fetchCourseAggregates(locals.supabase, nodeIds),
+		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id')
+	]);
 
 	return {
 		teams: teams ?? [],
@@ -57,7 +68,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		nodeTargets: nodeTargets ?? [],
 		nodeGroupTargets: nodeGroupTargets ?? [],
 		templates: templates ?? [],
-		filter: { team: teamFilter, q }
+		filter: { team: teamFilter, q },
+		aggregates: Object.fromEntries(aggregates.entries()),
+		prerequisites: prereqEdges ?? []
 	};
 };
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/Button.svelte';
-	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import MiniSkillTree from '$lib/components/MiniSkillTree.svelte';
 	let { data, form } = $props();
 	const teamsById = $derived(
 		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
@@ -8,6 +8,7 @@
 	const teamGroupsById = $derived(
 		new Map((data.teamGroups as any[]).map((group) => [String(group.id), group]))
 	);
+	const nodesById = $derived(new Map((data.nodes as any[]).map((node) => [String(node.id), node])));
 	let selectedTemplateId = $state((data.templates?.[0]?.id as string | undefined) ?? '');
 	let newTitle = $state('');
 	let newSlug = $state('');
@@ -37,8 +38,43 @@
 			labelsSet.add(`${String(group.name)} (all subteams)`);
 		}
 		const labels = Array.from(labelsSet);
+		if (labels.length === 0) {
+			const node = nodesById.get(String(nodeId));
+			const legacyTeamId = String(node?.subteam_id ?? '');
+			if (legacyTeamId) {
+				const legacyTeam = teamsById.get(legacyTeamId);
+				if (legacyTeam) {
+					const legacyGroup = teamGroupsById.get(String(legacyTeam.team_group_id ?? ''));
+					labels.push(
+						legacyGroup?.name ? `${legacyGroup.name}: ${legacyTeam.name}` : String(legacyTeam.name)
+					);
+				}
+			}
+		}
 		return labels.length > 0 ? labels : ['No team targets'];
 	};
+
+	let selectedId = $state<string | null>(null);
+	$effect(() => {
+		if (!selectedId && data.nodes?.length) selectedId = data.nodes[0].id;
+	});
+
+	const neighborhoodIds = $derived.by(() => {
+		if (!selectedId) return new Set<string>();
+		const ids = new Set<string>([selectedId]);
+		for (const e of (data.prerequisites ?? []) as Array<{ node_id: string; prerequisite_node_id: string }>) {
+			if (e.node_id === selectedId) ids.add(e.prerequisite_node_id);
+			if (e.prerequisite_node_id === selectedId) ids.add(e.node_id);
+		}
+		return ids;
+	});
+
+	const statusesForGraph = $derived(
+		(data.nodes ?? []).map((n: any) => ({
+			node_id: n.id,
+			computed_status: n.id === selectedId ? 'in_progress' : 'available'
+		}))
+	);
 </script>
 
 <section class="space-y-5">
@@ -60,6 +96,11 @@
 			</div>
 		</div>
 		<div class="flex shrink-0 items-center gap-2 pt-1">
+			<a
+				href="/courses/map"
+				class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+				style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
+			>Open full graph</a>
 			{#if (data.templates ?? []).length > 0}
 				<Button variant="ghost" onclick={() => (showTemplatePanel = !showTemplatePanel)}>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity:.7;">
@@ -212,7 +253,7 @@
 		{/if}
 	</form>
 
-	<!-- Course list -->
+	<!-- Course list — two-panel layout or empty state -->
 	{#if data.nodes.length === 0}
 		<div
 			class="flex flex-col items-center justify-center gap-4 rounded-2xl border py-16 text-center"
@@ -251,74 +292,66 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="space-y-2">
-			{#each data.nodes as node (node.id)}
-				{@const teamLabels = teamNamesForNode(node.id)}
-				{@const hasNoTeam = teamLabels.length === 1 && teamLabels[0] === 'No team targets'}
-				<div
-					class="group flex items-center gap-4 rounded-2xl border px-5 py-4 backdrop-blur-xl transition-all duration-200"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
-				>
-					<!-- Course icon -->
-					<div
-						class="hidden shrink-0 sm:flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-200"
-						style="background: color-mix(in srgb, var(--app-accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 20%, transparent);"
+		<div class="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+			<!-- Left panel: course list -->
+			<div class="space-y-2">
+				{#each data.nodes as node (node.id)}
+					{@const agg = data.aggregates?.[String(node.id)]}
+					{@const pct = agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
+					<button
+						type="button"
+						data-selected={node.id === selectedId}
+						onclick={() => (selectedId = node.id)}
+						class="w-full text-left rounded-xl border p-3 transition-all"
+						style={node.id === selectedId
+							? 'background: color-mix(in srgb, var(--app-accent) 12%, var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-glass-border));'
+							: 'background: var(--app-glass-bg); border-color: var(--app-glass-border);'}
 					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color: var(--app-accent);">
-							<path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-							<path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-						</svg>
-					</div>
-
-					<!-- Title + meta -->
-					<div class="min-w-0 flex-1">
-						<div class="flex flex-wrap items-center gap-2">
-							<span class="truncate text-base font-semibold" style="color: var(--app-text);">{node.title}</span>
-							<code
-								class="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs"
-								style="background: color-mix(in srgb, var(--app-text-muted) 10%, transparent); color: var(--app-text-muted); border: 1px solid color-mix(in srgb, var(--app-text-muted) 15%, transparent);"
-							>{node.slug}</code>
-						</div>
-						<div class="mt-2 flex flex-wrap gap-1.5">
-							{#if hasNoTeam}
-								<span
-									class="inline-flex items-center rounded-md px-2 py-0.5 text-xs"
-									style="background: color-mix(in srgb, var(--app-text-muted) 8%, transparent); color: var(--app-text-dim); border: 1px solid color-mix(in srgb, var(--app-text-muted) 12%, transparent);"
-								>
-									No team targets
-								</span>
-							{:else}
-								{#each teamLabels as label}
-									<span
-										class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-										style="background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, var(--app-text)); border: 1px solid color-mix(in srgb, var(--app-success) 20%, transparent);"
-									>
-										{label}
-									</span>
-								{/each}
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-semibold truncate" style="color: var(--app-text);">{node.title}</p>
+								<p class="text-[11px] truncate" style="color: var(--app-text-muted);">{node.slug}</p>
+							</div>
+							{#if agg}
+								<div class="text-right shrink-0">
+									<p class="font-bold mono" style="color: var(--app-text);">{agg.completed} / {agg.assigned}</p>
+									<p class="text-[10px]" style="color: var(--app-text-muted);">{pct}% finished</p>
+								</div>
 							{/if}
 						</div>
-					</div>
+						<!-- Action buttons -->
+						<div class="mt-2 flex gap-2">
+							<a
+								href={`/learn/${node.slug}?preview=1`}
+								class="text-xs underline"
+								style="color: var(--app-text-muted);"
+								onclick={(e) => e.stopPropagation()}
+							>Preview</a>
+							<a
+								href={`/mentor/courses/${node.slug}`}
+								class="text-xs underline"
+								style="color: var(--app-text-muted);"
+								onclick={(e) => e.stopPropagation()}
+							>Edit</a>
+						</div>
+					</button>
+				{/each}
+			</div>
 
-					<!-- Actions -->
-					<div class="flex shrink-0 items-center gap-2 opacity-70 transition-opacity duration-150 group-hover:opacity-100">
-						<Button variant="ghost" size="sm" href={`/learn/${node.slug}?preview=1`}>
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-								<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.4"/>
-								<circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.4"/>
-							</svg>
-							Preview
-						</Button>
-						<Button variant="secondary" size="sm" href={`/mentor/courses/${node.slug}`}>
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-								<path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-							</svg>
-							Edit
-						</Button>
-					</div>
+			<!-- Right panel: neighborhood mini-graph -->
+			<div class="sticky top-4 self-start">
+				<p class="eyebrow-label">
+					Neighborhood{#if selectedId} · "{(data.nodes ?? []).find((n: any) => n.id === selectedId)?.title}"{/if}
+				</p>
+				<div class="mt-1.5">
+					<MiniSkillTree
+						nodes={data.nodes}
+						statuses={statusesForGraph}
+						prerequisites={data.prerequisites}
+						scope={neighborhoodIds}
+					/>
 				</div>
-			{/each}
+			</div>
 		</div>
 	{/if}
 </section>
