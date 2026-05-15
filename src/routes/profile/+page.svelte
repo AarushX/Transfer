@@ -128,8 +128,56 @@
 		</div>
 	</div>
 
+	<!-- Team membership card -->
+	<form method="POST" action="?/setPrimaryTeam"
+		use:enhance={refreshOnSuccess}
+		class="fade-up rounded-2xl border p-5 backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.1s;">
+		<h2 class="text-base font-semibold" style="color: var(--app-text);">Team membership</h2>
+		<p class="mb-3 text-xs" style="color: var(--app-text-muted);">
+			Drives your default course grouping.
+		</p>
+		<div class="grid gap-2 md:grid-cols-2">
+			{#each data.teamSubteams as team (team.id)}
+				<label class="flex cursor-pointer items-center gap-2 rounded border p-3" style="border-color: var(--app-glass-border);">
+					<input type="radio" name="subteam_id" value={team.id} checked={data.profile?.subteam_id === team.id} />
+					<div>
+						<p class="font-medium" style="color: var(--app-text);">{team.name}</p>
+						<p class="text-xs" style="color: var(--app-text-muted);">{team.slug}</p>
+					</div>
+				</label>
+			{/each}
+		</div>
+		<div class="mt-3 flex gap-2">
+			<Button variant="primary" type="submit">Save primary team</Button>
+		</div>
+	</form>
+
+	{#if data.profile?.is_mentor}
+		<!-- Mentor checkoff teams card -->
+		<form method="POST" action="?/saveMentorTeams"
+			use:enhance={refreshOnSuccess}
+			class="fade-up rounded-2xl border p-5"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.15s;">
+			<h2 class="text-base font-semibold" style="color: var(--app-text);">Mentor checkoff teams</h2>
+			<p class="mb-3 text-xs" style="color: var(--app-text-muted);">Which teams to show in your mentor queue when filtering to "My teams".</p>
+			<div class="grid gap-2 md:grid-cols-2">
+				{#each data.teamSubteams as team (team.id)}
+					<label class="flex cursor-pointer items-center gap-2 rounded border p-3" style="border-color: var(--app-glass-border);">
+						<input type="checkbox" name="mentor_team_ids" value={team.id} checked={data.mentorSubteamIds.includes(team.id)} />
+						<div>
+							<p class="font-medium" style="color: var(--app-text);">{team.name}</p>
+							<p class="text-xs" style="color: var(--app-text-muted);">{team.slug}</p>
+						</div>
+					</label>
+				{/each}
+			</div>
+			<Button variant="primary" type="submit" class="mt-3">Save mentor teams</Button>
+		</form>
+	{/if}
+
 	<!-- Parent access glass card -->
-	<div class="fade-up" style="animation-delay: 0.1s">
+	<div class="fade-up" style="animation-delay: 0.2s">
 		<GlassCard>
 			<p class="eyebrow-label">Parent Access</p>
 			<p class="mt-2 text-sm" style="color: var(--app-text-muted);">Generate a temporary code so a parent can link to this account in the Parent Portal.</p>

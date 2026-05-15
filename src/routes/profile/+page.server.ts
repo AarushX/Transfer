@@ -15,7 +15,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		mentorPrefsResult,
 		rankMap,
 		{ data: parentLinks },
-		{ data: parentCodes }
+		{ data: parentCodes },
+		{ data: subteams },
+		mentorSubteamPrefsResult
 	] = await Promise.all([
 		locals.supabase
 			.from('profile_teams')
@@ -41,10 +43,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.is('used_at', null)
 			.gt('expires_at', new Date().toISOString())
 			.order('created_at', { ascending: false })
-			.limit(1)
+			.limit(1),
+		locals.supabase.from('subteams').select('id,name,slug').order('name'),
+		isMentor(profile)
+			? locals.supabase
+					.from('mentor_subteam_preferences')
+					.select('subteam_id')
+					.eq('mentor_id', user.id)
+			: Promise.resolve({ data: [] as { subteam_id: string }[] })
 	]);
 
 	const mentorTeamIds = (mentorPrefsResult.data ?? []).map((row: { subteam_id: string }) => row.subteam_id);
+	const mentorSubteamIds = (mentorSubteamPrefsResult.data ?? []).map((row: { subteam_id: string }) => row.subteam_id);
 	const normalizedMemberships = (memberships ?? []).map((row: any) => ({
 		teamId: String(row.team_id),
 		categorySlug: String(row.category_slug ?? ''),
@@ -118,6 +128,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		teamMemberships: normalizedMemberships,
 		primaryTeamGroupId,
 		mentorTeamIds,
+		teamSubteams: subteams ?? [],
+		mentorSubteamIds,
 		qrDataUrl,
 		badges: rankSummary?.badges ?? [],
 		progressSummary,
@@ -162,37 +174,12 @@ export const actions: Actions = {
 		if (!user) return fail(401, { error: 'Unauthorized' });
 
 		const form = await request.formData();
-		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
-		if (!teamGroupId) {
-			const { error } = await locals.supabase
-				.from('profile_primary_teams')
-				.delete()
-				.eq('user_id', user.id);
-			if (error) return fail(400, { error: error.message, section: 'primary' });
-			return { ok: true, section: 'primary' };
-		}
-		const { data: membership, error: membershipError } = await locals.supabase
-			.from('profile_teams')
-			.select('team_id,teams!inner(team_group_id)')
-			.eq('user_id', user.id)
-			.eq('teams.team_group_id', teamGroupId)
-			.limit(1)
-			.maybeSingle();
-		if (membershipError) return fail(400, { error: membershipError.message, section: 'primary' });
-		if (!membership) {
-			return fail(400, {
-				error: 'Select a main team group you are currently assigned to.',
-				section: 'primary'
-			});
-		}
-		const { error: clearError } = await locals.supabase
-			.from('profile_primary_teams')
-			.delete()
-			.eq('user_id', user.id);
-		if (clearError) return fail(400, { error: clearError.message, section: 'primary' });
+		const subteamId = String(form.get('subteam_id') ?? '').trim();
+
 		const { error } = await locals.supabase
-			.from('profile_primary_teams')
-			.insert({ user_id: user.id, team_group_id: teamGroupId });
+			.from('profiles')
+			.update({ subteam_id: subteamId || null })
+			.eq('id', user.id);
 		if (error) return fail(400, { error: error.message, section: 'primary' });
 		return { ok: true, section: 'primary' };
 	},
