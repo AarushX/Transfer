@@ -62,7 +62,6 @@
 	const adminNav: NavItem[] = [
 		{ href: '/admin/settings', label: 'Settings', icon: 'settings' },
 		{ href: '/admin/settings/teams', label: 'Teams', icon: 'building', match: (p) => p.startsWith('/admin/settings/teams') },
-		{ href: '/admin/content', label: 'Content', icon: 'file' },
 		{ href: '/admin/attendance', label: 'Attendance', icon: 'calendar' },
 		{ href: '/admin/lettering', label: 'Lettering rules', icon: 'award', match: (p) => p.startsWith('/admin/lettering') }
 	];

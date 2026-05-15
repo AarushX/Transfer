@@ -51,13 +51,19 @@
 	});
 
 	// ── Derived selection IDs ────────────────────────────────────────────────────
-	const selectedTeamId = $derived(
-		selection?.kind === 'team'
-			? selection.teamId
-			: selection?.kind === 'subteam'
-				? Array.from(linkedGroupIdsBySubteam.get(selection.subteamId) ?? [])[0] ?? ''
-				: ''
-	);
+	const selectedTeamId = $derived.by(() => {
+		if (selection?.kind === 'team') return selection.teamId;
+		if (selection?.kind === 'subteam') {
+			const linked = linkedGroupIdsBySubteam.get(selection.subteamId);
+			const first = linked ? Array.from(linked)[0] : undefined;
+			if (first) return first;
+			// Fall back to the subteam's primary team_group_id when no explicit link row exists
+			return String(
+				subteams.find((s) => String(s.id) === selection.subteamId)?.team_group_id ?? ''
+			);
+		}
+		return '';
+	});
 	const selectedSubteamId = $derived(selection?.kind === 'subteam' ? selection.subteamId : '');
 
 	const selectedTeam = $derived(teamGroups.find((t) => String(t.id) === selectedTeamId) ?? null);
@@ -200,14 +206,27 @@
 	const activePill = 'background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 30%, transparent), color-mix(in srgb, var(--app-accent) 15%, transparent)); color: var(--app-text);';
 	const inactivePill = 'color: var(--app-text-muted);';
 
-	// Subteams linked to a given team group, sorted alphabetically
+	// Subteams linked to a given team group, sorted alphabetically.
+	// A subteam appears under each team_group it links to, so "Linked main teams"
+	// edits in SubteamCrud show up here without reloading.
 	const subteamsForTeam = (teamId: string) =>
 		subteams
-			.filter((s) => linkedGroupIdsBySubteam.get(String(s.id))?.has(teamId) ?? false)
+			.filter((s) => {
+				const linked = linkedGroupIdsBySubteam.get(String(s.id));
+				if (linked?.has(teamId)) return true;
+				// Fall back to the primary team_group_id so subteams without explicit
+				// link rows still appear under their parent team.
+				return !linked?.size && String(s.team_group_id) === teamId;
+			})
 			.sort((a, b) => a.name.localeCompare(b.name));
 
-	// Flat sorted subteam list for the "All Subteams" section
-	const sortedSubteams = $derived([...subteams].sort((a, b) => a.name.localeCompare(b.name)));
+	const linkedGroupsForSubteam = (subteamId: string): TeamGroup[] => {
+		const ids = linkedGroupIdsBySubteam.get(String(subteamId));
+		if (!ids || ids.size <= 1) return [];
+		return teamGroups
+			.filter((g) => ids.has(String(g.id)))
+			.sort((a, b) => a.name.localeCompare(b.name));
+	};
 </script>
 
 <section class="space-y-5 pb-6">
@@ -265,14 +284,31 @@
 							{#if isTeamActive(String(team.id))}
 								<ul class="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style="border-color: var(--app-glass-border);">
 									{#each subteamsForTeam(String(team.id)) as sub (sub.id)}
+										{@const linkedGroups = linkedGroupsForSubteam(String(sub.id))}
 										<li>
 											<button
 												type="button"
 												onclick={() => (selection = { kind: 'subteam', subteamId: String(sub.id) })}
-												class="sidebar-btn w-full text-left rounded-lg px-2 py-1 text-xs"
+												class="sidebar-btn w-full text-left rounded-lg px-2 py-1 text-xs flex items-center gap-1.5"
 												style={isSubteamActive(String(sub.id)) ? activePill : inactivePill}
 											>
-												{sub.name}
+												<span class="truncate flex-1">{sub.name}</span>
+												{#if linkedGroups.length > 0}
+													<span
+														class="link-pill relative grid h-4 w-4 place-items-center rounded-full"
+														style="background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-accent);"
+														aria-label="Linked to {linkedGroups.map((g) => g.name).join(', ')}"
+													>
+														<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5">
+															<path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07L11.5 5.5"/>
+															<path d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07L12.5 18.5"/>
+														</svg>
+														<span class="link-tooltip pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-lg border px-2 py-1 text-[10px] opacity-0"
+															style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text); box-shadow: var(--app-glass-shadow); backdrop-filter: blur(12px); transition: opacity 0.15s ease;">
+															Linked: {linkedGroups.map((g) => g.name).join(', ')}
+														</span>
+													</span>
+												{/if}
 											</button>
 										</li>
 									{/each}
@@ -293,29 +329,13 @@
 				</button>
 			</div>
 
-			<!-- All Subteams section -->
+			<!-- New-subteam shortcut (the flat "All Subteams" list was removed;
+			     subteams now live exclusively under their parent team headers above) -->
 			<div class="mb-4">
-				<p class="eyebrow-label px-2.5 mb-2">All Subteams</p>
-				<ul class="space-y-0.5">
-					{#each sortedSubteams as sub (sub.id)}
-						<li>
-							<button
-								type="button"
-								onclick={() => (selection = { kind: 'subteam', subteamId: String(sub.id) })}
-								class="sidebar-btn w-full text-left rounded-lg px-2.5 py-1.5 text-sm"
-								style={isSubteamActive(String(sub.id)) ? activePill : inactivePill}
-							>
-								{sub.name}
-							</button>
-						</li>
-					{:else}
-						<li class="px-2.5 py-1.5 text-xs" style="color: var(--app-text-muted);">No subteams yet.</li>
-					{/each}
-				</ul>
 				<button
 					type="button"
 					onclick={() => (selection = { kind: 'subteam', subteamId: '' })}
-					class="sidebar-btn mt-1.5 w-full text-left rounded-lg px-2.5 py-1.5 text-xs"
+					class="sidebar-btn w-full text-left rounded-lg px-2.5 py-1.5 text-xs"
 					style={selection?.kind === 'subteam' && selection.subteamId === '' ? activePill : inactivePill}
 				>
 					+ New subteam
@@ -388,4 +408,5 @@
 	.glass-back-link:hover { color: var(--app-text); }
 	.sidebar-btn { transition: background 0.15s, color 0.15s; }
 	.sidebar-btn:hover:not([style*="linear-gradient"]) { background: var(--app-glass-bg-hover); color: var(--app-text); }
+	.link-pill:hover .link-tooltip { opacity: 1; }
 </style>

@@ -13,7 +13,7 @@
 	let { data } = $props();
 	let queue = $state<any[]>([]);
 	let queueSearch = $state('');
-	let actionError = $state('');
+	let cardErrors = $state<Record<string, string>>({});
 	let selectedItem = $state<any | null>(null);
 	let selectedImage = $state<string | null>(null);
 	let scannedQrToken = $state('');
@@ -137,12 +137,14 @@
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);
-			actionError = body?.error ?? 'Could not approve checkoff.';
-			return;
+			const message = body?.error ?? 'Could not approve checkoff.';
+			cardErrors = { ...cardErrors, [item.id]: message };
+			return message;
 		}
-		actionError = '';
+		cardErrors = Object.fromEntries(Object.entries(cardErrors).filter(([k]) => k !== item.id));
 		queue = queue.filter((entry: any) => entry.id !== item.id);
 		if (selectedItem?.id === item.id) selectedItem = null;
+		return '';
 	};
 
 	const onResetQuiz = async (item: any, notes = '', checklist_results: any[] = []) => {
@@ -161,12 +163,14 @@
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);
-			actionError = body?.error ?? 'Could not reset quiz.';
-			return;
+			const message = body?.error ?? 'Could not reset quiz.';
+			cardErrors = { ...cardErrors, [item.id]: message };
+			return message;
 		}
-		actionError = '';
+		cardErrors = Object.fromEntries(Object.entries(cardErrors).filter(([k]) => k !== item.id));
 		queue = queue.filter((entry: any) => entry.id !== item.id);
 		if (selectedItem?.id === item.id) selectedItem = null;
+		return '';
 	};
 
 </script>
@@ -183,9 +187,9 @@
 		</div>
 	</PageHeader>
 
-	{#if data.error || actionError}
+	{#if data.error}
 		<div class="fade-up rounded-2xl border p-4 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
-			{data.error || actionError}
+			{data.error}
 		</div>
 	{/if}
 
@@ -274,6 +278,15 @@
 										<img src={photo} alt="Evidence" class="h-16 w-full rounded-lg object-cover" />
 									</button>
 								{/each}
+							</div>
+						{/if}
+						{#if cardErrors[item.id]}
+							<div
+								class="rounded-lg border px-2.5 py-1.5 text-[11px]"
+								style="border-color: color-mix(in srgb, var(--app-danger) 45%, transparent); background: color-mix(in srgb, var(--app-danger) 12%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+								role="alert"
+							>
+								{cardErrors[item.id]}
 							</div>
 						{/if}
 						<div class="flex gap-2 pt-1">

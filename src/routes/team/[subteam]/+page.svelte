@@ -74,14 +74,12 @@
 		</div>
 		<!-- Right: mini skill map -->
 		<div>
-			<p class="eyebrow-label" style="margin-bottom: 6px;">Skill map</p>
 			<MiniSkillTree
 				nodes={data.graphNodes}
 				statuses={data.userStatuses}
 				prerequisites={data.graphPrereqs}
 				scope={data.scopeNodeIds}
 			/>
-			<p class="text-[10px]" style="color: var(--app-text-dim, var(--app-text-muted)); margin-top: 6px;">Your view · click to focus</p>
 		</div>
 	</div>
 

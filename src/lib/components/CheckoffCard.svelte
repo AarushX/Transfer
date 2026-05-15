@@ -9,6 +9,7 @@
 	let notes = $state('');
 	let checklistStates = $state<Record<string, boolean>>({});
 	let showResetConfirm = $state(false);
+	let cardError = $state('');
 
 	const photosFor = (submission: any): string[] => {
 		if (Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0) {
@@ -36,9 +37,11 @@
 	async function approve() {
 		if (busy) return;
 		busy = 'approve';
+		cardError = '';
 		try {
 			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
-			await onApprove(item, notes.trim(), checklist_results);
+			const result = await onApprove(item, notes.trim(), checklist_results);
+			if (typeof result === 'string' && result) cardError = result;
 		} finally {
 			busy = '';
 		}
@@ -47,9 +50,11 @@
 	async function review() {
 		if (busy) return;
 		busy = 'review';
+		cardError = '';
 		try {
 			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
-			await onReview(item, notes.trim(), checklist_results);
+			const result = await onReview(item, notes.trim(), checklist_results);
+			if (typeof result === 'string' && result) cardError = result;
 		} finally {
 			busy = '';
 			showResetConfirm = false;
@@ -180,6 +185,16 @@
 				disabled={!!busy}
 			></textarea>
 		</label>
+
+		{#if cardError}
+			<div
+				class="rounded-xl border px-3 py-2 text-xs"
+				style="border-color: color-mix(in srgb, var(--app-danger) 45%, transparent); background: color-mix(in srgb, var(--app-danger) 12%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+				role="alert"
+			>
+				{cardError}
+			</div>
+		{/if}
 
 		<div class="flex flex-wrap gap-2 pt-1">
 			<button

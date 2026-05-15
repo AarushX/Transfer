@@ -147,17 +147,24 @@ export const load = async ({ locals }) => {
 		}
 		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
 
-		// Load subteams the user is on within their primary team_group
+		// Load subteams the user is on within their primary team_group.
+		// The /team/[subteam] route resolves [subteam] against subteam_categories.slug,
+		// so the sidebar links must use category slugs (not teams.slug) or the page 404s.
 		if (primaryTeamGroupId) {
-			const { data: userTeamRows } = await locals.supabase
-				.from('profile_teams')
-				.select('category_slug,teams!inner(id,name,slug)')
-				.eq('user_id', user.id)
-				.eq('team_group_id', primaryTeamGroupId);
-			userSubteams = (userTeamRows ?? [])
-				.filter((r: any) => String(r.category_slug ?? '') !== 'general' && r.teams?.name && r.teams?.slug)
-				.map((r: any) => ({ slug: String(r.teams.slug), name: String(r.teams.name) }))
-				.sort((a, b) => a.name.localeCompare(b.name));
+			const [{ data: profileTeamsRows }, { data: subteamCategoryRows }] = await Promise.all([
+				locals.supabase
+					.from('profile_teams')
+					.select('category_slug')
+					.eq('user_id', user.id)
+					.eq('team_group_id', primaryTeamGroupId),
+				locals.supabase.from('subteam_categories').select('slug,name,sort_order').order('sort_order')
+			]);
+			const slugs = new Set(
+				(profileTeamsRows ?? []).map((r: any) => r.category_slug).filter(Boolean)
+			);
+			userSubteams = (subteamCategoryRows ?? [])
+				.filter((c: any) => slugs.has(c.slug) && c.slug !== 'general')
+				.map((c: any) => ({ slug: String(c.slug), name: String(c.name) }));
 		}
 
 		// Fetch lead info via a defensive query — column may not exist if migration hasn't run yet

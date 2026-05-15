@@ -21,6 +21,8 @@
 
 	const hasGraphData = $derived((filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0);
 
+	let legendMinimized = $state(false);
+
 	const NODE_R = 26;
 	const MIN_ZOOM = 0.15;
 	const MAX_ZOOM = 3;
@@ -414,17 +416,48 @@
 		</div>
 
 		<!-- Legend -->
-		<div class="absolute left-4 bottom-4 rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;">
-			<p class="eyebrow-label mb-2">Legend</p>
-			<div class="flex flex-col gap-1.5">
-				{#each [['completed','Completed'], ['in_progress','In progress'], ['mentor_checkoff_pending','Awaiting mentor'], ['available','Available'], ['locked','Locked']] as [key, label]}
-					<div class="flex items-center gap-2 text-[11px]">
-						<span class="h-2.5 w-2.5 rounded-full" style="background: {STATE_COLOR[key]}; {key !== 'locked' ? `box-shadow: 0 0 6px ${STATE_COLOR[key]};` : ''}"></span>
-						<span style="color: var(--app-text-muted);">{label}</span>
-					</div>
-				{/each}
+		{#if legendMinimized}
+			<button
+				type="button"
+				onclick={() => (legendMinimized = false)}
+				class="absolute bottom-4 right-4 h-2.5 w-2.5 rounded-full"
+				style="background: color-mix(in srgb, var(--app-text-muted) 35%, transparent); border: none; padding: 0; cursor: pointer; z-index: 5; transition: background 0.2s ease, transform 0.2s ease;"
+				onmouseenter={(event) => {
+					event.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-muted) 65%, transparent)';
+					event.currentTarget.style.transform = 'scale(1.4)';
+				}}
+				onmouseleave={(event) => {
+					event.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-muted) 35%, transparent)';
+					event.currentTarget.style.transform = 'scale(1)';
+				}}
+				aria-label="Show legend"
+			></button>
+		{:else}
+			<div class="absolute left-4 bottom-4 rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;">
+				<div class="mb-2 flex items-center justify-between gap-3">
+					<p class="eyebrow-label" style="margin-bottom: 0;">Legend</p>
+					<button
+						type="button"
+						onclick={() => (legendMinimized = true)}
+						class="grid h-5 w-5 place-items-center rounded-md"
+						style="background: transparent; border: none; color: var(--app-text-dim); cursor: pointer;"
+						onmouseenter={(event) => { event.currentTarget.style.background = 'var(--app-glass-bg-hover)'; event.currentTarget.style.color = 'var(--app-text)'; }}
+						onmouseleave={(event) => { event.currentTarget.style.background = 'transparent'; event.currentTarget.style.color = 'var(--app-text-dim)'; }}
+						aria-label="Minimize legend"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3 w-3"><path d="M5 12h14"/></svg>
+					</button>
+				</div>
+				<div class="flex flex-col gap-1.5">
+					{#each [['completed','Completed'], ['in_progress','In progress'], ['mentor_checkoff_pending','Awaiting mentor'], ['available','Available'], ['locked','Locked']] as [key, label]}
+						<div class="flex items-center gap-2 text-[11px]">
+							<span class="h-2.5 w-2.5 rounded-full" style="background: {STATE_COLOR[key]}; {key !== 'locked' ? `box-shadow: 0 0 6px ${STATE_COLOR[key]};` : ''}"></span>
+							<span style="color: var(--app-text-muted);">{label}</span>
+						</div>
+					{/each}
+				</div>
 			</div>
-		</div>
+		{/if}
 
 		<!-- Detail panel -->
 		{#if active}
