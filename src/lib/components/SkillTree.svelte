@@ -1,15 +1,25 @@
 <script lang="ts">
+	import { filterByScope } from './skill-tree-scope';
+
 	let {
 		nodes = [],
 		statuses = [],
-		prerequisites = []
+		prerequisites = [],
+		scope = undefined
 	}: {
 		nodes: Array<{ id: string; title: string; slug: string }>;
 		statuses: Array<{ node_id: string; computed_status: string }>;
 		prerequisites: Array<{ node_id: string; prerequisite_node_id: string }>;
+		scope?: Set<string> | string[] | undefined;
 	} = $props();
 
-	const hasGraphData = $derived((nodes?.length ?? 0) > 0 && (prerequisites?.length ?? 0) > 0);
+	const scopeSet = $derived(
+		scope instanceof Set ? scope : scope ? new Set(scope) : undefined
+	);
+
+	const filtered = $derived.by(() => filterByScope(nodes, prerequisites, scopeSet));
+
+	const hasGraphData = $derived((filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0);
 
 	const NODE_R = 26;
 	const MIN_ZOOM = 0.15;
@@ -43,11 +53,11 @@
 	const layoutNodes = $derived.by((): LayoutNode[] => {
 		const incoming = new Map<string, number>();
 		const children = new Map<string, string[]>();
-		for (const n of nodes) {
+		for (const n of filtered.nodes) {
 			incoming.set(n.id, 0);
 			children.set(n.id, []);
 		}
-		for (const edge of prerequisites) {
+		for (const edge of filtered.prerequisites) {
 			if (!incoming.has(edge.node_id) || !children.has(edge.prerequisite_node_id)) continue;
 			incoming.set(edge.node_id, (incoming.get(edge.node_id) ?? 0) + 1);
 			children.get(edge.prerequisite_node_id)?.push(edge.node_id);
@@ -72,7 +82,7 @@
 		}
 
 		const perLayerNodes = new Map<number, string[]>();
-		for (const n of nodes) {
+		for (const n of filtered.nodes) {
 			const l = layer.get(n.id) ?? 0;
 			const arr = perLayerNodes.get(l) ?? [];
 			arr.push(n.id);
@@ -85,7 +95,7 @@
 		const padY = 80;
 
 		const result: LayoutNode[] = [];
-		for (const n of nodes) {
+		for (const n of filtered.nodes) {
 			const l = layer.get(n.id) ?? 0;
 			const layerArr = perLayerNodes.get(l) ?? [n.id];
 			const idx = layerArr.indexOf(n.id);
@@ -110,7 +120,7 @@
 	const nodeMap = $derived(new Map(layoutNodes.map((n) => [n.id, n])));
 
 	const edges = $derived.by(() => {
-		return prerequisites
+		return filtered.prerequisites
 			.map((p) => {
 				const from = nodeMap.get(p.prerequisite_node_id);
 				const to = nodeMap.get(p.node_id);
