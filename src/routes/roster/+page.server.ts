@@ -44,6 +44,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		byUser.set(cert.user_id, agg);
 	}
 
+	// Build subteam lookup map for primarySubteamName resolution
+	const subteamById = new Map<string, string>((subteams ?? []).map((s) => [s.id, s.name]));
+
 	const rows = (profiles ?? []).map((profile) => {
 		const agg = byUser.get(profile.id) ?? { completed: 0, pending: 0 };
 		const total = Math.max(agg.completed + agg.pending, 1);
@@ -63,11 +66,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 				const bTs = b.approved_at || b.quiz_passed_at || '';
 				return String(bTs).localeCompare(String(aTs));
 			});
+
+		// Compute subteamIds and primarySubteamName from profiles.subteam_id
+		const subteamIds: string[] = profile.subteam_id ? [profile.subteam_id] : [];
+		const primarySubteamName: string | null = profile.subteam_id
+			? (subteamById.get(profile.subteam_id) ?? null)
+			: null;
+
 		return {
 			...profile,
 			progressPercent: Math.round((agg.completed / total) * 100),
 			pendingCheckoffs: agg.pending,
-			courses: userCourses
+			courses: userCourses,
+			subteamIds,
+			primarySubteamName
 		};
 	});
 

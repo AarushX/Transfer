@@ -1,152 +1,355 @@
 <script lang="ts">
-	import GlassCard from '$lib/components/ui/GlassCard.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
+
 	let { data, form } = $props();
+
+	let filter = $state('');
+	let chip = $state<'all' | 'leads' | 'mentors' | 'pending'>('all');
+	let subteamFilter = $state<string>('');
+	let groupBySubteam = $state(true);
 	let expandedUserId = $state<string | null>(null);
+	const canManage = $derived(data.canManageUsers);
+
 	const attendanceByUser = $derived.by(() => {
-		const map = new Map<
-			string,
-			Array<{
-				attendance_day: string;
-				check_in_at: string | null;
-				check_out_at: string | null;
-			}>
-		>();
-		for (const session of data.attendanceSessions as Array<{
-			attendee_user_id: string;
-			attendance_day: string;
-			check_in_at: string | null;
-			check_out_at: string | null;
-		}>) {
-			const key = String(session.attendee_user_id);
+		const map = new Map<string, any[]>();
+		for (const s of data.attendanceSessions ?? []) {
+			const key = String(s.attendee_user_id);
 			const list = map.get(key) ?? [];
-			list.push({
-				attendance_day: String(session.attendance_day),
-				check_in_at: session.check_in_at ?? null,
-				check_out_at: session.check_out_at ?? null
-			});
+			list.push(s);
 			map.set(key, list);
 		}
 		return map;
 	});
+
+	const filtered = $derived.by(() => {
+		const q = filter.trim().toLowerCase();
+		return (data.rows ?? []).filter((r: any) => {
+			if (q && !((r.full_name ?? '') + ' ' + (r.email ?? '')).toLowerCase().includes(q)) return false;
+			if (chip === 'leads' && !r.is_lead) return false;
+			if (chip === 'mentors' && !r.is_mentor) return false;
+			if (chip === 'pending' && (r.pendingCheckoffs ?? 0) === 0) return false;
+			if (subteamFilter && !(r.subteamIds ?? []).includes(subteamFilter)) return false;
+			return true;
+		});
+	});
+
+	const groups = $derived.by(() => {
+		if (!groupBySubteam) return [{ label: 'All', rows: filtered }];
+		const byKey = new Map<string, { label: string; rows: any[] }>();
+		for (const row of filtered) {
+			const label = (row.primarySubteamName as string | null) ?? '(unassigned)';
+			const entry = byKey.get(label) ?? { label, rows: [] };
+			entry.rows.push(row);
+			byKey.set(label, entry);
+		}
+		return Array.from(byKey.values()).sort((a, b) => a.label.localeCompare(b.label));
+	});
 </script>
 
 <section class="space-y-5">
-	<div class="fade-up">
-		<p class="eyebrow-label" style="margin-bottom: 4px;">Team</p>
-		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Roster Dashboard</span></h1>
-	</div>
+	<header class="flex items-end justify-between">
+		<div>
+			<p class="eyebrow-label" style="margin-bottom: 4px;">Team</p>
+			<h1 class="gradient-text text-2xl font-semibold tracking-tight">Roster</h1>
+			<p class="text-sm" style="color: var(--app-text-muted);">
+				{data.rows?.length ?? 0} members · {data.rows?.filter((r: any) => r.is_mentor).length ?? 0} mentors · {data.rows?.filter((r: any) => r.is_lead).length ?? 0} leads
+			</p>
+		</div>
+		{#if canManage}
+			<div
+				class="rounded-xl border px-3 py-2 text-xs font-semibold"
+				style="background: color-mix(in srgb, var(--app-danger) 8%, transparent); border-color: color-mix(in srgb, var(--app-danger) 25%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);"
+			>
+				● Admin tools active
+			</div>
+		{/if}
+	</header>
 
 	{#if form?.error}
-		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
+		<p
+			class="rounded border p-2 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+		>{form.error}</p>
 	{:else if form?.ok}
-		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
+		<p
+			class="rounded border p-2 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);"
+		>Saved.</p>
 	{/if}
 
-	{#if data.canManageUsers}
-		<GlassCard>
-			<h2 class="font-semibold" style="color: var(--app-text);">User Access</h2>
-			<p class="text-xs" style="color: var(--app-text-muted);">Admin-only role, mentor, and lead controls.</p>
-		</GlassCard>
-	{/if}
-
-	<div class="fade-up overflow-x-auto rounded-2xl border backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;">
-		<table class="min-w-full text-sm">
-			<thead class="text-left" style="background: var(--app-table-header-bg);">
-				<tr>
-					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Name</th>
-					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Role</th>
-					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Progress</th>
-					<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Pending Checkoffs</th>
-					{#if data.canManageUsers}
-						<th class="p-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--app-text-muted);">Access</th>
-					{/if}
-				</tr>
-			</thead>
-			<tbody>
-				{#each data.rows as row}
-					<tr class="border-t" style="border-color: var(--app-glass-border);">
-						<td class="p-2">
-							<div class="flex items-center gap-2">
-								<button
-									class="rounded border px-2 py-0.5 text-xs"
-									style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
-									onclick={() => (expandedUserId = expandedUserId === row.id ? null : row.id)}
-								>
-									{expandedUserId === row.id ? 'Hide details' : 'Details'}
-								</button>
-								<span style="color: var(--app-text);">{row.full_name || row.email}</span>
-							</div>
-						</td>
-						<td class="p-2" style="color: var(--app-text-muted);">{row.role}</td>
-						<td class="p-2"><span class="mono" style="color: var(--app-text-muted);">{row.progressPercent}%</span></td>
-						<td class="p-2"><span class="mono" style="color: var(--app-text-muted);">{row.pendingCheckoffs}</span></td>
-						{#if data.canManageUsers}
-							<td class="p-2">
-								<form method="POST" action="?/setRole" class="flex items-center gap-2">
-									<input type="hidden" name="user_id" value={row.id} />
-									<select class="rounded px-2 py-1" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name="base_role" value={row.base_role ?? 'member'}>
-										<option value="member">member</option>
-										<option value="admin">admin</option>
-									</select>
-									<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
-										<input type="checkbox" name="is_mentor" checked={!!row.is_mentor || row.role === 'mentor'} />
-										Mentor
-									</label>
-									<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
-										<input type="checkbox" name="is_lead" checked={!!row.is_lead || row.role === 'student_lead'} />
-										Lead
-									</label>
-									<button class="rounded border px-2 py-1 text-xs" style="border-color: var(--app-glass-border); color: var(--app-text);">Save</button>
-								</form>
-							</td>
-						{/if}
-					</tr>
-					{#if expandedUserId === row.id}
-						<tr class="border-t" style="border-color: var(--app-glass-border); background: var(--app-surface-alt);">
-							<td colspan={data.canManageUsers ? 5 : 4} class="p-3">
-								<div class="rounded border p-3" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-									<h3 class="mb-2 font-semibold" style="color: var(--app-text);">Attendance history</h3>
-									<div class="overflow-x-auto rounded border" style="border-color: var(--app-glass-border);">
-										<table class="min-w-full text-xs" style="color: var(--app-text-muted);">
-											<thead class="text-left text-[11px] uppercase" style="background: var(--app-surface-alt); color: var(--app-text-muted);">
-												<tr>
-													<th class="px-2 py-1">Day</th>
-													<th class="px-2 py-1">Check in</th>
-													<th class="px-2 py-1">Check out</th>
-												</tr>
-											</thead>
-											<tbody>
-												{#each attendanceByUser.get(row.id) ?? [] as session}
-													<tr class="border-t" style="border-color: var(--app-glass-border);">
-														<td class="px-2 py-1">{session.attendance_day}</td>
-														<td class="px-2 py-1">
-															{session.check_in_at ? new Date(session.check_in_at).toLocaleString() : '—'}
-														</td>
-														<td class="px-2 py-1">
-															{session.check_out_at ? new Date(session.check_out_at).toLocaleString() : '—'}
-														</td>
-													</tr>
-												{:else}
-													<tr>
-														<td class="px-2 py-2" colspan="3" style="color: var(--app-text-muted);">No attendance records yet.</td>
-													</tr>
-												{/each}
-											</tbody>
-										</table>
-									</div>
-									<a
-										href={`/roster/${row.id}#course-results`}
-										class="mt-3 inline-block text-xs underline"
-										style="color: var(--app-link);"
-									>
-										Open full profile for courses, quiz results, and profile info →
-									</a>
-								</div>
-							</td>
-						</tr>
-					{/if}
-				{/each}
-			</tbody>
-		</table>
+	<!-- Filter bar -->
+	<div class="flex flex-wrap items-center gap-2">
+		<input
+			class="min-w-[200px] flex-1 rounded-xl border px-3 py-2 text-sm"
+			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+			placeholder="Search by name or email…"
+			bind:value={filter}
+		/>
+		{#each [['all', 'All'], ['leads', 'Leads'], ['mentors', 'Mentors'], ['pending', 'Pending checkoffs']] as [key, label] (key)}
+			<button
+				onclick={() => (chip = key as 'all' | 'leads' | 'mentors' | 'pending')}
+				class="rounded-lg px-3 py-1.5 text-xs font-semibold"
+				style={chip === key
+					? 'background: color-mix(in srgb, var(--app-accent) 18%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 50%, transparent); color: color-mix(in srgb, var(--app-accent) 30%, white);'
+					: 'background: var(--app-glass-bg); border: 1px solid var(--app-glass-border); color: var(--app-text-muted);'}
+			>
+				{label}
+			</button>
+		{/each}
+		<select
+			bind:value={subteamFilter}
+			class="rounded-xl border px-3 py-2 text-sm"
+			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+		>
+			<option value="">All subteams</option>
+			{#each data.subteams ?? [] as st (st.id)}
+				<option value={st.id}>{st.name}</option>
+			{/each}
+		</select>
+		<label
+			class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs"
+			style="background: var(--app-glass-bg); border: 1px solid var(--app-glass-border); color: var(--app-text-muted);"
+		>
+			<input type="checkbox" bind:checked={groupBySubteam} />
+			Group by subteam
+		</label>
 	</div>
+
+	{#each groups as group (group.label)}
+		<div>
+			{#if groupBySubteam}
+				<div class="mb-2 mt-4 flex items-center gap-3">
+					<p
+						class="text-[11px] font-bold uppercase tracking-[0.18em]"
+						style="color: var(--app-text-muted);"
+					>{group.label}</p>
+					<p class="text-xs" style="color: var(--app-text-muted); opacity: 0.6;">
+						{group.rows.length} member{group.rows.length === 1 ? '' : 's'}
+					</p>
+				</div>
+			{/if}
+			<div
+				class="overflow-hidden rounded-2xl border"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+			>
+				<table class="min-w-full text-sm">
+					<thead style="background: var(--app-table-header-bg);">
+						<tr>
+							<th
+								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
+								style="color: var(--app-text-muted);"
+							>Member</th>
+							<th
+								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
+								style="color: var(--app-text-muted);"
+							>Roles</th>
+							<th
+								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
+								style="color: var(--app-text-muted);"
+							>Progress</th>
+							<th
+								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
+								style="color: var(--app-text-muted);"
+							>Pending</th>
+							<th
+								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
+								style="color: var(--app-text-muted);"
+							>Hours</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each group.rows as row (row.id)}
+							<tr class="row-main border-t" style="border-color: var(--app-glass-border);">
+								<td class="p-3">
+									<div class="flex items-center gap-2">
+										<Avatar name={row.full_name} email={row.email} size="sm" />
+										<div>
+											<a
+												href={`/roster/${row.id}`}
+												class="font-medium"
+												style="color: var(--app-text);"
+											>{row.full_name || row.email}</a>
+											<p class="text-xs" style="color: var(--app-text-muted);">{row.email}</p>
+										</div>
+									</div>
+								</td>
+								<td class="p-3">
+									<div class="flex flex-wrap gap-1">
+										{#if row.base_role === 'admin' || row.role === 'admin'}
+											<span
+												class="rounded-full px-2 py-0.5 text-[10px]"
+												style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);"
+											>admin</span>
+										{/if}
+										{#if row.is_mentor}
+											<span
+												class="rounded-full px-2 py-0.5 text-[10px]"
+												style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent);"
+											>mentor</span>
+										{/if}
+										{#if row.is_lead}
+											<span
+												class="rounded-full px-2 py-0.5 text-[10px]"
+												style="background: color-mix(in srgb, var(--app-info) 15%, transparent); color: var(--app-info);"
+											>lead</span>
+										{/if}
+									</div>
+								</td>
+								<td class="p-3">
+									<div class="flex items-center gap-2">
+										<div
+											class="h-1.5 w-24 rounded-full"
+											style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"
+										>
+											<div
+												class="h-full rounded-full"
+												style="width: {row.progressPercent}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
+											></div>
+										</div>
+										<span class="mono text-xs" style="color: var(--app-text-muted);">{row.progressPercent}%</span>
+									</div>
+								</td>
+								<td class="p-3">
+									<span
+										data-role="pending-count"
+										class="mono"
+										style="color: {(row.pendingCheckoffs ?? 0) > 0 ? 'var(--app-warning)' : 'var(--app-text-muted)'};"
+									>{row.pendingCheckoffs ?? 0}</span>
+								</td>
+								<td class="p-3">
+									<span class="mono" style="color: var(--app-text-muted);">{row.hoursTotal ?? '—'}</span>
+								</td>
+								<td class="p-3 text-right">
+									<button
+										data-role="expand-caret"
+										type="button"
+										class="rounded-md border px-2 py-1 text-xs"
+										style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
+										onclick={() => (expandedUserId = expandedUserId === row.id ? null : row.id)}
+									>
+										{expandedUserId === row.id ? '▾' : '▸'}
+									</button>
+								</td>
+							</tr>
+							{#if expandedUserId === row.id}
+								<tr
+									class="row-expand border-t"
+									style="border-color: var(--app-glass-border); background: var(--app-surface-alt);"
+								>
+									<td colspan="6" class="p-4">
+										<div class="flex gap-6">
+											<!-- Left: Attendance history -->
+											<div class="flex-1">
+												<p class="eyebrow-label" style="margin-bottom: 8px;">Attendance · last 4 sessions</p>
+												<div class="flex flex-wrap gap-2">
+													{#each (attendanceByUser.get(row.id) ?? []).slice(0, 4) as s}
+														<span
+															class="rounded-md px-2 py-1 text-xs"
+															style="background: var(--app-glass-bg); border: 1px solid var(--app-glass-border); color: var(--app-text-muted);"
+														>
+															{s.attendance_day}
+														</span>
+													{:else}
+														<span class="text-xs" style="color: var(--app-text-muted);">No attendance records yet.</span>
+													{/each}
+												</div>
+												<a
+													href={`/roster/${row.id}`}
+													class="mt-3 inline-block text-xs underline"
+													style="color: var(--app-link);"
+												>Open full profile →</a>
+											</div>
+
+											<!-- Right: Admin controls (admins only) -->
+											{#if canManage}
+												<div
+													class="flex-1 border-l pl-6"
+													style="border-color: var(--app-glass-border);"
+												>
+													<p
+														class="eyebrow-label"
+														style="margin-bottom: 8px; color: color-mix(in srgb, var(--app-danger) 70%, var(--app-text-muted));"
+													>Admin controls</p>
+													<form method="POST" action="?/updateMemberAccess" class="space-y-3">
+														<input type="hidden" name="user_id" value={row.id} />
+														<div class="grid grid-cols-2 gap-3">
+															<label class="block">
+																<span
+																	class="text-[10px] uppercase tracking-wider"
+																	style="color: var(--app-text-muted);"
+																>Base role</span>
+																<select
+																	name="base_role"
+																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
+																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																>
+																	<option value="member" selected={row.base_role === 'member'}>member</option>
+																	<option value="admin" selected={row.base_role === 'admin'}>admin</option>
+																</select>
+															</label>
+															<label class="block">
+																<span
+																	class="text-[10px] uppercase tracking-wider"
+																	style="color: var(--app-text-muted);"
+																>Lead of team</span>
+																<select
+																	name="lead_team_group_id"
+																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
+																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																>
+																	<option value="">— none —</option>
+																	{#each data.teamGroups as tg (tg.id)}
+																		<option value={tg.id} selected={row.lead_team_group_id === tg.id}>{tg.name}</option>
+																	{/each}
+																</select>
+															</label>
+															<label class="block">
+																<span
+																	class="text-[10px] uppercase tracking-wider"
+																	style="color: var(--app-text-muted);"
+																>Lead of subteam</span>
+																<select
+																	name="lead_subteam_id"
+																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
+																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																>
+																	<option value="">— none —</option>
+																	{#each data.subteams as st (st.id)}
+																		<option value={st.id} selected={row.lead_subteam_id === st.id}>{st.name}</option>
+																	{/each}
+																</select>
+															</label>
+															<div>
+																<span
+																	class="text-[10px] uppercase tracking-wider"
+																	style="color: var(--app-text-muted);"
+																>Flags</span>
+																<div class="mt-1 flex gap-2">
+																	<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
+																		<input type="checkbox" name="is_mentor" checked={!!row.is_mentor} />
+																		Mentor
+																	</label>
+																	<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
+																		<input type="checkbox" name="is_lead" checked={!!row.is_lead} />
+																		Lead
+																	</label>
+																</div>
+															</div>
+														</div>
+														<Button variant="primary" size="sm" type="submit">Save changes</Button>
+													</form>
+												</div>
+											{/if}
+										</div>
+									</td>
+								</tr>
+							{/if}
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	{/each}
 </section>
