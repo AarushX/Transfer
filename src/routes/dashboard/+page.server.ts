@@ -3,10 +3,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { loadTrainingCategories } from '$lib/server/training-categories';
 import { loadStudentCoursesDashboard } from '$lib/server/courseload-dashboard';
 import { createSupabaseServiceClient } from '$lib/server/supabase';
+import { computeLetteringProgress } from '$lib/server/lettering-progress';
+import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
 	if (!user) throw redirect(303, '/login');
+
+	const isParent = profile?.is_parent_guardian === true;
 
 	const [
 		nodesResp,
@@ -94,6 +98,89 @@ export const load: PageServerLoad = async ({ locals }) => {
 		});
 	}
 
+	// --- New dashboard data (non-parents get real data; parents get safe defaults) ---
+
+	let hoursSeason = 0;
+	let checkedInSince: string | null = null;
+	let letteringProgress = { pct: 0, completedCount: 0, totalRequired: 0, overflow: false };
+	let announcements: Array<{
+		team_group_id: string;
+		subteam_category_slug: string;
+		body: string;
+		scope: 'team' | 'subteam';
+		scope_name: string;
+		updated_at: string;
+	}> = [];
+	let passportQrDataUrl: string | null = null;
+
+	if (!isParent) {
+		const [
+			{ data: openSession },
+			completedSessionsResp,
+			computedLettering,
+			{ data: notesRows },
+			{ data: qrProfile }
+		] = await Promise.all([
+			locals.supabase
+				.from('attendance_daily_sessions')
+				.select('check_in_at,attendance_day')
+				.eq('attendee_user_id', user.id)
+				.is('check_out_at', null)
+				.maybeSingle(),
+			locals.supabase
+				.from('attendance_daily_sessions')
+				.select('check_in_at,check_out_at')
+				.eq('attendee_user_id', user.id)
+				.not('check_out_at', 'is', null),
+			computeLetteringProgress(locals.supabase, user.id),
+			locals.supabase
+				.from('team_notes')
+				.select('team_group_id,subteam_category_slug,body,updated_at')
+				.order('updated_at', { ascending: false })
+				.limit(8),
+			locals.supabase
+				.from('profiles')
+				.select('passport_qr_version')
+				.eq('id', user.id)
+				.single()
+		]);
+
+		// Hours tally from completed sessions
+		const completedSessions = completedSessionsResp.data ?? [];
+		hoursSeason = completedSessions.reduce(
+			(acc: number, s: { check_in_at: string; check_out_at: string }) => {
+				const start = new Date(s.check_in_at).getTime();
+				const end = new Date(s.check_out_at).getTime();
+				return acc + Math.max(0, (end - start) / 3_600_000);
+			},
+			0
+		);
+
+		checkedInSince = openSession?.check_in_at ?? null;
+		letteringProgress = computedLettering;
+
+		// Build team group name map from the already-loaded teamGroupsResp
+		const teamGroupNameMap = new Map<string, string>(
+			(teamGroupsResp.data ?? []).map((tg: { id: string; name: string }) => [tg.id, tg.name])
+		);
+
+		announcements = (notesRows ?? [])
+			.filter((n: { body: string }) => (n.body ?? '').trim().length > 0)
+			.map((n: { team_group_id: string; subteam_category_slug: string; body: string; updated_at: string }) => ({
+				team_group_id: n.team_group_id,
+				subteam_category_slug: n.subteam_category_slug,
+				body: n.body ?? '',
+				scope: (n.subteam_category_slug ? 'subteam' : 'team') as 'team' | 'subteam',
+				scope_name: n.subteam_category_slug
+					? n.subteam_category_slug
+					: (teamGroupNameMap.get(n.team_group_id) ?? 'Team'),
+				updated_at: n.updated_at ?? new Date().toISOString()
+			}));
+
+		const qrVersion = Number(qrProfile?.passport_qr_version ?? 0);
+		passportQrDataUrl = await buildPassportQrDataUrl(user.id, qrVersion);
+	}
+
 	return {
 		profile,
 		nodes: nodesResp.data ?? [],
@@ -115,7 +202,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		primaryTeamGroupId: primaryTeamResp.data?.team_group_id ?? '',
 		requiredOnboardingCategories: requiredCategoriesResp.data ?? [],
 		parentApplicationStatus,
-		linkedStudents
+		linkedStudents,
+		isParent,
+		hoursSeason,
+		hoursTarget: 90,
+		checkedInSince,
+		letteringProgress,
+		announcements,
+		passportQrDataUrl
 	};
 };
 
