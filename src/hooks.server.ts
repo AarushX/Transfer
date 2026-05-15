@@ -54,7 +54,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (!user && !isPublicPath) throw redirect(303, '/login');
 	if (user && path === '/login') {
-		throw redirect(303, profile && isParentGuardian(profile) ? '/parent/dashboard' : '/dashboard');
+		throw redirect(303, '/dashboard');
 	}
 
 	if (path.startsWith('/mentor') && profile && !isMentor(profile)) {
@@ -84,7 +84,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			'/outreach'
 		];
 		if (parentBlockedPrefixes.some((prefix) => path.startsWith(prefix))) {
-			throw redirect(303, '/parent/dashboard');
+			throw redirect(303, '/dashboard');
 		}
 	}
 
