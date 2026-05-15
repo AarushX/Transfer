@@ -189,6 +189,12 @@ export const load = async ({ locals }) => {
 		}
 	}
 
+	let mentorQueueCount = 0;
+	if (user && profile) {
+		const { computeMentorQueueCount } = await import('$lib/server/sidebar-data');
+		mentorQueueCount = await computeMentorQueueCount(locals.supabase, user.id, profile);
+	}
+
 	return {
 		session,
 		user,
@@ -200,6 +206,7 @@ export const load = async ({ locals }) => {
 		primaryTeamName,
 		leadTeamName,
 		leadSubteamName,
-		userSubteams
+		userSubteams,
+		mentorQueueCount
 	};
 };
