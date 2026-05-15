@@ -127,10 +127,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from('profiles')
 				.select('id,full_name,email,is_mentor,is_lead,role,base_role,avatar_url')
 				.in('id', ids);
+			const categoryNameBySlug = new Map((subteamCategories ?? []).map((c: any) => [c.slug, c.name]));
 			const categoryByUser = new Map<string, string[]>();
 			for (const r of rosterProfileIds ?? []) {
+				if (!r.category_slug || r.category_slug === 'general') continue;
 				const list = categoryByUser.get(r.user_id) ?? [];
-				if (r.category_slug) list.push(r.category_slug);
+				list.push(categoryNameBySlug.get(r.category_slug) ?? r.category_slug);
 				categoryByUser.set(r.user_id, list);
 			}
 			roster = (rosterRows ?? []).map((r: any) => ({
@@ -169,14 +171,18 @@ export const actions: Actions = {
 		const isLead = (leadFields as any)?.lead_team_group_id === teamGroupId;
 		if (!isLead && !isAdmin(profile)) return fail(403, { error: 'Only team leads can edit notes.' });
 
-		const { error } = await service.from('team_notes').upsert({
-			team_group_id: teamGroupId,
-			subteam_category_slug: '',
-			body,
-			updated_by: user.id,
-			updated_at: new Date().toISOString()
-		}, { onConflict: 'team_group_id,subteam_category_slug' });
-		if (error) return fail(400, { error: error.message });
+		try {
+			const { error: err } = await service.from('team_notes').upsert({
+				team_group_id: teamGroupId,
+				subteam_category_slug: '',
+				body,
+				updated_by: user.id,
+				updated_at: new Date().toISOString()
+			}, { onConflict: 'team_group_id,subteam_category_slug' });
+			if (err) return fail(400, { error: err.message.includes('schema cache') ? 'Notes require a pending database migration — apply 202605140005 in Supabase.' : err.message });
+		} catch {
+			return fail(503, { error: 'Notes require a pending database migration.' });
+		}
 		return { ok: true };
 	}
 };

@@ -279,9 +279,8 @@
 					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Mentor
 					</p>
-					{#each mentorNav as group (group.label)}
-						<p class="mt-2 px-2 pb-1 text-[9px] font-medium tracking-[0.14em] uppercase" style="color: color-mix(in srgb, var(--app-text-dim) 80%, transparent);">{group.label}</p>
-						<ul class="space-y-0.5">
+					{#each mentorNav as group, gi (group.label)}
+						<ul class={['space-y-0.5', gi > 0 ? 'mt-1' : ''].filter(Boolean).join(' ')}>
 							{#each group.items as item (item.href)}
 								<li>
 									<a
@@ -304,9 +303,8 @@
 					<p class="mt-6 px-2 pb-1 text-[10px] font-medium tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
 						Admin
 					</p>
-					{#each adminNav as group (group.label)}
-						<p class="mt-2 px-2 pb-1 text-[9px] font-medium tracking-[0.14em] uppercase" style="color: color-mix(in srgb, var(--app-text-dim) 80%, transparent);">{group.label}</p>
-						<ul class="space-y-0.5">
+					{#each adminNav as group, gi (group.label)}
+						<ul class={['space-y-0.5', gi > 0 ? 'mt-1' : ''].filter(Boolean).join(' ')}>
 							{#each group.items as item (item.href)}
 								<li>
 									<a

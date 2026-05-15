@@ -154,7 +154,7 @@ export const load = async ({ locals }) => {
 			]);
 			const slugs = new Set((profileTeamsRows ?? []).map((r: any) => r.category_slug).filter(Boolean));
 			userSubteams = (subteamCategoryRows ?? [])
-				.filter((c: any) => slugs.has(c.slug))
+				.filter((c: any) => slugs.has(c.slug) && c.slug !== 'general')
 				.map((c: any) => ({ slug: c.slug, name: c.name }));
 		}
 

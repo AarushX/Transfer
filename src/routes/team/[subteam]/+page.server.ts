@@ -149,14 +149,18 @@ export const actions: Actions = {
 			isAdmin(profile);
 		if (!allowed) return fail(403, { error: 'Only leads can edit notes.' });
 
-		const { error: err } = await service.from('team_notes').upsert({
-			team_group_id: teamGroupId,
-			subteam_category_slug: subteamSlug,
-			body,
-			updated_by: user.id,
-			updated_at: new Date().toISOString()
-		}, { onConflict: 'team_group_id,subteam_category_slug' });
-		if (err) return fail(400, { error: err.message });
+		try {
+			const { error: err } = await service.from('team_notes').upsert({
+				team_group_id: teamGroupId,
+				subteam_category_slug: subteamSlug,
+				body,
+				updated_by: user.id,
+				updated_at: new Date().toISOString()
+			}, { onConflict: 'team_group_id,subteam_category_slug' });
+			if (err) return fail(400, { error: err.message.includes('schema cache') ? 'Notes require a pending database migration — apply 202605140005 in Supabase.' : err.message });
+		} catch {
+			return fail(503, { error: 'Notes require a pending database migration.' });
+		}
 		return { ok: true };
 	}
 };
