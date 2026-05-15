@@ -3,6 +3,11 @@ import { jwtVerify } from 'jose';
 import { isMentor, isAdmin } from '$lib/roles';
 
 const encoder = new TextEncoder();
+const extractJwtCandidate = (value: string) => {
+	const trimmed = String(value ?? '').trim();
+	const jwtMatch = trimmed.match(/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+	return jwtMatch?.[0] ?? trimmed;
+};
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -28,7 +33,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (checkoffToken) {
 		try {
 			const { payload } = await jwtVerify(
-				String(checkoffToken),
+				extractJwtCandidate(checkoffToken),
 				encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me')
 			);
 			if (String(payload.kind ?? '') !== 'checkoff_approve') {
