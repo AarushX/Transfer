@@ -113,6 +113,40 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
+	// ── Status counts ────────────────────────────────────────────
+	const counts = { done: 0, current: 0, awaiting: 0, blocked: 0, locked: 0 };
+	for (const c of courses) {
+		const s = c.status;
+		if (s === 'completed') counts.done++;
+		else if (['in_progress', 'video_pending', 'quiz_pending'].includes(s)) counts.current++;
+		else if (['mentor_checkoff_pending', 'awaiting_checkoff'].includes(s)) counts.awaiting++;
+		else if (['checkoff_needs_review', 'checkoff_blocked'].includes(s)) counts.blocked++;
+		else counts.locked++;
+	}
+
+	// ── Recent completions (last 7 days) — uses approved_at (no granted_at column) ──
+	const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+	const courseIds = courses.map((c) => c.id);
+	let recentCompletions = 0;
+	if (courseIds.length > 0) {
+		const { count } = await locals.supabase
+			.from('certifications')
+			.select('id', { count: 'exact', head: true })
+			.in('node_id', courseIds)
+			.eq('status', 'completed')
+			.gte('approved_at', sevenDaysAgo);
+		recentCompletions = count ?? 0;
+	}
+
+	// ── Graph nodes + prereqs (for MiniSkillTree) ────────────────
+	const [{ data: graphNodes }, { data: graphPrereqs }] = await Promise.all([
+		locals.supabase.from('nodes').select('id,title,slug'),
+		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id')
+	]);
+
+	const scopeNodeIds = courses.map((c) => String(c.id));
+	const userStatuses = courses.map((c) => ({ node_id: String(c.id), computed_status: c.status }));
+
 	return {
 		teamGroup,
 		subteamCategory,
@@ -122,7 +156,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		notes: (notesRow as any)?.body ?? '',
 		canEditNotes,
 		canViewRoster,
-		roster
+		roster,
+		statusCounts: counts,
+		recentCompletions,
+		graphNodes: (graphNodes ?? []).map((n: any) => ({ id: String(n.id), title: n.title, slug: n.slug })),
+		graphPrereqs: (graphPrereqs ?? []).map((r: any) => ({ node_id: String(r.node_id), prerequisite_node_id: String(r.prerequisite_node_id) })),
+		scopeNodeIds,
+		userStatuses
 	};
 };
 
