@@ -1,15 +1,14 @@
 <script lang="ts">
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	let { data } = $props();
 
 	const PAGE_SIZE = 30;
 	let visibleCount = $state(PAGE_SIZE);
 	let lightboxIndex = $state<number | null>(null);
 	let loaded = $state<Record<string, boolean>>({});
-	let tiles: HTMLElement[] = [];
-	let io: IntersectionObserver | null = null;
+	let failed = $state<Record<string, boolean>>({});
 	let sentinel = $state<HTMLDivElement | null>(null);
 	let sentinelObserver: IntersectionObserver | null = null;
 
@@ -56,79 +55,41 @@
 		};
 	});
 
-	const observeTile = (el: HTMLElement | null | undefined) => {
-		if (!el || !io) return;
-		io.observe(el);
-	};
-
-	// Re-observe whenever visibleCount changes (new tiles get appended).
-	$effect(() => {
-		// Read visibleCount so this effect tracks it.
-		visibleCount;
-		if (!io) return;
-		// Wait one tick for the new tiles to render, then observe.
-		tick().then(() => {
-			for (const el of tiles) if (el) io?.observe(el);
-		});
-	});
-
 	const showMore = () => {
 		visibleCount = Math.min(photos.length, visibleCount + PAGE_SIZE);
 	};
 
+	// Image lazy-loading is handled by the browser via `loading="lazy"` — that
+	// avoids the racy DOM-binding + IntersectionObserver dance, which was
+	// silently dropping observations when CSS columns reflowed after each
+	// image loaded.
 	onMount(() => {
-		if (typeof IntersectionObserver === 'undefined') {
-			// Older browsers: skip lazy loading entirely.
-			for (const el of tiles) {
-				const img = el?.querySelector<HTMLImageElement>('img[data-src]');
-				if (img?.dataset.src) img.src = img.dataset.src;
-			}
-			return;
-		}
-		io = new IntersectionObserver(
-			(entries) => {
-				for (const entry of entries) {
-					if (!entry.isIntersecting) continue;
-					const img = entry.target.querySelector<HTMLImageElement>('img[data-src]');
-					if (img?.dataset.src) {
-						img.src = img.dataset.src;
-						img.removeAttribute('data-src');
-					}
-					io?.unobserve(entry.target);
-				}
-			},
-			// Generous bottom margin so images near the fold start loading just
-			// before they enter the viewport.
-			{ rootMargin: '400px 0px 600px 0px', threshold: 0.01 }
-		);
-		for (const el of tiles) if (el) io.observe(el);
-
-		// Auto-load the next page as the user approaches the bottom.
+		if (typeof IntersectionObserver === 'undefined') return;
+		// Sentinel-driven auto-page so the user doesn't have to click "Load
+		// more" once they near the bottom of the current batch.
 		sentinelObserver = new IntersectionObserver(
 			(entries) => {
 				if (entries.some((e) => e.isIntersecting)) showMore();
 			},
-			{ rootMargin: '300px 0px' }
+			{ rootMargin: '600px 0px' }
 		);
 		if (sentinel) sentinelObserver.observe(sentinel);
-
 		return () => {
-			io?.disconnect();
 			sentinelObserver?.disconnect();
-			io = null;
 			sentinelObserver = null;
 		};
 	});
 
-	// Re-observe sentinel whenever it remounts (e.g. when hasMore flips).
+	// Re-observe the sentinel each time it remounts (e.g. after Load more).
 	$effect(() => {
-		if (sentinel && sentinelObserver) {
-			sentinelObserver.observe(sentinel);
-		}
+		if (sentinel && sentinelObserver) sentinelObserver.observe(sentinel);
 	});
 
 	const onImgLoad = (id: string) => {
 		loaded = { ...loaded, [id]: true };
+	};
+	const onImgError = (id: string) => {
+		failed = { ...failed, [id]: true };
 	};
 </script>
 
@@ -170,24 +131,47 @@
 				<button
 					type="button"
 					class="tile group relative overflow-hidden rounded-xl border"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); aspect-ratio: {aspectFor(photo.width, photo.height)};"
+					style="border-color: var(--app-glass-border); aspect-ratio: {aspectFor(photo.width, photo.height)};"
 					onclick={() => open(i)}
-					bind:this={tiles[i]}
 					aria-label={`Open ${photo.name}`}
 				>
-					{#if !loaded[photo.id]}
+					{#if !loaded[photo.id] && !failed[photo.id]}
 						<div class="skeleton absolute inset-0" aria-hidden="true"></div>
 					{/if}
-					<img
-						alt={photo.name}
-						data-src={photo.thumb}
-						referrerpolicy="no-referrer"
-						decoding="async"
-						loading="lazy"
-						onload={() => onImgLoad(photo.id)}
-						class="absolute inset-0 block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-						style="opacity: {loaded[photo.id] ? 1 : 0}; transition: opacity 0.4s ease, transform 0.5s ease;"
-					/>
+					{#if failed[photo.id]}
+						<div
+							class="absolute inset-0 grid place-items-center"
+							style="background: var(--app-glass-bg); color: var(--app-text-dim);"
+							aria-hidden="true"
+						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.4"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="h-7 w-7 opacity-60"
+							>
+								<rect x="3" y="3" width="18" height="18" rx="2" />
+								<circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+								<path d="m21 15-5-5L5 21" />
+								<line x1="3" y1="3" x2="21" y2="21" />
+							</svg>
+						</div>
+					{:else}
+						<img
+							src={photo.thumb}
+							alt={photo.name}
+							referrerpolicy="no-referrer"
+							decoding="async"
+							loading="lazy"
+							onload={() => onImgLoad(photo.id)}
+							onerror={() => onImgError(photo.id)}
+							class="absolute inset-0 block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+							style="opacity: {loaded[photo.id] ? 1 : 0}; transition: opacity 0.35s ease, transform 0.5s ease;"
+						/>
+					{/if}
 					<div class="tile-fade pointer-events-none absolute inset-0"></div>
 				</button>
 			{/each}
@@ -306,14 +290,15 @@
 		background: linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--app-bg) 55%, transparent) 100%);
 	}
 	.skeleton {
-		background: linear-gradient(
+		background-color: color-mix(in srgb, var(--app-text-muted) 12%, var(--app-glass-bg));
+		background-image: linear-gradient(
 			110deg,
-			color-mix(in srgb, var(--app-glass-bg) 60%, transparent) 25%,
-			color-mix(in srgb, var(--app-glass-bg-hover) 80%, transparent) 50%,
-			color-mix(in srgb, var(--app-glass-bg) 60%, transparent) 75%
+			transparent 25%,
+			color-mix(in srgb, var(--app-text-muted) 18%, transparent) 50%,
+			transparent 75%
 		);
 		background-size: 200% 100%;
-		animation: shimmer 1.2s linear infinite;
+		animation: shimmer 1.4s linear infinite;
 	}
 	@keyframes shimmer {
 		from {

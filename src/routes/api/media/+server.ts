@@ -2,8 +2,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	buildFolderViewUrl,
 	buildProxyThumbnailUrl,
-	countFolderImages,
-	firstFolderImage,
+	folderSummary,
 	getMediaRootFolderId,
 	listChildFolders,
 	listFolderImages
@@ -50,16 +49,18 @@ export const GET: RequestHandler = async ({ url }) => {
 		const folders = await listChildFolders(rootId);
 		const events = await Promise.all(
 			folders.map(async (folder) => {
-				const [cover, photoCount] = await Promise.all([
-					firstFolderImage(folder.id).catch(() => null),
-					countFolderImages(folder.id).catch(() => 0)
-				]);
+				const summary = await folderSummary(folder.id).catch(() => ({
+					cover: null,
+					approxPhotoCount: 0,
+					hasMoreThanReturned: false
+				}));
 				return {
 					id: folder.id,
 					name: folder.name,
-					photoCount,
-					coverPhotoId: cover?.id ?? null,
-					coverThumb: cover ? buildProxyThumbnailUrl(cover.id, 800) : null,
+					photoCount: summary.approxPhotoCount,
+					photoCountIsApprox: summary.hasMoreThanReturned,
+					coverPhotoId: summary.cover?.id ?? null,
+					coverThumb: summary.cover ? buildProxyThumbnailUrl(summary.cover.id, 800) : null,
 					driveUrl: buildFolderViewUrl(folder.id)
 				};
 			})

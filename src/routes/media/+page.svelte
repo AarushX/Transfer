@@ -63,7 +63,7 @@
 					<div class="relative px-4 py-3">
 						<p class="truncate text-sm font-semibold" style="color: var(--app-text);">{event.name}</p>
 						<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
-							{event.photoCount} {event.photoCount === 1 ? 'photo' : 'photos'}
+							{event.photoCount}{event.photoCountIsApprox ? '+' : ''} {event.photoCount === 1 ? 'photo' : 'photos'}
 						</p>
 					</div>
 				</a>

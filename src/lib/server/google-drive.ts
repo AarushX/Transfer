@@ -170,6 +170,44 @@ export const countFolderImages = async (folderId: string): Promise<number> => {
 };
 
 /**
+ * Cheap one-shot summary for a folder — used by the /media index where we
+ * only need a cover photo + approximate count. Avoids the recursive walk
+ * (which was the main cause of slow folder-index loads). One Drive call:
+ * we ask for one image + a generous page of images so we can both pick a
+ * cover and report an exact count for the common case where everything
+ * lives at one depth.
+ */
+export const folderSummary = async (
+	folderId: string
+): Promise<{ cover: DrivePhoto | null; approxPhotoCount: number; hasMoreThanReturned: boolean }> => {
+	const drive = getDriveClient();
+	const safeFolder = escapeForQuery(folderId);
+	const { data } = await drive.files.list({
+		...sharedDriveOptions,
+		q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
+		fields:
+			'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height))',
+		orderBy: 'createdTime, name',
+		pageSize: 200
+	});
+	const files = data.files ?? [];
+	const cover = files[0]
+		? {
+				id: String(files[0].id),
+				name: String(files[0].name),
+				width: files[0].imageMediaMetadata?.width ?? null,
+				height: files[0].imageMediaMetadata?.height ?? null,
+				mimeType: files[0].mimeType ?? 'image/jpeg'
+			}
+		: null;
+	return {
+		cover,
+		approxPhotoCount: files.length,
+		hasMoreThanReturned: Boolean(data.nextPageToken)
+	};
+};
+
+/**
  * Public Drive thumbnail URL — only works if the file is shared as
  * "anyone with the link". Prefer buildProxyThumbnailUrl for service-account
  * owned files in a private Shared Drive (no public link required).
@@ -184,6 +222,33 @@ export const buildProxyThumbnailUrl = (id: string, sizePx = 1200) =>
 export const buildFolderViewUrl = (id: string) =>
 	`https://drive.google.com/drive/folders/${encodeURIComponent(id)}`;
 
+// In-process cache for Drive thumbnailLink + mimeType. The link itself is a
+// short-lived signed URL but the metadata roundtrip dominates the proxy's
+// response time, so caching it for a minute is a huge win: a typical
+// 30-image gallery goes from 30 Drive `files.get` calls down to 0 on warm
+// pages.
+type ThumbMeta = { link: string | null; mimeType: string };
+const thumbMetaCache = new Map<string, { value: ThumbMeta; expiresAt: number }>();
+const THUMB_META_TTL_MS = 4 * 60 * 1000;
+
+const getThumbMeta = async (fileId: string): Promise<ThumbMeta> => {
+	const now = Date.now();
+	const cached = thumbMetaCache.get(fileId);
+	if (cached && cached.expiresAt > now) return cached.value;
+	const drive = getDriveClient();
+	const meta = await drive.files.get({
+		fileId,
+		fields: 'thumbnailLink, mimeType',
+		supportsAllDrives: true
+	});
+	const value: ThumbMeta = {
+		link: meta.data.thumbnailLink ?? null,
+		mimeType: meta.data.mimeType ?? 'image/jpeg'
+	};
+	thumbMetaCache.set(fileId, { value, expiresAt: now + THUMB_META_TTL_MS });
+	return value;
+};
+
 /**
  * Fetch a thumbnail image stream for a given file id. Uses the service
  * account's `thumbnailLink` so private Shared Drive files load without
@@ -194,18 +259,25 @@ export const fetchImageThumbnail = async (
 	fileId: string,
 	sizePx: number
 ): Promise<{ stream: ReadableStream<Uint8Array> | null; contentType: string; status: number }> => {
-	const drive = getDriveClient();
-	const meta = await drive.files.get({
-		fileId,
-		fields: 'thumbnailLink, mimeType, name',
-		supportsAllDrives: true
-	});
-	const mimeType = meta.data.mimeType ?? 'image/jpeg';
-	const link = meta.data.thumbnailLink;
+	const { link, mimeType } = await getThumbMeta(fileId);
 	if (link) {
 		// Drive thumbnail URLs use =s### as the longest-edge size token.
 		const sizedUrl = link.replace(/=s\d+(-[a-z])?$/i, `=s${sizePx}`);
 		const resp = await fetch(sizedUrl);
+		// If the cached signed link has expired, refresh and retry once.
+		if (resp.status === 403 || resp.status === 404) {
+			thumbMetaCache.delete(fileId);
+			const fresh = await getThumbMeta(fileId);
+			if (fresh.link) {
+				const retryUrl = fresh.link.replace(/=s\d+(-[a-z])?$/i, `=s${sizePx}`);
+				const retry = await fetch(retryUrl);
+				return {
+					stream: retry.body,
+					contentType: retry.headers.get('content-type') ?? fresh.mimeType,
+					status: retry.status
+				};
+			}
+		}
 		return {
 			stream: resp.body,
 			contentType: resp.headers.get('content-type') ?? mimeType,
@@ -213,12 +285,12 @@ export const fetchImageThumbnail = async (
 		};
 	}
 	// No thumbnail metadata — fall back to streaming the original file.
+	const drive = getDriveClient();
 	const full = await drive.files.get(
 		{ fileId, alt: 'media', supportsAllDrives: true },
 		{ responseType: 'stream' }
 	);
 	const nodeStream = full.data as unknown as NodeJS.ReadableStream;
-	// Node Readable → web ReadableStream
 	const { Readable } = await import('node:stream');
 	const webStream = Readable.toWeb(nodeStream as never) as unknown as ReadableStream<Uint8Array>;
 	return { stream: webStream, contentType: mimeType, status: 200 };
