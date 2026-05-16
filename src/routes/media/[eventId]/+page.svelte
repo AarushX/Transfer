@@ -1,24 +1,56 @@
 <script lang="ts">
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { onMount } from 'svelte';
 	let { data } = $props();
 
-	const PAGE_SIZE = 30;
-	let visibleCount = $state(PAGE_SIZE);
+	const PAGE_SIZE_OPTIONS = [30, 60, 120, 240] as const;
+	const COLUMN_OPTIONS = [2, 3, 4, 5] as const;
+
+	let pageSize = $state<number>(60);
+	let columns = $state<number>(3);
+	let page = $state<number>(1);
 	let lightboxIndex = $state<number | null>(null);
 	let loaded = $state<Record<string, boolean>>({});
 	let failed = $state<Record<string, boolean>>({});
-	let sentinel = $state<HTMLDivElement | null>(null);
-	let sentinelObserver: IntersectionObserver | null = null;
 
 	const photos = $derived(data.photos);
-	const visiblePhotos = $derived(photos.slice(0, visibleCount));
-	const hasMore = $derived(visibleCount < photos.length);
+	const totalPages = $derived(Math.max(1, Math.ceil(photos.length / pageSize)));
+	// Keep page in range when pageSize changes.
+	$effect(() => {
+		if (page > totalPages) page = totalPages;
+		if (page < 1) page = 1;
+	});
+	const start = $derived((page - 1) * pageSize);
+	const end = $derived(Math.min(start + pageSize, photos.length));
+	const visiblePhotos = $derived(photos.slice(start, end));
 	const activePhoto = $derived(lightboxIndex !== null ? photos[lightboxIndex] : null);
 
 	const aspectFor = (w: number | null, h: number | null) =>
 		w && h && w > 0 && h > 0 ? `${w} / ${h}` : '4 / 3';
+
+	// Compact numbered pagination — always shows first, last, neighbors,
+	// with "…" gaps. ['‹', 1, '…', 4, 5, 6, '…', 12, '›']
+	const pageNumbers = $derived.by(() => {
+		const out: Array<number | 'gap'> = [];
+		const push = (v: number | 'gap') => {
+			if (v === 'gap' && out[out.length - 1] === 'gap') return;
+			out.push(v);
+		};
+		const inWindow = (n: number) => Math.abs(n - page) <= 1;
+		for (let n = 1; n <= totalPages; n++) {
+			if (n === 1 || n === totalPages || inWindow(n)) push(n);
+			else push('gap');
+		}
+		return out;
+	});
+
+	const goToPage = (n: number) => {
+		page = Math.min(totalPages, Math.max(1, n));
+		// Smooth-scroll to the gallery top so the new page is in view.
+		if (typeof window !== 'undefined') {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+	};
 
 	const open = (index: number) => {
 		lightboxIndex = index;
@@ -53,36 +85,6 @@
 		return () => {
 			document.body.style.overflow = '';
 		};
-	});
-
-	const showMore = () => {
-		visibleCount = Math.min(photos.length, visibleCount + PAGE_SIZE);
-	};
-
-	// Image lazy-loading is handled by the browser via `loading="lazy"` — that
-	// avoids the racy DOM-binding + IntersectionObserver dance, which was
-	// silently dropping observations when CSS columns reflowed after each
-	// image loaded.
-	onMount(() => {
-		if (typeof IntersectionObserver === 'undefined') return;
-		// Sentinel-driven auto-page so the user doesn't have to click "Load
-		// more" once they near the bottom of the current batch.
-		sentinelObserver = new IntersectionObserver(
-			(entries) => {
-				if (entries.some((e) => e.isIntersecting)) showMore();
-			},
-			{ rootMargin: '600px 0px' }
-		);
-		if (sentinel) sentinelObserver.observe(sentinel);
-		return () => {
-			sentinelObserver?.disconnect();
-			sentinelObserver = null;
-		};
-	});
-
-	// Re-observe the sentinel each time it remounts (e.g. after Load more).
-	$effect(() => {
-		if (sentinel && sentinelObserver) sentinelObserver.observe(sentinel);
 	});
 
 	const onImgLoad = (id: string) => {
@@ -126,7 +128,51 @@
 	{:else if photos.length === 0}
 		<EmptyState title="No photos in this event" description="Upload images to the Drive folder and they'll appear here." />
 	{:else}
-		<div class="masonry">
+		<!-- Floating control bar: grid density + per-page selector -->
+		<div
+			class="gallery-controls sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-3 py-2 backdrop-blur-xl"
+			style="background: color-mix(in srgb, var(--app-glass-bg) 85%, transparent); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+		>
+			<div class="flex items-center gap-2">
+				<span class="eyebrow-label" style="margin-bottom: 0;">Grid</span>
+				<div class="control-segment">
+					{#each COLUMN_OPTIONS as col (col)}
+						<button
+							type="button"
+							class="seg-btn"
+							data-active={col === columns}
+							onclick={() => (columns = col)}
+							aria-label={`${col} columns`}
+						>
+							{col}×
+						</button>
+					{/each}
+				</div>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="eyebrow-label" style="margin-bottom: 0;">Per page</span>
+				<div class="control-segment">
+					{#each PAGE_SIZE_OPTIONS as size (size)}
+						<button
+							type="button"
+							class="seg-btn"
+							data-active={size === pageSize}
+							onclick={() => {
+								pageSize = size;
+								page = 1;
+							}}
+						>
+							{size}
+						</button>
+					{/each}
+				</div>
+				<span class="text-[11px]" style="color: var(--app-text-dim);">
+					{start + 1}–{end} of {photos.length}
+				</span>
+			</div>
+		</div>
+
+		<div class="masonry" style="--cols: {columns};">
 			{#each visiblePhotos as photo, i (photo.id)}
 				<button
 					type="button"
@@ -177,22 +223,40 @@
 			{/each}
 		</div>
 
-		{#if hasMore}
-			<div
-				bind:this={sentinel}
-				class="mt-4 flex items-center justify-center"
-			>
-				<Button variant="secondary" onclick={showMore}>
-					Load more
-					<span class="ml-1 text-[11px]" style="opacity: 0.65;">
-						({Math.min(PAGE_SIZE, photos.length - visibleCount)} of {photos.length - visibleCount} left)
-					</span>
-				</Button>
-			</div>
-		{:else if photos.length > PAGE_SIZE}
-			<p class="mt-4 text-center text-xs" style="color: var(--app-text-dim);">
-				All {photos.length} photos loaded
-			</p>
+		{#if totalPages > 1}
+			<nav class="page-bar mt-6 flex flex-wrap items-center justify-center gap-1" aria-label="Gallery pagination">
+				<button
+					type="button"
+					class="page-btn"
+					onclick={() => goToPage(page - 1)}
+					disabled={page <= 1}
+					aria-label="Previous page"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="15 18 9 12 15 6"/></svg>
+				</button>
+				{#each pageNumbers as item, i (i)}
+					{#if item === 'gap'}
+						<span class="page-gap" aria-hidden="true">…</span>
+					{:else}
+						<button
+							type="button"
+							class="page-btn"
+							data-active={item === page}
+							aria-current={item === page ? 'page' : undefined}
+							onclick={() => goToPage(item)}
+						>{item}</button>
+					{/if}
+				{/each}
+				<button
+					type="button"
+					class="page-btn"
+					onclick={() => goToPage(page + 1)}
+					disabled={page >= totalPages}
+					aria-label="Next page"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="9 18 15 12 9 6"/></svg>
+				</button>
+			</nav>
 		{/if}
 	{/if}
 </section>
@@ -261,17 +325,12 @@
 	}
 	@media (min-width: 640px) {
 		.masonry {
-			column-count: 2;
+			column-count: min(2, var(--cols, 3));
 		}
 	}
 	@media (min-width: 1024px) {
 		.masonry {
-			column-count: 3;
-		}
-	}
-	@media (min-width: 1536px) {
-		.masonry {
-			column-count: 4;
+			column-count: var(--cols, 3);
 		}
 	}
 	.tile {
@@ -400,5 +459,76 @@
 	}
 	.lightbox-close:hover {
 		background: rgba(255, 255, 255, 0.18);
+	}
+
+	.control-segment {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		padding: 2px;
+		border-radius: 9px;
+		border: 1px solid var(--app-glass-border);
+		background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent);
+	}
+	.seg-btn {
+		min-width: 28px;
+		padding: 3px 8px;
+		border: none;
+		border-radius: 7px;
+		background: transparent;
+		color: var(--app-text-muted);
+		font-size: 11px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+	.seg-btn:hover {
+		color: var(--app-text);
+	}
+	.seg-btn[data-active='true'] {
+		background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+		color: var(--app-text);
+	}
+
+	.page-bar .page-btn {
+		min-width: 32px;
+		height: 32px;
+		padding: 0 8px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--app-glass-border);
+		background: var(--app-glass-bg);
+		border-radius: 8px;
+		color: var(--app-text-muted);
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+	}
+	.page-bar .page-btn:hover:not(:disabled) {
+		background: var(--app-glass-bg-hover);
+		color: var(--app-text);
+		border-color: var(--app-glass-border-hover);
+	}
+	.page-bar .page-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+	.page-bar .page-btn[data-active='true'] {
+		background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+		border-color: color-mix(in srgb, var(--app-accent) 50%, var(--app-glass-border));
+		color: var(--app-text);
+	}
+	.page-gap {
+		min-width: 24px;
+		text-align: center;
+		color: var(--app-text-dim);
+		font-size: 12px;
+	}
+
+	.gallery-controls {
+		/* Sits above the masonry header but below the lightbox */
+		z-index: 10;
 	}
 </style>

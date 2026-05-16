@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/Button.svelte';
-	import MiniSkillTree from '$lib/components/MiniSkillTree.svelte';
 	let { data, form } = $props();
 	const teamsById = $derived(
 		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
@@ -54,28 +53,15 @@
 		return labels.length > 0 ? labels : ['No team targets'];
 	};
 
-	let selectedId = $state<string | null>(null);
-	$effect(() => {
-		if (!selectedId && data.nodes?.length) selectedId = data.nodes[0].id;
-	});
-
-	const neighborhoodIds = $derived.by(() => {
-		if (!selectedId) return new Set<string>();
-		const ids = new Set<string>([selectedId]);
-		for (const e of (data.prerequisites ?? []) as Array<{ node_id: string; prerequisite_node_id: string }>) {
-			if (e.node_id === selectedId) ids.add(e.prerequisite_node_id);
-			if (e.prerequisite_node_id === selectedId) ids.add(e.node_id);
-		}
-		return ids;
-	});
-
-	const statusesForGraph = $derived(
-		(data.nodes ?? []).map((n: any) => ({
-			node_id: n.id,
-			computed_status: n.id === selectedId ? 'in_progress' : 'available'
-		}))
-	);
 </script>
+
+<style>
+	.course-row:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+		transform: translateY(-1px);
+	}
+</style>
 
 <section class="space-y-5">
 
@@ -292,63 +278,51 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-			<!-- Left panel: course list -->
-			<div class="space-y-2">
-				{#each data.nodes as node (node.id)}
-					{@const agg = data.aggregates?.[String(node.id)]}
-					{@const pct = agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
-					<button
-						type="button"
-						data-selected={node.id === selectedId}
-						onclick={() => (selectedId = node.id)}
-						class="w-full text-left rounded-xl border p-3 transition-all"
-						style={node.id === selectedId
-							? 'background: color-mix(in srgb, var(--app-accent) 12%, var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-glass-border));'
-							: 'background: var(--app-glass-bg); border-color: var(--app-glass-border);'}
+		<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+			{#each data.nodes as node (node.id)}
+				{@const agg = data.aggregates?.[String(node.id)]}
+				{@const pct = agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
+				<li>
+					<a
+						href={`/mentor/courses/${node.slug}`}
+						class="course-row group flex items-center gap-3 rounded-xl border p-3 transition-all"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					>
-						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0">
-								<p class="font-semibold truncate" style="color: var(--app-text);">{node.title}</p>
-								<p class="text-[11px] truncate" style="color: var(--app-text-muted);">{node.slug}</p>
-							</div>
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-semibold" style="color: var(--app-text);">{node.title}</p>
+							<p class="truncate text-[11px]" style="color: var(--app-text-muted);">{node.slug}</p>
 							{#if agg}
-								<div class="text-right shrink-0">
-									<p class="font-bold mono" style="color: var(--app-text);">{agg.completed} / {agg.assigned}</p>
-									<p class="text-[10px]" style="color: var(--app-text-muted);">{pct}% finished</p>
+								<div class="mt-1.5 flex items-center gap-2">
+									<div
+										class="h-1 w-20 rounded-full"
+										style="background: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"
+									>
+										<div
+											class="h-full rounded-full"
+											style="width: {pct}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
+										></div>
+									</div>
+									<span class="mono text-[10px]" style="color: var(--app-text-muted);">
+										{agg.completed} / {agg.assigned}
+									</span>
 								</div>
 							{/if}
 						</div>
-						<!-- Action buttons -->
-						<div class="mt-2 flex gap-2">
-							<a
-								href={`/learn/${node.slug}?preview=1`}
-								class="text-xs underline"
-								style="color: var(--app-text-muted);"
-								onclick={(e) => e.stopPropagation()}
-							>Preview</a>
-							<a
-								href={`/mentor/courses/${node.slug}`}
-								class="text-xs underline"
-								style="color: var(--app-text-muted);"
-								onclick={(e) => e.stopPropagation()}
-							>Edit</a>
-						</div>
-					</button>
-				{/each}
-			</div>
-
-			<!-- Right panel: neighborhood mini-graph -->
-			<div class="sticky top-4 self-start">
-				<MiniSkillTree
-					nodes={data.nodes}
-					statuses={statusesForGraph}
-					prerequisites={data.prerequisites}
-					scope={neighborhoodIds}
-					selectedNodeId={selectedId}
-					onSelect={(id) => (selectedId = id ?? selectedId)}
-				/>
-			</div>
-		</div>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 opacity-40 transition-transform group-hover:translate-x-0.5 group-hover:opacity-90"
+							style="color: var(--app-text-muted);"
+						>
+							<path d="M5 12h14M13 5l7 7-7 7" />
+						</svg>
+					</a>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 </section>
