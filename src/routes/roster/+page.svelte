@@ -11,6 +11,22 @@
 	let expandedUserId = $state<string | null>(null);
 	const canManage = $derived(data.canManageUsers);
 
+	const teamGroupNameById = $derived(
+		new Map(
+			((data.teamGroups as Array<{ id: string; name?: string | null }>) ?? []).map((row) => [
+				String(row.id),
+				String(row.name ?? '')
+			])
+		)
+	);
+	const teamOptionLabel = (
+		subteam: { name?: string | null; team_group_id?: string | null }
+	) => {
+		const groupName = teamGroupNameById.get(String(subteam.team_group_id ?? '')) ?? '';
+		const teamName = String(subteam.name ?? '').trim();
+		return groupName ? `${groupName}: ${teamName}` : teamName;
+	};
+
 	const attendanceByUser = $derived.by(() => {
 		const map = new Map<string, any[]>();
 		for (const s of data.attendanceSessions ?? []) {
@@ -257,9 +273,12 @@
 												</div>
 												<a
 													href={`/roster/${row.id}`}
-													class="mt-3 inline-block text-xs underline"
-													style="color: var(--app-link);"
-												>Open full profile →</a>
+													class="mt-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium"
+													style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+												>
+													Full course history
+													<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+												</a>
 											</div>
 
 											<!-- Right: Admin controls (admins only) -->
@@ -339,6 +358,64 @@
 															</div>
 														</div>
 														<Button variant="primary" size="sm" type="submit">Save changes</Button>
+													</form>
+
+													<!-- Team assignments — moved here from /roster/[userId] so admins
+													     can edit onboarded subteams inline without leaving the table. -->
+													<form
+														method="POST"
+														action="?/setUserTeams"
+														class="mt-5 space-y-3 border-t pt-4"
+														style="border-color: var(--app-glass-border);"
+													>
+														<input type="hidden" name="user_id" value={row.id} />
+														<p
+															class="eyebrow-label"
+															style="margin-bottom: 0; color: color-mix(in srgb, var(--app-danger) 70%, var(--app-text-muted));"
+														>Team assignments</p>
+														<label class="block">
+															<span
+																class="text-[10px] uppercase tracking-wider"
+																style="color: var(--app-text-muted);"
+															>Main team</span>
+															<select
+																name="primary_team_group_id"
+																required
+																class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
+																style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+															>
+																<option value="">Select main team</option>
+																{#each data.teamGroups as tg (tg.id)}
+																	<option value={tg.id} selected={String(tg.id) === String(row.currentPrimaryTeamGroupId)}>
+																		{tg.name}
+																	</option>
+																{/each}
+															</select>
+														</label>
+														{#each data.requiredCategories as category (category.slug)}
+															{@const categorySlug = String(category.slug)}
+															{@const currentTeamId = row.currentTeamIdByCategory?.[categorySlug] ?? ''}
+															<label class="block">
+																<span
+																	class="text-[10px] uppercase tracking-wider"
+																	style="color: var(--app-text-muted);"
+																>{category.name} subteam</span>
+																<select
+																	name={`team_id_${categorySlug}`}
+																	required
+																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
+																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																>
+																	<option value="">Select {category.name.toLowerCase()} subteam</option>
+																	{#each data.teams.filter((t: any) => String(t.category_slug ?? '') === categorySlug) as subteam (subteam.id)}
+																		<option value={subteam.id} selected={String(currentTeamId) === String(subteam.id)}>
+																			{teamOptionLabel(subteam)}
+																		</option>
+																	{/each}
+																</select>
+															</label>
+														{/each}
+														<Button variant="secondary" size="sm" type="submit">Save team assignments</Button>
 													</form>
 												</div>
 											{/if}

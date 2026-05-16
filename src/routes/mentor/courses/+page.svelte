@@ -340,17 +340,14 @@
 
 			<!-- Right panel: neighborhood mini-graph -->
 			<div class="sticky top-4 self-start">
-				<p class="eyebrow-label">
-					Neighborhood{#if selectedId} · "{(data.nodes ?? []).find((n: any) => n.id === selectedId)?.title}"{/if}
-				</p>
-				<div class="mt-1.5">
-					<MiniSkillTree
-						nodes={data.nodes}
-						statuses={statusesForGraph}
-						prerequisites={data.prerequisites}
-						scope={neighborhoodIds}
-					/>
-				</div>
+				<MiniSkillTree
+					nodes={data.nodes}
+					statuses={statusesForGraph}
+					prerequisites={data.prerequisites}
+					scope={neighborhoodIds}
+					selectedNodeId={selectedId}
+					onSelect={(id) => (selectedId = id ?? selectedId)}
+				/>
 			</div>
 		</div>
 	{/if}

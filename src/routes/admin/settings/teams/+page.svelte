@@ -54,12 +54,13 @@
 	const selectedTeamId = $derived.by(() => {
 		if (selection?.kind === 'team') return selection.teamId;
 		if (selection?.kind === 'subteam') {
-			const linked = linkedGroupIdsBySubteam.get(selection.subteamId);
+			const subteamId = selection.subteamId;
+			const linked = linkedGroupIdsBySubteam.get(subteamId);
 			const first = linked ? Array.from(linked)[0] : undefined;
 			if (first) return first;
 			// Fall back to the subteam's primary team_group_id when no explicit link row exists
 			return String(
-				subteams.find((s) => String(s.id) === selection.subteamId)?.team_group_id ?? ''
+				subteams.find((s) => String(s.id) === subteamId)?.team_group_id ?? ''
 			);
 		}
 		return '';
@@ -208,10 +209,11 @@
 	const isTeamExpanded = (id: string) => {
 		if (isTeamActive(id)) return true;
 		if (selection?.kind !== 'subteam') return false;
-		const linked = linkedGroupIdsBySubteam.get(selection.subteamId);
+		const subteamId = selection.subteamId;
+		const linked = linkedGroupIdsBySubteam.get(subteamId);
 		if (linked?.has(String(id))) return true;
 		if (!linked?.size) {
-			const sub = subteams.find((s) => String(s.id) === selection.subteamId);
+			const sub = subteams.find((s) => String(s.id) === subteamId);
 			if (sub && String(sub.team_group_id) === String(id)) return true;
 		}
 		return false;

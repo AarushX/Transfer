@@ -5,12 +5,16 @@
 		nodes = [],
 		statuses = [],
 		prerequisites = [],
-		scope = undefined
+		scope = undefined,
+		selectedNodeId = undefined,
+		onSelect = undefined
 	}: {
 		nodes: Array<{ id: string; title: string; slug: string }>;
 		statuses: Array<{ node_id: string; computed_status: string }>;
 		prerequisites: Array<{ node_id: string; prerequisite_node_id: string }>;
 		scope?: Set<string> | string[] | undefined;
+		selectedNodeId?: string | null;
+		onSelect?: ((nodeId: string | null) => void) | undefined;
 	} = $props();
 
 	const scopeSet = $derived(
@@ -21,7 +25,7 @@
 
 	const hasGraphData = $derived((filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0);
 
-	let legendMinimized = $state(false);
+	let legendMinimized = $state(true);
 
 	const NODE_R = 26;
 	const MIN_ZOOM = 0.15;
@@ -144,7 +148,17 @@
 
 	let selected = $state<LayoutNode | null>(null);
 	let hovered = $state<LayoutNode | null>(null);
-	const active = $derived(hovered ?? selected);
+	// When the parent provides selectedNodeId + onSelect it owns selection and
+	// the internal detail dialog is suppressed (used on editor pages where the
+	// graph is a passive picker).
+	const parentControlled = $derived(typeof onSelect === 'function');
+	const effectiveSelected = $derived.by(() => {
+		if (parentControlled) {
+			return selectedNodeId ? layoutNodes.find((n) => n.id === selectedNodeId) ?? null : null;
+		}
+		return selected;
+	});
+	const active = $derived(hovered ?? effectiveSelected);
 
 	const stateLabel = (state: string) =>
 		({
@@ -234,16 +248,18 @@
 	function handlePointerUp(e: PointerEvent) {
 		isPanning = false;
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-		if (!didPan) {
-			const target = e.target as Element | null;
-			const nodeGroup = target?.closest('g[data-node-id]') as SVGElement | null;
-			const nodeId = nodeGroup?.getAttribute('data-node-id');
-			if (nodeId) {
-				const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
-				if (node) {
-					selected = selected?.id === nodeId ? null : node;
-				}
-			}
+		if (didPan) return;
+		const target = e.target as Element | null;
+		const nodeGroup = target?.closest('g[data-node-id]') as SVGElement | null;
+		const nodeId = nodeGroup?.getAttribute('data-node-id');
+		if (!nodeId) return;
+		const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
+		if (!node) return;
+		if (parentControlled) {
+			const next = selectedNodeId === nodeId ? null : nodeId;
+			onSelect?.(next);
+		} else {
+			selected = selected?.id === nodeId ? null : node;
 		}
 	}
 
@@ -277,11 +293,12 @@
 	// in-place data swaps (e.g. navigating between sibling subteam pages that
 	// share this component instance). Reading layoutNodes here registers the
 	// dependency so the effect re-runs on every layout change. Also clear any
-	// stale selection from the previous graph so the side panel doesn't linger.
+	// stale internal selection from the previous graph so the side panel
+	// doesn't linger when the host page is uncontrolled.
 	$effect(() => {
 		const count = layoutNodes.length;
 		if (!hasGraphData || !containerEl || count === 0) return;
-		selected = null;
+		if (!parentControlled) selected = null;
 		hovered = null;
 		requestAnimationFrame(() => fitView());
 	});
@@ -356,29 +373,27 @@
 			{#each layoutNodes as node (node.id)}
 				{@const color = STATE_COLOR[node.state] ?? '#475569'}
 				{@const isLocked = node.state === 'locked'}
-				{@const isSelected = selected?.id === node.id}
+				{@const isSelected = effectiveSelected?.id === node.id}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<g
 					data-node-id={node.id}
+					style="cursor: pointer;"
 					onmouseenter={() => (hovered = node)}
 					onmouseleave={() => (hovered = null)}
 				>
 					{#if !isLocked}
 						<circle cx={node.x} cy={node.y} r={NODE_R + 10}
 							fill="url(#halo-{node.state})"
-							opacity={node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 0.9 : 0.5} />
-					{/if}
-					{#if isSelected}
-						<circle cx={node.x} cy={node.y} r={NODE_R + 6}
-							fill="none" stroke={color} stroke-width="1.5" opacity="0.6"
-							stroke-dasharray="3 4" />
+							opacity={node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 0.9 : 0.5}
+							style="pointer-events: none;" />
 					{/if}
 					<circle cx={node.x} cy={node.y} r={NODE_R}
 						fill={isLocked ? '#0f1729' : `url(#fill-${node.state})`}
 						stroke={color}
-						stroke-width={node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 2 : 1.2}
-						opacity={isLocked ? 0.5 : 1} />
-					<foreignObject x={node.x - NODE_R} y={node.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2}>
+						stroke-width={isSelected ? 2.5 : node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 2 : 1.2}
+						opacity={isLocked ? 0.5 : 1}
+						style={isSelected ? `filter: drop-shadow(0 0 8px ${color});` : ''} />
+					<foreignObject x={node.x - NODE_R} y={node.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} style="pointer-events: none;">
 						<div style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked ? '#475569' : 'white'}; pointer-events: none; cursor: inherit;">
 							{#if node.state === 'completed'}
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; pointer-events: none;"><polyline points="4 12 10 18 20 6"/></svg>
@@ -397,6 +412,17 @@
 						fill={isLocked ? '#475569' : '#e6edf7'} font-size="11" font-weight="600" style="font-family: Inter, sans-serif; pointer-events: none;">
 						{node.title}
 					</text>
+					<!-- Hit target: invisible rect spanning circle + label so the whole
+					     visible node area is reliably clickable, even where foreignObject
+					     would otherwise swallow the event. -->
+					<rect
+						x={node.x - NODE_R - 4}
+						y={node.y - NODE_R - 4}
+						width={NODE_R * 2 + 8}
+						height={NODE_R * 2 + 30}
+						fill="transparent"
+						style="pointer-events: all;"
+					/>
 				</g>
 			{/each}
 		</svg>
@@ -437,18 +463,23 @@
 			<button
 				type="button"
 				onclick={() => (legendMinimized = false)}
-				class="absolute bottom-4 left-4 h-2.5 w-2.5 rounded-full"
-				style="background: color-mix(in srgb, var(--app-text-muted) 35%, transparent); border: none; padding: 0; cursor: pointer; z-index: 5; transition: background 0.2s ease, transform 0.2s ease;"
+				class="absolute bottom-4 left-4 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] uppercase backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); box-shadow: var(--app-glass-shadow); z-index: 5; cursor: pointer; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;"
 				onmouseenter={(event) => {
-					event.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-muted) 65%, transparent)';
-					event.currentTarget.style.transform = 'scale(1.4)';
+					event.currentTarget.style.background = 'var(--app-glass-bg-hover)';
+					event.currentTarget.style.color = 'var(--app-text)';
+					event.currentTarget.style.borderColor = 'var(--app-glass-border-hover)';
 				}}
 				onmouseleave={(event) => {
-					event.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-muted) 35%, transparent)';
-					event.currentTarget.style.transform = 'scale(1)';
+					event.currentTarget.style.background = 'var(--app-glass-bg)';
+					event.currentTarget.style.color = 'var(--app-text-muted)';
+					event.currentTarget.style.borderColor = 'var(--app-glass-border)';
 				}}
 				aria-label="Show legend"
-			></button>
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>
+				Legend
+			</button>
 		{:else}
 			<div class="absolute left-4 bottom-4 rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;">
 				<div class="mb-2 flex items-center justify-between gap-3">

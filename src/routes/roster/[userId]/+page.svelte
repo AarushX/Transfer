@@ -1,6 +1,5 @@
 <script lang="ts">
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
 	let { data, form } = $props();
 
 	const categoryTone = (slug: string) => {
@@ -18,29 +17,13 @@
 			mentor_checkoff_pending: 'Awaiting mentor checkoff',
 			completed: 'Completed'
 		})[status] ?? status;
-	const currentTeamIdForCategory = (categorySlug: string) =>
-		(data.userTeamRows as Array<{ team_id: string; category_slug?: string | null }>)
-			.find((row) => String(row.category_slug ?? '') === categorySlug)
-			?.team_id ?? '';
-	const teamGroupNameById = new Map(
-		((data.teamGroups as Array<{ id: string; name?: string | null }>) ?? []).map((row) => [
-			String(row.id),
-			String(row.name ?? '')
-		])
-	);
-	const teamOptionLabel = (subteam: { name?: string | null; team_group_id?: string | null }) => {
-		const groupName = teamGroupNameById.get(String(subteam.team_group_id ?? '')) ?? '';
-		const teamName = String(subteam.name ?? '').trim();
-		return groupName ? `${groupName}: ${teamName}` : teamName;
-	};
 </script>
 
 <section class="space-y-6">
 	<div class="fade-up">
 		<a href="/roster" class="text-xs" style="color: var(--app-text-muted);">← Back to roster</a>
-		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Member Profile</p>
+		<p class="eyebrow-label" style="margin-top: 4px; margin-bottom: 2px;">Course history</p>
 		<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">{data.member.full_name || data.member.email}</span></h1>
-		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.member.email} · {data.member.role}</p>
 	</div>
 	{#if form?.error}
 		<p class="rounded border p-2 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
@@ -100,41 +83,5 @@
 			</div>
 		</div>
 	</GlassCard>
-
-	{#if data.canManageUsers}
-		<GlassCard>
-			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Admin: Team assignments</h2>
-			<form method="POST" action="?/setUserTeams" class="mt-3 space-y-2">
-				<label class="flex flex-col gap-1 text-xs">
-					<span style="color: var(--app-text);">Main team</span>
-					<select class="rounded px-2 py-1.5" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name="primary_team_group_id" required>
-						<option value="">Select main team</option>
-						{#each data.teamGroups as teamGroup}
-							<option value={teamGroup.id} selected={String(teamGroup.id) === String(data.currentPrimaryTeamGroupId)}>
-								{teamGroup.name}
-							</option>
-						{/each}
-					</select>
-				</label>
-				{#each data.requiredCategories as category}
-					{@const categorySlug = String(category.slug)}
-					<label class="flex flex-col gap-1 text-xs">
-						<span style="color: var(--app-text);">{categorySlug} subteam</span>
-						<select class="rounded px-2 py-1.5" style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);" name={`team_id_${categorySlug}`} required>
-							<option value="">Select {categorySlug} subteam</option>
-							{#each data.subteams as subteam}
-								{#if String(subteam.category_slug ?? '') === categorySlug}
-									<option value={subteam.id} selected={currentTeamIdForCategory(categorySlug) === String(subteam.id)}>
-										{teamOptionLabel(subteam)}
-									</option>
-								{/if}
-							{/each}
-						</select>
-					</label>
-				{/each}
-				<Button variant="secondary" size="sm" type="submit">Save team assignments</Button>
-			</form>
-		</GlassCard>
-	{/if}
 
 </section>

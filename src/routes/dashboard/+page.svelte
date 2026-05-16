@@ -203,14 +203,16 @@
 			.slice()
 			.sort(byPriority)
 	);
+	// Only include statuses the user can actually act on. Waiting on a mentor
+	// (mentor_checkoff_pending / checkoff_needs_review / checkoff_blocked) is
+	// out of the student's control, so those shouldn't surface in
+	// "Pick up where you left off".
 	const inProgressPrimary = $derived(
 		primaryNodes
 			.filter(
 				(n) =>
-					['mentor_checkoff_pending', 'checkoff_needs_review', 'checkoff_blocked'].includes(
-						effectiveStatusFor(n.id)
-					) ||
-					(takeableStatuses.includes(effectiveStatusFor(n.id)) && hasPartialProgress(n.id))
+					takeableStatuses.includes(effectiveStatusFor(n.id)) &&
+					hasPartialProgress(n.id)
 			)
 			.slice()
 			.sort(byPriority)

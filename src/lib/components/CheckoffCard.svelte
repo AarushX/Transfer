@@ -19,6 +19,12 @@
 		return [];
 	};
 
+	// Per-(user,node,block) cache key — survives reloads so a mentor returning
+	// to the queue picks up exactly where they left off on each card.
+	const cacheKey = $derived(
+		`mentor_checklist::${item.user_id ?? ''}::${item.node_id ?? ''}::${item.active_block_id ?? 'null'}`
+	);
+
 	$effect(() => {
 		const initial: Record<string, boolean> = {};
 		for (const row of item.review?.checklist_results ?? []) {
@@ -30,9 +36,47 @@
 				initial[String(row)] = false;
 			}
 		}
+		// Overlay any locally-saved checkbox state — only keys still present in
+		// the current requirement, so renamed items don't leak back.
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const raw = localStorage.getItem(cacheKey);
+				if (raw) {
+					const saved = JSON.parse(raw) as Record<string, boolean>;
+					for (const k of Object.keys(initial)) {
+						if (k in saved) initial[k] = !!saved[k];
+					}
+					if (typeof saved.__notes === 'string' && !item.review?.mentor_notes) {
+						notes = saved.__notes;
+					}
+				}
+			} catch {
+				// Corrupt cache — fall through to server-derived initial state.
+			}
+		}
 		checklistStates = initial;
-		notes = item.review?.mentor_notes ?? '';
+		if (notes === '') notes = item.review?.mentor_notes ?? '';
 	});
+
+	$effect(() => {
+		if (typeof localStorage === 'undefined') return;
+		try {
+			const payload: Record<string, boolean | string> = { ...checklistStates };
+			if (notes) payload.__notes = notes;
+			localStorage.setItem(cacheKey, JSON.stringify(payload));
+		} catch {
+			// Quota or disabled storage — silent.
+		}
+	});
+
+	function clearCache() {
+		if (typeof localStorage === 'undefined') return;
+		try {
+			localStorage.removeItem(cacheKey);
+		} catch {
+			// ignore
+		}
+	}
 
 	async function approve() {
 		if (busy) return;
@@ -42,6 +86,7 @@
 			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
 			const result = await onApprove(item, notes.trim(), checklist_results);
 			if (typeof result === 'string' && result) cardError = result;
+			else clearCache();
 		} finally {
 			busy = '';
 		}
@@ -55,6 +100,7 @@
 			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
 			const result = await onReview(item, notes.trim(), checklist_results);
 			if (typeof result === 'string' && result) cardError = result;
+			else clearCache();
 		} finally {
 			busy = '';
 			showResetConfirm = false;

@@ -148,26 +148,46 @@ export const load = async ({ locals }) => {
 		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
 
 		// Load subteams the user is on within their primary team_group.
-		// Display the actual team name the user picked at onboarding (teams.name),
-		// but keep the route slug as category_slug — the /team/[subteam] page
+		// Display the actual team name the user picked at onboarding (teams.name)
+		// but keep the route slug as category_slug — the /team/[subteam] route
 		// resolves [subteam] against subteam_categories.slug, so using teams.slug
-		// would 404.
+		// would 404. The teams embed is done as an explicit second query because
+		// profile_teams has both a single FK and a composite FK to teams, which
+		// makes the supabase-js `teams!inner(...)` relationship hint ambiguous
+		// and returns no rows.
 		if (primaryTeamGroupId) {
-			const { data: userTeamRows } = await locals.supabase
+			const { data: profileTeamsRows } = await locals.supabase
 				.from('profile_teams')
-				.select('category_slug,teams!inner(name)')
+				.select('team_id,category_slug')
 				.eq('user_id', user.id)
 				.eq('team_group_id', primaryTeamGroupId);
-			userSubteams = (userTeamRows ?? [])
+			const teamIds = Array.from(
+				new Set(
+					(profileTeamsRows ?? [])
+						.map((r: any) => (r.team_id ? String(r.team_id) : ''))
+						.filter(Boolean)
+				)
+			);
+			let teamNameById = new Map<string, string>();
+			if (teamIds.length > 0) {
+				const { data: teamRows } = await locals.supabase
+					.from('teams')
+					.select('id,name')
+					.in('id', teamIds);
+				teamNameById = new Map(
+					(teamRows ?? []).map((r: any) => [String(r.id), String(r.name)])
+				);
+			}
+			userSubteams = (profileTeamsRows ?? [])
 				.filter(
 					(r: any) =>
-						String(r.category_slug ?? '') !== 'general' &&
 						r.category_slug &&
-						r.teams?.name
+						String(r.category_slug ?? '') !== 'general' &&
+						r.team_id
 				)
 				.map((r: any) => ({
 					slug: String(r.category_slug),
-					name: String(r.teams.name)
+					name: teamNameById.get(String(r.team_id)) ?? String(r.category_slug)
 				}))
 				.sort((a, b) => a.name.localeCompare(b.name));
 		}
