@@ -29,7 +29,8 @@
 					label: 'Volunteering',
 					icon: 'heart',
 					match: (p) => p.startsWith('/parent/volunteer') || p.startsWith('/parent/carpool')
-				}
+				},
+				{ href: '/media', label: 'Media', icon: 'image', match: (p) => p.startsWith('/media') }
 			]
 		: [
 				...(data.needsOnboarding
@@ -37,7 +38,8 @@
 					: []),
 				{ href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
 				{ href: '/clickup', label: 'ClickUp', icon: 'clickup', match: (p: string) => p.startsWith('/clickup') },
-				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') }
+				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') },
+				{ href: '/media', label: 'Media', icon: 'image', match: (p: string) => p.startsWith('/media') }
 			];
 
 	const teamSection: NavItem[] = [

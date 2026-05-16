@@ -2,7 +2,7 @@
   type IconName =
     | 'dashboard' | 'clickup' | 'scan' | 'team' | 'checkoffs' | 'courses'
     | 'machines' | 'roster' | 'shieldcheck' | 'settings' | 'building'
-    | 'file' | 'list' | 'calendar' | 'heart' | 'award';
+    | 'file' | 'list' | 'calendar' | 'heart' | 'award' | 'image';
   let { name, class: className = 'h-3.5 w-3.5' }: { name: IconName; class?: string } = $props();
 </script>
 
@@ -78,5 +78,11 @@
 {:else if name === 'award'}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={className}>
     <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+  </svg>
+{:else if name === 'image'}
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={className}>
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+    <path d="m21 15-5-5L5 21"/>
   </svg>
 {/if}
