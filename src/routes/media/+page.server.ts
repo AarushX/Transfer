@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import {
-	buildThumbnailUrl,
+	buildProxyThumbnailUrl,
 	countFolderImages,
 	firstFolderImage,
 	getMediaRootFolderId,
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async () => {
 					name: folder.name,
 					photoCount,
 					coverPhotoId: cover?.id ?? null,
-					coverThumb: cover ? buildThumbnailUrl(cover.id, 800) : null
+					coverThumb: cover ? buildProxyThumbnailUrl(cover.id, 800) : null
 				};
 			})
 		);

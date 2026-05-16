@@ -93,12 +93,12 @@ export const listChildFolders = async (parentId: string): Promise<DriveFolder[]>
 	return results;
 };
 
-/** List image files inside a folder (handles pagination internally). */
-export const listFolderImages = async (folderId: string): Promise<DrivePhoto[]> => {
+/** List images directly inside one folder (no recursion). */
+const listImagesIn = async (folderId: string): Promise<DrivePhoto[]> => {
 	const drive = getDriveClient();
+	const safeFolder = escapeForQuery(folderId);
 	const results: DrivePhoto[] = [];
 	let pageToken: string | undefined;
-	const safeFolder = escapeForQuery(folderId);
 	do {
 		const { data } = await drive.files.list({
 			...sharedDriveOptions,
@@ -124,50 +124,102 @@ export const listFolderImages = async (folderId: string): Promise<DrivePhoto[]> 
 	return results;
 };
 
-/** Fetch only the first image of a folder — used for event cover photos. */
-export const firstFolderImage = async (folderId: string): Promise<DrivePhoto | null> => {
-	const drive = getDriveClient();
-	const safeFolder = escapeForQuery(folderId);
-	const { data } = await drive.files.list({
-		...sharedDriveOptions,
-		q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
-		fields: 'files(id, name, mimeType, imageMediaMetadata(width, height))',
-		orderBy: 'createdTime, name',
-		pageSize: 1
-	});
-	const file = data.files?.[0];
-	if (!file?.id || !file?.name) return null;
-	return {
-		id: file.id,
-		name: file.name,
-		width: file.imageMediaMetadata?.width ?? null,
-		height: file.imageMediaMetadata?.height ?? null,
-		mimeType: file.mimeType ?? 'image/jpeg'
+/**
+ * List image files inside a folder *and* all of its descendant subfolders.
+ * Event folders sometimes contain dated sub-buckets ("Saturday", "Day 2"…)
+ * and the gallery should show every photo under the event regardless of depth.
+ * Depth is capped to avoid runaway traversals on misconfigured drives.
+ */
+export const listFolderImages = async (
+	folderId: string,
+	{ maxDepth = 6 }: { maxDepth?: number } = {}
+): Promise<DrivePhoto[]> => {
+	const seen = new Set<string>();
+	const all: DrivePhoto[] = [];
+	const walk = async (id: string, depth: number) => {
+		if (depth > maxDepth || seen.has(id)) return;
+		seen.add(id);
+		const [images, subfolders] = await Promise.all([
+			listImagesIn(id),
+			listChildFolders(id)
+		]);
+		for (const img of images) all.push(img);
+		// Recurse breadth-first across subfolders in parallel.
+		await Promise.all(subfolders.map((sf) => walk(sf.id, depth + 1)));
 	};
+	await walk(folderId, 0);
+	// De-dupe by file id in case a photo is reachable via multiple parents.
+	const byId = new Map<string, DrivePhoto>();
+	for (const img of all) byId.set(img.id, img);
+	return Array.from(byId.values());
 };
 
-/** Count of images in a folder — uses pageSize=1 + size estimate via repeated calls only if needed. */
+/** First image in a folder tree — used for the event card cover photo. */
+export const firstFolderImage = async (folderId: string): Promise<DrivePhoto | null> => {
+	// Try direct children first (fast path); only descend if empty.
+	const direct = await listImagesIn(folderId);
+	if (direct.length > 0) return direct[0];
+	const all = await listFolderImages(folderId);
+	return all[0] ?? null;
+};
+
+/** Recursive count of images under a folder. */
 export const countFolderImages = async (folderId: string): Promise<number> => {
-	const drive = getDriveClient();
-	const safeFolder = escapeForQuery(folderId);
-	let count = 0;
-	let pageToken: string | undefined;
-	do {
-		const { data } = await drive.files.list({
-			...sharedDriveOptions,
-			q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
-			fields: 'nextPageToken, files(id)',
-			pageSize: 1000,
-			pageToken
-		});
-		count += data.files?.length ?? 0;
-		pageToken = data.nextPageToken ?? undefined;
-	} while (pageToken);
-	return count;
+	const photos = await listFolderImages(folderId);
+	return photos.length;
 };
 
+/**
+ * Public Drive thumbnail URL — only works if the file is shared as
+ * "anyone with the link". Prefer buildProxyThumbnailUrl for service-account
+ * owned files in a private Shared Drive (no public link required).
+ */
 export const buildThumbnailUrl = (id: string, sizePx = 1200) =>
 	`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${sizePx}`;
 
+/** Same-origin proxy URL that streams the image through our server. */
+export const buildProxyThumbnailUrl = (id: string, sizePx = 1200) =>
+	`/api/media/image/${encodeURIComponent(id)}?sz=${sizePx}`;
+
 export const buildFolderViewUrl = (id: string) =>
 	`https://drive.google.com/drive/folders/${encodeURIComponent(id)}`;
+
+/**
+ * Fetch a thumbnail image stream for a given file id. Uses the service
+ * account's `thumbnailLink` so private Shared Drive files load without
+ * needing the folder to be publicly shared. Falls back to the full-file
+ * media stream if no thumbnailLink is available.
+ */
+export const fetchImageThumbnail = async (
+	fileId: string,
+	sizePx: number
+): Promise<{ stream: ReadableStream<Uint8Array> | null; contentType: string; status: number }> => {
+	const drive = getDriveClient();
+	const meta = await drive.files.get({
+		fileId,
+		fields: 'thumbnailLink, mimeType, name',
+		supportsAllDrives: true
+	});
+	const mimeType = meta.data.mimeType ?? 'image/jpeg';
+	const link = meta.data.thumbnailLink;
+	if (link) {
+		// Drive thumbnail URLs use =s### as the longest-edge size token.
+		const sizedUrl = link.replace(/=s\d+(-[a-z])?$/i, `=s${sizePx}`);
+		const resp = await fetch(sizedUrl);
+		return {
+			stream: resp.body,
+			contentType: resp.headers.get('content-type') ?? mimeType,
+			status: resp.status
+		};
+	}
+	// No thumbnail metadata — fall back to streaming the original file.
+	const full = await drive.files.get(
+		{ fileId, alt: 'media', supportsAllDrives: true },
+		{ responseType: 'stream' }
+	);
+	const nodeStream = full.data as unknown as NodeJS.ReadableStream;
+	// Node Readable → web ReadableStream
+	const { Readable } = await import('node:stream');
+	const webStream = Readable.toWeb(nodeStream as never) as unknown as ReadableStream<Uint8Array>;
+	return { stream: webStream, contentType: mimeType, status: 200 };
+};

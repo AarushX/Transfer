@@ -226,31 +226,65 @@
 		zoom = newZoom;
 	}
 
+	const PAN_THRESHOLD = 4;
+	let pointerCaptured = $state(false);
+
 	function handlePointerDown(e: PointerEvent) {
-		if (e.button !== 0) return;
+		if (e.button !== 0 && e.pointerType === 'mouse') return;
 		if ((e.target as HTMLElement).closest('button')) return;
-		e.preventDefault();
+		// Don't preventDefault yet — that would swallow taps on touch devices
+		// before we know whether the gesture is a pan or a click.
 		isPanning = true;
 		didPan = false;
+		pointerCaptured = false;
 		panStart = { x: e.clientX, y: e.clientY, panX, panY };
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function handlePointerMove(e: PointerEvent) {
 		if (!isPanning) return;
 		const dx = e.clientX - panStart.x;
 		const dy = e.clientY - panStart.y;
-		if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPan = true;
-		panX = panStart.panX + dx;
-		panY = panStart.panY + dy;
+		if (!didPan && (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD)) {
+			didPan = true;
+			// Only capture the pointer once movement has crossed the click/pan
+			// threshold. Capturing on pointerdown causes pointerup's e.target to
+			// be the captured container rather than the actual node under the
+			// cursor — which is why clicks on nodes were missing or required
+			// multiple tries.
+			try {
+				(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+				pointerCaptured = true;
+			} catch {
+				/* older browsers */
+			}
+		}
+		if (didPan) {
+			e.preventDefault();
+			panX = panStart.panX + dx;
+			panY = panStart.panY + dy;
+		}
 	}
 
 	function handlePointerUp(e: PointerEvent) {
+		const wasPan = didPan;
+		if (pointerCaptured) {
+			try {
+				(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+			} catch {
+				/* ignore */
+			}
+		}
 		isPanning = false;
-		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-		if (didPan) return;
-		const target = e.target as Element | null;
-		const nodeGroup = target?.closest('g[data-node-id]') as SVGElement | null;
+		didPan = false;
+		pointerCaptured = false;
+		if (wasPan) return;
+		// Use elementFromPoint so the actual element under the pointer at
+		// release time wins, regardless of any prior pointer capture.
+		const hit =
+			typeof document !== 'undefined'
+				? document.elementFromPoint(e.clientX, e.clientY)
+				: (e.target as Element | null);
+		const nodeGroup = hit?.closest('g[data-node-id]') as SVGElement | null;
 		const nodeId = nodeGroup?.getAttribute('data-node-id');
 		if (!nodeId) return;
 		const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
@@ -261,6 +295,10 @@
 		} else {
 			selected = selected?.id === nodeId ? null : node;
 		}
+	}
+
+	function handlePointerLeave() {
+		hovered = null;
 	}
 
 	// Touch pinch-to-zoom
@@ -324,6 +362,8 @@
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
 		onpointerup={handlePointerUp}
+		onpointercancel={handlePointerUp}
+		onpointerleave={handlePointerLeave}
 		ontouchstart={handleTouchStart}
 		ontouchmove={handleTouchMove}
 	>
@@ -507,8 +547,9 @@
 			</div>
 		{/if}
 
-		<!-- Detail panel -->
-		{#if active}
+		<!-- Detail panel — suppressed when the parent component owns selection,
+		     because that page already renders its own context UI -->
+		{#if active && !parentControlled}
 			<div class="fade-up absolute right-4 top-4 w-80 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); z-index: 5;">
 				<div class="mb-3 flex items-center justify-between">
 					<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"

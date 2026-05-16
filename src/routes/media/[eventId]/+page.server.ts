@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
 	buildFolderViewUrl,
-	buildThumbnailUrl,
+	buildProxyThumbnailUrl,
 	listFolderImages
 } from '$lib/server/google-drive';
 import { google } from 'googleapis';
@@ -51,8 +51,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			name: p.name,
 			width: p.width,
 			height: p.height,
-			thumb: buildThumbnailUrl(p.id, 600),
-			full: buildThumbnailUrl(p.id, 2000)
+			thumb: buildProxyThumbnailUrl(p.id, 600),
+			full: buildProxyThumbnailUrl(p.id, 2000)
 		}));
 		return {
 			folderId,

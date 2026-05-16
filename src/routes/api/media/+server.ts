@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	buildFolderViewUrl,
-	buildThumbnailUrl,
+	buildProxyThumbnailUrl,
 	countFolderImages,
 	firstFolderImage,
 	getMediaRootFolderId,
@@ -34,8 +34,8 @@ export const GET: RequestHandler = async ({ url }) => {
 						width: p.width,
 						height: p.height,
 						mimeType: p.mimeType,
-						thumb: buildThumbnailUrl(p.id, 600),
-						full: buildThumbnailUrl(p.id, 2000)
+						thumb: buildProxyThumbnailUrl(p.id, 600),
+						full: buildProxyThumbnailUrl(p.id, 2000)
 					}))
 				},
 				{ headers: CACHE_HEADERS }
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url }) => {
 					name: folder.name,
 					photoCount,
 					coverPhotoId: cover?.id ?? null,
-					coverThumb: cover ? buildThumbnailUrl(cover.id, 800) : null,
+					coverThumb: cover ? buildProxyThumbnailUrl(cover.id, 800) : null,
 					driveUrl: buildFolderViewUrl(folder.id)
 				};
 			})
