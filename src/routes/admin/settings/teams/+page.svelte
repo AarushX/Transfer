@@ -203,6 +203,19 @@
 	// ── Sidebar helpers ───────────────────────────────────────────────────────────
 	const isTeamActive = (id: string) => selection?.kind === 'team' && selection.teamId === String(id);
 	const isSubteamActive = (id: string) => selection?.kind === 'subteam' && selection.subteamId === String(id);
+	// A team's subteam list stays expanded when the team itself is selected OR
+	// when any of its child subteams is currently selected.
+	const isTeamExpanded = (id: string) => {
+		if (isTeamActive(id)) return true;
+		if (selection?.kind !== 'subteam') return false;
+		const linked = linkedGroupIdsBySubteam.get(selection.subteamId);
+		if (linked?.has(String(id))) return true;
+		if (!linked?.size) {
+			const sub = subteams.find((s) => String(s.id) === selection.subteamId);
+			if (sub && String(sub.team_group_id) === String(id)) return true;
+		}
+		return false;
+	};
 	const activePill = 'background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 30%, transparent), color-mix(in srgb, var(--app-accent) 15%, transparent)); color: var(--app-text);';
 	const inactivePill = 'color: var(--app-text-muted);';
 
@@ -281,7 +294,7 @@
 								{team.name}
 							</button>
 							<!-- Linked subteams (indented) -->
-							{#if isTeamActive(String(team.id))}
+							{#if isTeamExpanded(String(team.id))}
 								<ul class="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style="border-color: var(--app-glass-border);">
 									{#each subteamsForTeam(String(team.id)) as sub (sub.id)}
 										{@const linkedGroups = linkedGroupsForSubteam(String(sub.id))}

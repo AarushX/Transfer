@@ -244,7 +244,7 @@
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class="nav-link flex items-center gap-2 rounded-lg pl-9 pr-2.5 py-1 text-xs"
+									class="subteam-link flex items-center gap-2 rounded-lg pl-9 pr-2.5 py-1 text-xs"
 									style={isActive(item, page.url.pathname)
 										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
 										: `color: var(--app-text-muted);`}
@@ -418,6 +418,13 @@
 	.nav-link:hover {
 		background: var(--app-glass-bg-hover) !important;
 		color: var(--app-text) !important;
+	}
+	.subteam-link {
+		transition: all 0.15s ease;
+	}
+	.subteam-link:hover {
+		background: var(--app-glass-bg-hover);
+		color: var(--app-text);
 	}
 	.nav-btn {
 		transition: background 0.15s ease;

@@ -273,10 +273,27 @@
 		}
 	}
 
+	// Auto-fit whenever the underlying graph changes — covers fresh mounts AND
+	// in-place data swaps (e.g. navigating between sibling subteam pages that
+	// share this component instance). Reading layoutNodes here registers the
+	// dependency so the effect re-runs on every layout change. Also clear any
+	// stale selection from the previous graph so the side panel doesn't linger.
 	$effect(() => {
-		if (hasGraphData && containerEl) {
-			requestAnimationFrame(() => fitView());
-		}
+		const count = layoutNodes.length;
+		if (!hasGraphData || !containerEl || count === 0) return;
+		selected = null;
+		hovered = null;
+		requestAnimationFrame(() => fitView());
+	});
+
+	// Re-fit if the container itself resizes (sidebar opens/closes, window resize).
+	$effect(() => {
+		if (!containerEl) return;
+		const ro = new ResizeObserver(() => {
+			if (hasGraphData && layoutNodes.length > 0) fitView();
+		});
+		ro.observe(containerEl);
+		return () => ro.disconnect();
 	});
 </script>
 
@@ -420,7 +437,7 @@
 			<button
 				type="button"
 				onclick={() => (legendMinimized = false)}
-				class="absolute bottom-4 right-4 h-2.5 w-2.5 rounded-full"
+				class="absolute bottom-4 left-4 h-2.5 w-2.5 rounded-full"
 				style="background: color-mix(in srgb, var(--app-text-muted) 35%, transparent); border: none; padding: 0; cursor: pointer; z-index: 5; transition: background 0.2s ease, transform 0.2s ease;"
 				onmouseenter={(event) => {
 					event.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-muted) 65%, transparent)';
