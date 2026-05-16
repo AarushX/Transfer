@@ -288,10 +288,12 @@
 		}
 	}
 
+	// Track whether the just-released gesture was a pan so the synthetic
+	// click event can decide whether to act. We can't reset didPan to false
+	// immediately because the browser fires `click` after `pointerup`.
+	let suppressNextClick = $state(false);
+
 	function handlePointerUp(e: PointerEvent) {
-		const heldMs = performance.now() - pointerDownTime;
-		const moved = Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y);
-		const wasClick = !didPan && heldMs < CLICK_HOLD_MS && moved < PAN_MOVE_THRESHOLD;
 		if (pointerCaptured) {
 			try {
 				(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -299,22 +301,31 @@
 				/* ignore */
 			}
 		}
+		const wasPan = didPan;
+		const heldMs = performance.now() - pointerDownTime;
+		const moved = Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y);
+		// Treat anything held too long or moved too far as a pan even if the
+		// move threshold wasn't tripped; this matches user intent better than
+		// strict equality.
+		suppressNextClick = wasPan || heldMs > CLICK_HOLD_MS || moved > PAN_MOVE_THRESHOLD;
 		isPanning = false;
 		didPan = false;
 		pointerCaptured = false;
-		if (!wasClick) return;
-		const nodeId = findNodeIdAt(e.clientX, e.clientY);
-		if (nodeId) commitNodeClick(nodeId);
+		// Clear the suppress flag after the click event has had a chance to fire.
+		setTimeout(() => {
+			suppressNextClick = false;
+		}, 0);
 	}
 
 	function handlePointerLeave() {
 		hovered = null;
 	}
 
-	// Backstop: a real `click` event will fire if the browser detected one,
-	// even if my pointerup heuristic missed (some touchpads dispatch click
-	// without matching pointer events). This catches those cases too.
+	// `click` is the single source of truth for node selection. The browser
+	// already filters out drags, and we additionally veto if our pan logic
+	// flagged the gesture as a pan.
 	function handleClick(e: MouseEvent) {
+		if (suppressNextClick) return;
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('button')) return;
 		const nodeId = findNodeIdAt(e.clientX, e.clientY);
