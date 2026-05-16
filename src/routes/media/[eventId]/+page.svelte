@@ -1,15 +1,25 @@
 <script lang="ts">
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	let { data } = $props();
 
+	const PAGE_SIZE = 30;
+	let visibleCount = $state(PAGE_SIZE);
 	let lightboxIndex = $state<number | null>(null);
 	let loaded = $state<Record<string, boolean>>({});
 	let tiles: HTMLElement[] = [];
+	let io: IntersectionObserver | null = null;
+	let sentinel = $state<HTMLDivElement | null>(null);
+	let sentinelObserver: IntersectionObserver | null = null;
 
 	const photos = $derived(data.photos);
+	const visiblePhotos = $derived(photos.slice(0, visibleCount));
+	const hasMore = $derived(visibleCount < photos.length);
 	const activePhoto = $derived(lightboxIndex !== null ? photos[lightboxIndex] : null);
+
+	const aspectFor = (w: number | null, h: number | null) =>
+		w && h && w > 0 && h > 0 ? `${w} / ${h}` : '4 / 3';
 
 	const open = (index: number) => {
 		lightboxIndex = index;
@@ -46,16 +56,36 @@
 		};
 	});
 
+	const observeTile = (el: HTMLElement | null | undefined) => {
+		if (!el || !io) return;
+		io.observe(el);
+	};
+
+	// Re-observe whenever visibleCount changes (new tiles get appended).
+	$effect(() => {
+		// Read visibleCount so this effect tracks it.
+		visibleCount;
+		if (!io) return;
+		// Wait one tick for the new tiles to render, then observe.
+		tick().then(() => {
+			for (const el of tiles) if (el) io?.observe(el);
+		});
+	});
+
+	const showMore = () => {
+		visibleCount = Math.min(photos.length, visibleCount + PAGE_SIZE);
+	};
+
 	onMount(() => {
-		// IntersectionObserver-driven lazy load: swap data-src into src once visible.
 		if (typeof IntersectionObserver === 'undefined') {
+			// Older browsers: skip lazy loading entirely.
 			for (const el of tiles) {
-				const img = el.querySelector<HTMLImageElement>('img[data-src]');
+				const img = el?.querySelector<HTMLImageElement>('img[data-src]');
 				if (img?.dataset.src) img.src = img.dataset.src;
 			}
 			return;
 		}
-		const io = new IntersectionObserver(
+		io = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
 					if (!entry.isIntersecting) continue;
@@ -64,13 +94,37 @@
 						img.src = img.dataset.src;
 						img.removeAttribute('data-src');
 					}
-					io.unobserve(entry.target);
+					io?.unobserve(entry.target);
 				}
 			},
-			{ rootMargin: '200px 0px', threshold: 0.05 }
+			// Generous bottom margin so images near the fold start loading just
+			// before they enter the viewport.
+			{ rootMargin: '400px 0px 600px 0px', threshold: 0.01 }
 		);
-		for (const el of tiles) io.observe(el);
-		return () => io.disconnect();
+		for (const el of tiles) if (el) io.observe(el);
+
+		// Auto-load the next page as the user approaches the bottom.
+		sentinelObserver = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) showMore();
+			},
+			{ rootMargin: '300px 0px' }
+		);
+		if (sentinel) sentinelObserver.observe(sentinel);
+
+		return () => {
+			io?.disconnect();
+			sentinelObserver?.disconnect();
+			io = null;
+			sentinelObserver = null;
+		};
+	});
+
+	// Re-observe sentinel whenever it remounts (e.g. when hasMore flips).
+	$effect(() => {
+		if (sentinel && sentinelObserver) {
+			sentinelObserver.observe(sentinel);
+		}
 	});
 
 	const onImgLoad = (id: string) => {
@@ -112,11 +166,11 @@
 		<EmptyState title="No photos in this event" description="Upload images to the Drive folder and they'll appear here." />
 	{:else}
 		<div class="masonry">
-			{#each photos as photo, i (photo.id)}
+			{#each visiblePhotos as photo, i (photo.id)}
 				<button
 					type="button"
 					class="tile group relative overflow-hidden rounded-xl border"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); aspect-ratio: {aspectFor(photo.width, photo.height)};"
 					onclick={() => open(i)}
 					bind:this={tiles[i]}
 					aria-label={`Open ${photo.name}`}
@@ -128,14 +182,34 @@
 						alt={photo.name}
 						data-src={photo.thumb}
 						referrerpolicy="no-referrer"
+						decoding="async"
+						loading="lazy"
 						onload={() => onImgLoad(photo.id)}
-						class="block w-full transition duration-500 group-hover:scale-[1.03]"
+						class="absolute inset-0 block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
 						style="opacity: {loaded[photo.id] ? 1 : 0}; transition: opacity 0.4s ease, transform 0.5s ease;"
 					/>
 					<div class="tile-fade pointer-events-none absolute inset-0"></div>
 				</button>
 			{/each}
 		</div>
+
+		{#if hasMore}
+			<div
+				bind:this={sentinel}
+				class="mt-4 flex items-center justify-center"
+			>
+				<Button variant="secondary" onclick={showMore}>
+					Load more
+					<span class="ml-1 text-[11px]" style="opacity: 0.65;">
+						({Math.min(PAGE_SIZE, photos.length - visibleCount)} of {photos.length - visibleCount} left)
+					</span>
+				</Button>
+			</div>
+		{:else if photos.length > PAGE_SIZE}
+			<p class="mt-4 text-center text-xs" style="color: var(--app-text-dim);">
+				All {photos.length} photos loaded
+			</p>
+		{/if}
 	{/if}
 </section>
 

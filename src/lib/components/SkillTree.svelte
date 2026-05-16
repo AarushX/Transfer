@@ -226,17 +226,45 @@
 		zoom = newZoom;
 	}
 
-	const PAN_THRESHOLD = 4;
+	// A click is anything held briefly with little movement; everything else
+	// is a pan. Touchpad/trackpad clicks frequently drift 5–10px, so a small
+	// threshold turns every click into an accidental pan.
+	const PAN_MOVE_THRESHOLD = 10;
+	const CLICK_HOLD_MS = 350;
 	let pointerCaptured = $state(false);
+	let pointerDownTime = 0;
+
+	function findNodeIdAt(clientX: number, clientY: number): string | null {
+		if (typeof document === 'undefined') return null;
+		// Walk through any non-element stacking via elementsFromPoint so the
+		// first SVG group we hit wins, even if there's a transparent overlay.
+		const hits = (document.elementsFromPoint?.(clientX, clientY) ??
+			[document.elementFromPoint(clientX, clientY)]) as Array<Element | null>;
+		for (const el of hits) {
+			const g = el?.closest('g[data-node-id]') as SVGElement | null;
+			if (g) return g.getAttribute('data-node-id');
+		}
+		return null;
+	}
+
+	function commitNodeClick(nodeId: string) {
+		const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
+		if (!node) return;
+		if (parentControlled) {
+			const next = selectedNodeId === nodeId ? null : nodeId;
+			onSelect?.(next);
+		} else {
+			selected = selected?.id === nodeId ? null : node;
+		}
+	}
 
 	function handlePointerDown(e: PointerEvent) {
-		if (e.button !== 0 && e.pointerType === 'mouse') return;
+		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		if ((e.target as HTMLElement).closest('button')) return;
-		// Don't preventDefault yet — that would swallow taps on touch devices
-		// before we know whether the gesture is a pan or a click.
 		isPanning = true;
 		didPan = false;
 		pointerCaptured = false;
+		pointerDownTime = performance.now();
 		panStart = { x: e.clientX, y: e.clientY, panX, panY };
 	}
 
@@ -244,13 +272,8 @@
 		if (!isPanning) return;
 		const dx = e.clientX - panStart.x;
 		const dy = e.clientY - panStart.y;
-		if (!didPan && (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD)) {
+		if (!didPan && (Math.abs(dx) > PAN_MOVE_THRESHOLD || Math.abs(dy) > PAN_MOVE_THRESHOLD)) {
 			didPan = true;
-			// Only capture the pointer once movement has crossed the click/pan
-			// threshold. Capturing on pointerdown causes pointerup's e.target to
-			// be the captured container rather than the actual node under the
-			// cursor — which is why clicks on nodes were missing or required
-			// multiple tries.
 			try {
 				(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 				pointerCaptured = true;
@@ -266,7 +289,9 @@
 	}
 
 	function handlePointerUp(e: PointerEvent) {
-		const wasPan = didPan;
+		const heldMs = performance.now() - pointerDownTime;
+		const moved = Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y);
+		const wasClick = !didPan && heldMs < CLICK_HOLD_MS && moved < PAN_MOVE_THRESHOLD;
 		if (pointerCaptured) {
 			try {
 				(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -277,28 +302,23 @@
 		isPanning = false;
 		didPan = false;
 		pointerCaptured = false;
-		if (wasPan) return;
-		// Use elementFromPoint so the actual element under the pointer at
-		// release time wins, regardless of any prior pointer capture.
-		const hit =
-			typeof document !== 'undefined'
-				? document.elementFromPoint(e.clientX, e.clientY)
-				: (e.target as Element | null);
-		const nodeGroup = hit?.closest('g[data-node-id]') as SVGElement | null;
-		const nodeId = nodeGroup?.getAttribute('data-node-id');
-		if (!nodeId) return;
-		const node = layoutNodes.find((n) => n.id === nodeId) ?? null;
-		if (!node) return;
-		if (parentControlled) {
-			const next = selectedNodeId === nodeId ? null : nodeId;
-			onSelect?.(next);
-		} else {
-			selected = selected?.id === nodeId ? null : node;
-		}
+		if (!wasClick) return;
+		const nodeId = findNodeIdAt(e.clientX, e.clientY);
+		if (nodeId) commitNodeClick(nodeId);
 	}
 
 	function handlePointerLeave() {
 		hovered = null;
+	}
+
+	// Backstop: a real `click` event will fire if the browser detected one,
+	// even if my pointerup heuristic missed (some touchpads dispatch click
+	// without matching pointer events). This catches those cases too.
+	function handleClick(e: MouseEvent) {
+		const target = e.target as HTMLElement | null;
+		if (target?.closest('button')) return;
+		const nodeId = findNodeIdAt(e.clientX, e.clientY);
+		if (nodeId) commitNodeClick(nodeId);
 	}
 
 	// Touch pinch-to-zoom
@@ -357,13 +377,14 @@
 	<div
 		bind:this={containerEl}
 		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {isPanning ? 'grabbing' : 'grab'};"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {didPan ? 'grabbing' : 'grab'};"
 		onwheel={handleWheel}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
 		onpointerup={handlePointerUp}
 		onpointercancel={handlePointerUp}
 		onpointerleave={handlePointerLeave}
+		onclick={handleClick}
 		ontouchstart={handleTouchStart}
 		ontouchmove={handleTouchMove}
 	>
@@ -417,7 +438,7 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<g
 					data-node-id={node.id}
-					style="cursor: pointer;"
+					style="cursor: pointer; pointer-events: bounding-box;"
 					onmouseenter={() => (hovered = node)}
 					onmouseleave={() => (hovered = null)}
 				>
