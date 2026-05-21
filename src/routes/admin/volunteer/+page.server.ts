@@ -25,20 +25,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		{ data: events },
 		{ data: opportunities },
 		{ data: families },
-		{ data: pendingLogs },
 		{ data: commitments },
 		{ data: allSignups },
-		{ data: allLogs },
 		{ data: announcements }
 	] = await Promise.all([
 		service.from('volunteer_categories').select('*').eq('is_active', true).order('sort_order'),
 		service.from('volunteer_events').select('*').eq('season_id', season.id).order('start_date', { ascending: false }),
 		service.from('volunteer_opportunities').select('*,category:volunteer_categories(name,slug),event:volunteer_events(title),creator:profiles!volunteer_opportunities_created_by_fkey(full_name,email)').eq('season_id', season.id).order('event_date', { ascending: false }),
 		service.from('families').select('id,name,family_members(user_id,role,profile:profiles(full_name,email))').eq('season_id', season.id),
-		service.from('volunteer_hour_logs').select('*,family:families(id,name),category:volunteer_categories(name,slug,unit),reporter:profiles!volunteer_hour_logs_user_id_fkey(full_name,email)').eq('season_id', season.id).eq('verification_status', 'pending').order('created_at', { ascending: false }),
 		service.from('volunteer_commitments').select('*,family:families(id,name),category:volunteer_categories(name,slug)').eq('season_id', season.id),
-		service.from('volunteer_signups').select('*,family:families(id,name)').neq('status', 'cancelled'),
-		service.from('volunteer_hour_logs').select('family_id,category_id,amount,verification_status').eq('season_id', season.id),
+		service.from('volunteer_signups').select('*,family:families(id,name),opportunity:volunteer_opportunities(*,category:volunteer_categories(name,slug,unit)),signer:profiles!volunteer_signups_user_id_fkey(full_name,email)').neq('status', 'cancelled'),
 		service.from('announcements').select('*,author:profiles!announcements_created_by_fkey(full_name)').eq('season_id', season.id).order('created_at', { ascending: false })
 	]);
 
@@ -63,12 +59,91 @@ export const load: PageServerLoad = async ({ locals }) => {
 		entry.pledged++;
 		familyProgress.set(com.family_id, entry);
 	}
-	for (const log of allLogs ?? []) {
-		if (log.verification_status !== 'verified') continue;
-		const cat = catMap.get(log.category_id);
+
+	// Calculate signup progress per family per category
+	const familyCategoryProgress: Record<string, Record<string, number>> = {};
+	for (const s of allSignups ?? []) {
+		if (s.status !== 'verified') continue; // only verified signups count
+		const opp = (s as any).opportunity;
+		if (!opp) continue;
+		const catId = opp.category_id;
+		const cat = catMap.get(catId);
 		if (!cat) continue;
-		const entry = familyProgress.get(log.family_id);
-		if (entry && Number(log.amount) >= Number(cat.target_value)) entry.verified++;
+
+		if (!familyCategoryProgress[s.family_id]) {
+			familyCategoryProgress[s.family_id] = {};
+		}
+		if (!familyCategoryProgress[s.family_id][catId]) {
+			familyCategoryProgress[s.family_id][catId] = 0;
+		}
+
+		if (cat.unit === 'hours') {
+			let duration = 4; // standard default
+			if (opp.start_time && opp.end_time) {
+				const [sh, sm] = opp.start_time.split(':').map(Number);
+				const [eh, em] = opp.end_time.split(':').map(Number);
+				const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+				if (diff > 0) duration = diff;
+			}
+			familyCategoryProgress[s.family_id][catId] += duration;
+		} else {
+			familyCategoryProgress[s.family_id][catId] += 1;
+		}
+	}
+
+	// Tally fulfilled pledged categories for each family
+	for (const [familyId, entry] of familyProgress.entries()) {
+		const familyPledges = (commitments ?? []).filter((c: any) => c.family_id === familyId && c.response === 'yes');
+		for (const pledge of familyPledges) {
+			const cat = catMap.get(pledge.category_id);
+			if (!cat) continue;
+			const currentProgress = familyCategoryProgress[familyId]?.[pledge.category_id] ?? 0;
+			if (currentProgress >= Number(cat.target_value)) {
+				entry.verified++;
+			}
+		}
+	}
+
+	// Construct pendingVerifications from signups requiring action
+	const pendingVerifications: any[] = [];
+	for (const s of allSignups ?? []) {
+		const opp = (s as any).opportunity;
+		if (!opp) continue;
+
+		if (s.status === 'pending') {
+			pendingVerifications.push({
+				id: s.id,
+				family_id: s.family_id,
+				family: s.family,
+				category_id: opp.category_id,
+				category: opp.category,
+				reporter: s.signer,
+				amount: opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
+					Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1,
+				activity_date: opp.event_date,
+				description: `Slot signup for "${opp.title}" (Needs Approval)`,
+				verification_status: 'pending',
+				is_approval_needed: true
+			});
+		} else if (s.status === 'confirmed') {
+			const eventDate = new Date(opp.event_date + 'T23:59:59');
+			if (eventDate < new Date()) {
+				pendingVerifications.push({
+					id: s.id,
+					family_id: s.family_id,
+					family: s.family,
+					category_id: opp.category_id,
+					category: opp.category,
+					reporter: s.signer,
+					amount: opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
+						Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1,
+					activity_date: opp.event_date,
+					description: `Attendance verification for "${opp.title}"`,
+					verification_status: 'pending',
+					is_attendance_checkoff: true
+				});
+			}
+		}
 	}
 
 	return {
@@ -77,7 +152,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		events: events ?? [],
 		opportunities: (opportunities ?? []).map((o: any) => ({ ...o, currentSignups: signupCountByOpp.get(o.id) ?? 0 })),
 		families: families ?? [],
-		pendingVerifications: pendingLogs ?? [],
+		pendingVerifications,
 		commitmentStats: Array.from(familyProgress.entries()).map(([id, v]) => ({ familyId: id, familyName: v.familyName, pledgedCount: v.pledged, verifiedCount: v.verified })),
 		gapsReport,
 		announcements: announcements ?? [],
@@ -267,20 +342,31 @@ export const actions: Actions = {
 		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
-		const logId = String(form.get('log_id') ?? '').trim();
+		const logId = String(form.get('log_id') ?? form.get('signup_id') ?? '').trim();
 		const action = String(form.get('action') ?? '').trim();
 		const rejectionReason = String(form.get('rejection_reason') ?? '').trim();
 
-		if (!logId || !['verify', 'reject'].includes(action)) return fail(400, { error: 'Invalid action.' });
+		if (!logId || !['verify', 'reject', 'approve'].includes(action)) return fail(400, { error: 'Invalid action.' });
+
+		let status = 'verified';
+		if (action === 'approve') status = 'confirmed';
+		if (action === 'reject') status = 'cancelled';
 
 		const payload: any = {
-			verification_status: action === 'verify' ? 'verified' : 'rejected',
-			verifier_id: user.id,
-			verified_at: new Date().toISOString()
+			status,
+			updated_at: new Date().toISOString()
 		};
-		if (action === 'reject' && rejectionReason) payload.rejection_reason = rejectionReason;
+		if (status === 'confirmed') {
+			payload.confirmed_at = new Date().toISOString();
+		}
+		if (status === 'verified') {
+			payload.completed_at = new Date().toISOString();
+		}
+		if (action === 'reject' && rejectionReason) {
+			payload.notes = rejectionReason;
+		}
 
-		const { error } = await service.from('volunteer_hour_logs').update(payload).eq('id', logId);
+		const { error } = await service.from('volunteer_signups').update(payload).eq('id', logId);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true, section: 'verify' };
 	},

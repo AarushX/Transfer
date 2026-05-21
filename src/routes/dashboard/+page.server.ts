@@ -73,9 +73,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 	]);
 
 	let parentApplicationStatus: string | null = null;
-	let linkedStudents: Array<{ id: string; full_name: string; email: string }> = [];
+	let linkedStudents: Array<{ id: string; full_name: string; email: string; checkedIn: boolean; checkedInSince: string | null; lettering: any; completedNodes: number }> = [];
+	let parentFamily: any = null;
+	let parentCommitments: any[] = [];
+	let parentCategories: any[] = [];
+	let parentSignups: any[] = [];
+	let parentOpportunities: any[] = [];
+	let parentAnnouncements: any[] = [];
+
 	if (profile?.is_parent_guardian) {
-		const [{ data: appRow }, { data: links }] = await Promise.all([
+		const [{ data: appRow }, { data: links }, { data: activeSeason }] = await Promise.all([
 			locals.supabase
 				.from('parent_applications')
 				.select('status')
@@ -85,17 +92,100 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from('parent_student_links')
 				.select('student_user_id,status,profiles!parent_student_links_student_user_id_fkey(id,full_name,email)')
 				.eq('parent_user_id', user.id)
-				.eq('status', 'active')
+				.eq('status', 'active'),
+			locals.supabase
+				.from('lettering_seasons')
+				.select('id,label,start_date,end_date')
+				.eq('is_active', true)
+				.maybeSingle()
 		]);
+
 		parentApplicationStatus = String(appRow?.status ?? 'not_started');
-		linkedStudents = (links ?? []).map((row: any) => {
-			const student = Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null;
-			return {
-				id: String(student?.id ?? row.student_user_id),
-				full_name: String(student?.full_name ?? ''),
-				email: String(student?.email ?? '')
-			};
-		});
+
+		if (activeSeason) {
+			// Find parent's family
+			const { data: familyMembership } = await locals.supabase
+				.from('family_members')
+				.select('family_id,families(id,name)')
+				.eq('user_id', user.id)
+				.eq('role', 'parent')
+				.maybeSingle();
+
+			if (familyMembership?.families) {
+				parentFamily = {
+					id: (familyMembership.families as any).id,
+					name: (familyMembership.families as any).name
+				};
+
+				// Fetch pledges, categories, and signups
+				const [
+					{ data: categories },
+					{ data: commitments },
+					{ data: signups },
+					{ data: opportunities },
+					{ data: anns }
+				] = await Promise.all([
+					locals.supabase.from('volunteer_categories').select('*').eq('is_active', true).order('sort_order'),
+					locals.supabase.from('volunteer_commitments').select('*').eq('family_id', parentFamily.id).eq('season_id', activeSeason.id),
+					locals.supabase.from('volunteer_signups').select('*,opportunity:volunteer_opportunities(*)').eq('family_id', parentFamily.id).neq('status', 'cancelled'),
+					locals.supabase.from('volunteer_opportunities').select('*,category:volunteer_categories(*)').eq('season_id', activeSeason.id).eq('is_active', true),
+					locals.supabase.from('announcements').select('*,author:profiles!announcements_created_by_fkey(full_name)').eq('season_id', activeSeason.id).or('audience.eq.all,audience.eq.parents').order('is_pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5)
+				]);
+
+				parentCategories = categories ?? [];
+				parentCommitments = commitments ?? [];
+				parentSignups = signups ?? [];
+				parentOpportunities = opportunities ?? [];
+				parentAnnouncements = anns ?? [];
+			}
+		}
+
+		// Compile rich child info
+		const studentLinks = links ?? [];
+		if (studentLinks.length > 0) {
+			linkedStudents = await Promise.all(studentLinks.map(async (row: any) => {
+				const student = Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null;
+				if (!student) {
+					return {
+						id: String(row.student_user_id),
+						full_name: 'Student',
+						email: '',
+						checkedIn: false,
+						checkedInSince: null,
+						lettering: { pct: 0, completedCount: 0, totalRequired: 0, overflow: false },
+						completedNodes: 0
+					};
+				}
+
+				// Fetch child's active check-in
+				const { data: openSession } = await locals.supabase
+					.from('attendance_daily_sessions')
+					.select('check_in_at')
+					.eq('attendee_user_id', student.id)
+					.is('check_out_at', null)
+					.maybeSingle();
+
+				// Fetch child's lettering progress
+				const lettering = await computeLetteringProgress(locals.supabase, student.id);
+
+				// Fetch child's training progress (completed nodes count)
+				const { count: completedNodes } = await locals.supabase
+					.from('v_user_node_status')
+					.select('node_id', { count: 'exact', head: true })
+					.eq('user_id', student.id)
+					.eq('computed_status', 'completed');
+
+				return {
+					id: String(student.id),
+					full_name: String(student.full_name ?? ''),
+					email: String(student.email ?? ''),
+					checkedIn: !!openSession,
+					checkedInSince: openSession?.check_in_at ?? null,
+					lettering,
+					completedNodes: completedNodes ?? 0
+				};
+			}));
+		}
 	}
 
 	// --- New dashboard data (non-parents get real data; parents get safe defaults) ---
@@ -204,6 +294,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		parentApplicationStatus,
 		linkedStudents,
 		isParent,
+		parentFamily,
+		parentCommitments,
+		parentCategories,
+		parentSignups,
+		parentOpportunities,
+		parentAnnouncements,
 		hoursSeason,
 		hoursTarget: 90,
 		checkedInSince,

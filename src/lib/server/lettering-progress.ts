@@ -135,18 +135,58 @@ export async function computeLetteringProgress(
 		tally.competition_hours = distinctDays.size;
 	}
 
-	// 3c. parent_volunteer_hours — sum verified hours in `parent_volunteer_hours` for student
+	// 3c. parent_volunteer_hours — sum verified hours in volunteer_signups for family (for student)
 	if (categories.has('parent_volunteer_hours')) {
-		const { data: rows } = await supabase
-			.from('parent_volunteer_hours')
-			.select('hours')
-			.eq('student_user_id', userId)
-			.eq('season_id', season.id)
-			.eq('verification_status', 'verified');
-		tally.parent_volunteer_hours = (rows ?? []).reduce(
-			(acc: number, r: { hours: number }) => acc + Number(r.hours),
-			0
-		);
+		// Find student's family
+		const { data: membership } = await supabase
+			.from('family_members')
+			.select('family_id')
+			.eq('user_id', userId)
+			.eq('role', 'student')
+			.maybeSingle();
+
+		if (membership?.family_id) {
+			// Find all verified signups for this family in this season
+			const { data: signups } = await supabase
+				.from('volunteer_signups')
+				.select('*,opportunity:volunteer_opportunities!inner(*)')
+				.eq('family_id', membership.family_id)
+				.eq('opportunity.season_id', season.id)
+				.eq('status', 'verified');
+
+			if (signups && signups.length > 0) {
+				const catIds = [...new Set(signups.map((s: any) => s.opportunity?.category_id).filter(Boolean))];
+				const { data: cats } = await supabase
+					.from('volunteer_categories')
+					.select('id,unit')
+					.in('id', catIds);
+				const catUnitMap = new Map((cats ?? []).map((c) => [c.id, c.unit]));
+
+				let totalHours = 0;
+				for (const s of signups) {
+					const opp = (s as any).opportunity;
+					if (!opp) continue;
+					const unit = catUnitMap.get(opp.category_id);
+					if (unit === 'hours') {
+						if (opp.start_time && opp.end_time) {
+							const [sh, sm] = opp.start_time.split(':').map(Number);
+							const [eh, em] = opp.end_time.split(':').map(Number);
+							const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+							totalHours += diff > 0 ? diff : 0;
+						} else {
+							totalHours += 4;
+						}
+					} else {
+						totalHours += 2; // standard 2 hours credit for occasions
+					}
+				}
+				tally.parent_volunteer_hours = totalHours;
+			} else {
+				tally.parent_volunteer_hours = 0;
+			}
+		} else {
+			tally.parent_volunteer_hours = 0;
+		}
 	}
 
 	// 3d. shop_hours — sum session durations from `attendance_daily_sessions` during the season

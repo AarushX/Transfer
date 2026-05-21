@@ -411,7 +411,11 @@
 											<p class="text-xs" style="color: var(--app-text-dim);">{(log.reporter as any)?.full_name ?? (log.reporter as any)?.email}</p>
 										</div>
 									</div>
-									<span class="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style="color: var(--app-warning); border-color: color-mix(in srgb, var(--app-warning) 35%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent);">Pending</span>
+									{#if log.is_approval_needed}
+										<span class="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style="color: var(--app-warning); border-color: color-mix(in srgb, var(--app-warning) 35%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent);">Needs Approval</span>
+									{:else}
+										<span class="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style="color: var(--app-accent); border-color: color-mix(in srgb, var(--app-accent) 35%, transparent); background: color-mix(in srgb, var(--app-accent) 10%, transparent);">Past Event</span>
+									{/if}
 								</div>
 								<div class="px-5 py-4">
 									<div class="flex items-start gap-6 mb-3">
@@ -436,17 +440,26 @@
 											<form method="POST" action="?/verifyHours" class="flex items-center gap-2 flex-1">
 												<input type="hidden" name="log_id" value={log.id} />
 												<input type="hidden" name="action" value="reject" />
-												<input type="text" name="rejection_reason" bind:value={rejectReason} placeholder="Reason for rejection…" class="field-input flex-1 text-xs" />
-												<Button variant="danger" size="sm" type="submit">Confirm Reject</Button>
+												<input type="text" name="rejection_reason" bind:value={rejectReason} placeholder="Reason for decline…" class="field-input flex-1 text-xs" />
+												<Button variant="danger" size="sm" type="submit">Confirm Decline</Button>
 												<Button variant="ghost" size="sm" onclick={() => { rejectingId = ''; }}>Cancel</Button>
 											</form>
 										{:else}
-											<form method="POST" action="?/verifyHours">
-												<input type="hidden" name="log_id" value={log.id} />
-												<input type="hidden" name="action" value="verify" />
-												<Button variant="primary" size="sm" type="submit">✓ Verify</Button>
-											</form>
-											<Button variant="ghost" size="sm" onclick={() => { rejectingId = log.id; rejectReason = ''; }}>Reject</Button>
+											{#if log.is_approval_needed}
+												<form method="POST" action="?/verifyHours">
+													<input type="hidden" name="log_id" value={log.id} />
+													<input type="hidden" name="action" value="approve" />
+													<Button variant="primary" size="sm" type="submit">✓ Approve Slot</Button>
+												</form>
+												<Button variant="ghost" size="sm" onclick={() => { rejectingId = log.id; rejectReason = ''; }}>Decline Slot</Button>
+											{:else}
+												<form method="POST" action="?/verifyHours">
+													<input type="hidden" name="log_id" value={log.id} />
+													<input type="hidden" name="action" value="verify" />
+													<Button variant="primary" size="sm" type="submit">✓ Verify Attendance</Button>
+												</form>
+												<Button variant="ghost" size="sm" onclick={() => { rejectingId = log.id; rejectReason = ''; }}>Mark Absent</Button>
+											{/if}
 										{/if}
 									</div>
 								</div>

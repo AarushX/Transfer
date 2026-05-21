@@ -24,6 +24,85 @@
 		(data.mySignups ?? []).filter((s: any) => s.status !== 'cancelled').length
 	);
 
+	// ── Category Progress Calculations ──────────────────────────
+	const categoryProgress = $derived.by(() => {
+		const categories = data.categories ?? [];
+		const commitments = data.commitments ?? [];
+		const signups = data.mySignups ?? [];
+
+		const comMap = new Map(commitments.map((c: any) => [c.category_id, c]));
+
+		return categories.map((cat: any) => {
+			const pledge = comMap.get(cat.id);
+			const response = pledge?.response ?? 'no';
+			const notes = pledge?.notes ?? '';
+			const target = Number(cat.target_value ?? 0);
+
+			// Filter signups for this category
+			const catSignups = signups.filter((s: any) => {
+				const opp = (data.opportunities ?? []).find((o: any) => o.id === s.opportunity_id);
+				return opp?.category_id === cat.id;
+			});
+
+			let verified = 0;
+			let confirmed = 0;
+			let pending = 0;
+
+			for (const s of catSignups) {
+				const opp = (data.opportunities ?? []).find((o: any) => o.id === s.opportunity_id);
+				if (!opp) continue;
+
+				// Calculate amount/duration
+				let amount = 1;
+				if (cat.unit === 'hours') {
+					amount = 4; // standard default
+					if (opp.start_time && opp.end_time) {
+						const [sh, sm] = opp.start_time.split(':').map(Number);
+						const [eh, em] = opp.end_time.split(':').map(Number);
+						const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+						if (diff > 0) amount = diff;
+					}
+				}
+
+				if (s.status === 'verified') {
+					verified += amount;
+				} else if (s.status === 'confirmed') {
+					confirmed += amount;
+				} else if (s.status === 'pending') {
+					pending += amount;
+				}
+			}
+
+			verified = Math.round(verified * 10) / 10;
+			confirmed = Math.round(confirmed * 10) / 10;
+			pending = Math.round(pending * 10) / 10;
+
+			let status: 'met' | 'in_progress' | 'unfulfilled' | 'not_pledged' = 'not_pledged';
+			if (response === 'yes') {
+				if (verified >= target) {
+					status = 'met';
+				} else if (verified > 0 || confirmed > 0 || pending > 0) {
+					status = 'in_progress';
+				} else {
+					status = 'unfulfilled';
+				}
+			}
+
+			return {
+				id: cat.id,
+				name: cat.name,
+				unit: cat.unit,
+				target,
+				response,
+				notes,
+				verified,
+				confirmed,
+				pending,
+				status
+			};
+		});
+	});
+
 	// ── Events grouped by start_date ───────────────────────────
 	const sortedEvents = $derived(
 		[...(data.events ?? [])].sort(
@@ -805,35 +884,98 @@
 						</form>
 					</GlassCard>
 				{:else}
-					<!-- Pledge summary: compact grid -->
-					<div class="grid gap-2 sm:grid-cols-2">
-						{#each data.categories as cat (cat.id)}
-							{@const com = commitmentMap.get(cat.id)}
-							{@const resp = com?.response ?? 'no'}
-							<div
-								class="flex items-center gap-3 rounded-xl border px-3 py-2.5"
-								style="background: color-mix(in srgb, var(--app-surface) 30%, transparent); border-color: {resp === 'yes' ? 'color-mix(in srgb, var(--app-success) 22%, transparent)' : resp === 'maybe' ? 'color-mix(in srgb, var(--app-warning) 18%, transparent)' : 'color-mix(in srgb, var(--app-glass-border) 50%, transparent)'}; opacity: {resp === 'no' ? '0.5' : '1'};"
-							>
-								<div
-									class="h-2 w-2 shrink-0 rounded-full"
-									style="background: {resp === 'yes' ? 'var(--app-success)' : resp === 'maybe' ? 'var(--app-warning)' : 'var(--app-text-dim)'};"
-								></div>
-								<div class="min-w-0 flex-1">
-									<p class="text-xs font-medium truncate" style="color: var(--app-text);">
-										{cat.name}
-									</p>
-									{#if com?.notes}
-										<p class="text-[10px] truncate" style="color: var(--app-text-dim);">
-											{com.notes}
+					<!-- Pledge summary: elevated categories progress grid -->
+					<div class="grid gap-3 sm:grid-cols-2">
+						{#each categoryProgress as cp (cp.id)}
+							{@const ratio = cp.target > 0 ? Math.min(100, Math.round((cp.verified / cp.target) * 100)) : 0}
+							
+							<div class="rounded-xl border p-4 space-y-3 transition-all duration-300 backdrop-blur-xl"
+								style="background: var(--app-glass-bg); 
+									border-color: {cp.status === 'met' 
+										? 'color-mix(in srgb, var(--app-success) 30%, transparent)' 
+										: cp.status === 'in_progress' 
+										? 'color-mix(in srgb, var(--app-accent) 30%, transparent)' 
+										: cp.status === 'unfulfilled' 
+										? 'color-mix(in srgb, var(--app-warning) 25%, transparent)' 
+										: 'var(--app-glass-border)'};
+									opacity: {cp.response === 'no' ? '0.5' : '1'};">
+								
+								<!-- Header -->
+								<div class="flex items-start justify-between gap-2">
+									<div class="min-w-0 flex-1">
+										<p class="text-sm font-bold tracking-tight" style="color: var(--app-text);">{cp.name}</p>
+										<p class="text-[10px] font-medium" style="color: var(--app-text-dim);">
+											Target: {cp.target} {cp.unit}
 										</p>
-									{/if}
+									</div>
+
+									<!-- Badges -->
+									<div>
+										{#if cp.status === 'met'}
+											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+												style="background: color-mix(in srgb, var(--app-success) 12%, transparent); color: var(--app-success); border: 1px solid color-mix(in srgb, var(--app-success) 22%, transparent);">
+												Target Met
+											</span>
+										{:else if cp.status === 'in_progress'}
+											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+												style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);">
+												In Progress
+											</span>
+										{:else if cp.status === 'unfulfilled'}
+											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+												style="background: color-mix(in srgb, var(--app-warning) 12%, transparent); color: var(--app-warning); border: 1px solid color-mix(in srgb, var(--app-warning) 22%, transparent);">
+												Pledged - Unfulfilled
+											</span>
+										{:else}
+											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+												style="background: color-mix(in srgb, var(--app-text-dim) 8%, transparent); color: var(--app-text-dim); border: 1px solid var(--app-glass-border);">
+												Not Pledged
+											</span>
+										{/if}
+									</div>
 								</div>
-								<span
-									class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize"
-									style="background: color-mix(in srgb, {resp === 'yes' ? 'var(--app-success)' : resp === 'maybe' ? 'var(--app-warning)' : 'var(--app-text-dim)'} 12%, transparent); color: {resp === 'yes' ? 'var(--app-success)' : resp === 'maybe' ? 'var(--app-warning)' : 'var(--app-text-dim)'};"
-								>
-									{resp}
-								</span>
+
+								<!-- Notes -->
+								{#if cp.notes}
+									<p class="text-[10px] italic" style="color: var(--app-text-dim);">
+										"{cp.notes}"
+									</p>
+								{/if}
+
+								<!-- Dynamic breakdown details -->
+								{#if cp.response === 'yes'}
+									<div class="space-y-1.5 pt-1">
+										<div class="flex items-center justify-between text-[10px]" style="color: var(--app-text-muted);">
+											<span>Verified: <strong style="color: var(--app-text);">{cp.verified} / {cp.target} {cp.unit}</strong></span>
+											<span class="font-mono">{ratio}%</span>
+										</div>
+
+										<!-- Progress Bar -->
+										<div class="relative overflow-hidden rounded-full" style="height: 5px; background: color-mix(in srgb, var(--app-text) 6%, transparent);">
+											<div class="h-full rounded-full transition-all duration-500"
+												style="width: {ratio}%; background: {cp.status === 'met' ? 'var(--app-success)' : 'var(--app-accent)'};">
+											</div>
+										</div>
+
+										<!-- Future/Pending labels -->
+										{#if cp.confirmed > 0 || cp.pending > 0}
+											<div class="flex flex-wrap gap-2 pt-1 text-[9px]">
+												{#if cp.confirmed > 0}
+													<span class="inline-flex items-center gap-1 font-medium" style="color: var(--app-accent);">
+														<span class="h-1 w-1 rounded-full bg-cyan-400"></span>
+														{cp.confirmed} upcoming
+													</span>
+												{/if}
+												{#if cp.pending > 0}
+													<span class="inline-flex items-center gap-1 font-medium" style="color: var(--app-warning);">
+														<span class="h-1 w-1 rounded-full bg-amber-400"></span>
+														{cp.pending} pending approval
+													</span>
+												{/if}
+											</div>
+										{/if}
+									</div>
+								{/if}
 							</div>
 						{/each}
 					</div>
