@@ -2,10 +2,8 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	buildFolderViewUrl,
 	buildProxyThumbnailUrl,
-	folderSummary,
-	getMediaRootFolderId,
-	listChildFolders,
-	listFolderImages
+	listFolderImages,
+	getMediaEventsSummary
 } from '$lib/server/google-drive';
 
 const CACHE_HEADERS = {
@@ -45,28 +43,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	try {
-		const rootId = getMediaRootFolderId();
-		const folders = await listChildFolders(rootId);
-		const events = await Promise.all(
-			folders.map(async (folder) => {
-				const summary = await folderSummary(folder.id).catch(() => ({
-					cover: null,
-					approxPhotoCount: 0,
-					hasMoreThanReturned: false
-				}));
-				return {
-					id: folder.id,
-					name: folder.name,
-					photoCount: summary.approxPhotoCount,
-					photoCountIsApprox: summary.hasMoreThanReturned,
-					coverPhotoId: summary.cover?.id ?? null,
-					coverThumb: summary.cover ? buildProxyThumbnailUrl(summary.cover.id, 800) : null,
-					driveUrl: buildFolderViewUrl(folder.id)
-				};
-			})
-		);
-		// Newest folder first by name when names contain dates; fall back to alpha desc.
-		events.sort((a, b) => b.name.localeCompare(a.name));
+		const events = await getMediaEventsSummary();
 		return json({ events }, { headers: CACHE_HEADERS });
 	} catch (err) {
 		return failure(err);

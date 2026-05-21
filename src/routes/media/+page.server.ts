@@ -1,10 +1,5 @@
 import type { PageServerLoad } from './$types';
-import {
-	buildProxyThumbnailUrl,
-	folderSummary,
-	getMediaRootFolderId,
-	listChildFolders
-} from '$lib/server/google-drive';
+import { getMediaEventsSummary } from '$lib/server/google-drive';
 
 export type MediaEvent = {
 	id: string;
@@ -23,27 +18,7 @@ let eventsCache: CachedEvents | null = null;
 const EVENTS_TTL_MS = 90 * 1000;
 
 const computeEvents = async (): Promise<MediaEvent[]> => {
-	const rootId = getMediaRootFolderId();
-	const folders = await listChildFolders(rootId);
-	const events: MediaEvent[] = await Promise.all(
-		folders.map(async (folder) => {
-			const summary = await folderSummary(folder.id).catch(() => ({
-				cover: null,
-				approxPhotoCount: 0,
-				hasMoreThanReturned: false
-			}));
-			return {
-				id: folder.id,
-				name: folder.name,
-				photoCount: summary.approxPhotoCount,
-				photoCountIsApprox: summary.hasMoreThanReturned,
-				coverPhotoId: summary.cover?.id ?? null,
-				coverThumb: summary.cover ? buildProxyThumbnailUrl(summary.cover.id, 800) : null
-			};
-		})
-	);
-	events.sort((a, b) => b.name.localeCompare(a.name));
-	return events;
+	return getMediaEventsSummary();
 };
 
 export const load: PageServerLoad = async ({ setHeaders }) => {

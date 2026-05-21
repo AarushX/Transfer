@@ -12,6 +12,12 @@
 	let lightboxIndex = $state<number | null>(null);
 	let loaded = $state<Record<string, boolean>>({});
 	let failed = $state<Record<string, boolean>>({});
+	let showJumpInputIndex = $state<number | null>(null);
+
+	const focusOnMount = (node: HTMLInputElement) => {
+		node.focus();
+		node.select();
+	};
 
 	const photos = $derived(data.photos);
 	const totalPages = $derived(Math.max(1, Math.ceil(photos.length / pageSize)));
@@ -85,6 +91,20 @@
 		return () => {
 			document.body.style.overflow = '';
 		};
+	});
+
+	// Preload adjacent images for rapid, lag-free navigation
+	$effect(() => {
+		if (lightboxIndex === null || photos.length === 0) return;
+		const preloads = [
+			(lightboxIndex + 1) % photos.length,
+			(lightboxIndex + 2) % photos.length,
+			(lightboxIndex - 1 + photos.length) % photos.length
+		];
+		for (const idx of preloads) {
+			const img = new Image();
+			img.src = photos[idx].full;
+		}
 	});
 
 	const onImgLoad = (id: string) => {
@@ -178,7 +198,7 @@
 					type="button"
 					class="tile group relative overflow-hidden rounded-xl border"
 					style="border-color: var(--app-glass-border); aspect-ratio: {aspectFor(photo.width, photo.height)};"
-					onclick={() => open(i)}
+					onclick={() => open(start + i)}
 					aria-label={`Open ${photo.name}`}
 				>
 					{#if !loaded[photo.id] && !failed[photo.id]}
@@ -236,7 +256,38 @@
 				</button>
 				{#each pageNumbers as item, i (i)}
 					{#if item === 'gap'}
-						<span class="page-gap" aria-hidden="true">…</span>
+						{#if showJumpInputIndex === i}
+							<input
+								type="number"
+								min="1"
+								max={totalPages}
+								class="page-btn page-input-jump"
+								placeholder="..."
+								use:focusOnMount
+								onblur={() => (showJumpInputIndex = null)}
+								onkeydown={(e) => {
+									if (e.key === 'Escape') {
+										showJumpInputIndex = null;
+									} else if (e.key === 'Enter') {
+										const val = parseInt(e.currentTarget.value, 10);
+										if (!isNaN(val) && val >= 1 && val <= totalPages) {
+											goToPage(val);
+										}
+										showJumpInputIndex = null;
+									}
+								}}
+							/>
+						{:else}
+							<button
+								type="button"
+								class="page-gap-btn"
+								onclick={() => (showJumpInputIndex = i)}
+								title="Click to jump to a page"
+								aria-label="Jump to page"
+							>
+								…
+							</button>
+						{/if}
 					{:else}
 						<button
 							type="button"
@@ -520,11 +571,38 @@
 		border-color: color-mix(in srgb, var(--app-accent) 50%, var(--app-glass-border));
 		color: var(--app-text);
 	}
-	.page-gap {
-		min-width: 24px;
-		text-align: center;
-		color: var(--app-text-dim);
+
+	.page-gap-btn {
+		min-width: 32px;
+		height: 32px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px dashed var(--app-glass-border);
+		background: transparent;
+		border-radius: 8px;
+		color: var(--app-text-muted);
 		font-size: 12px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+	.page-gap-btn:hover {
+		color: var(--app-text);
+		border-color: var(--app-accent);
+		background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+	}
+	.page-input-jump {
+		width: 48px;
+		text-align: center;
+		padding: 0;
+		outline: none;
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+	.page-input-jump::-webkit-outer-spin-button,
+	.page-input-jump::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
 	}
 
 	.gallery-controls {

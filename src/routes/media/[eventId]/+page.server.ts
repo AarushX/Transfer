@@ -52,7 +52,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			width: p.width,
 			height: p.height,
 			thumb: buildProxyThumbnailUrl(p.id, 600),
-			full: buildProxyThumbnailUrl(p.id, 2000)
+			full: buildProxyThumbnailUrl(p.id, 1600)
 		}));
 		return {
 			folderId,
