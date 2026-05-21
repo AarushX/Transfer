@@ -371,24 +371,25 @@
 
 <style>
 	.masonry {
-		column-count: 1;
-		column-gap: 0.75rem;
+		display: grid;
+		grid-template-columns: repeat(1, minmax(0, 1fr));
+		gap: 0.75rem;
+		align-items: start;
 	}
 	@media (min-width: 640px) {
 		.masonry {
-			column-count: min(2, var(--cols, 3));
+			grid-template-columns: repeat(min(2, var(--cols, 3)), minmax(0, 1fr));
 		}
 	}
 	@media (min-width: 1024px) {
 		.masonry {
-			column-count: var(--cols, 3);
+			grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
 		}
 	}
 	.tile {
 		display: block;
 		width: 100%;
-		margin: 0 0 0.75rem 0;
-		break-inside: avoid;
+		margin: 0;
 		cursor: pointer;
 		padding: 0;
 		transition: border-color 0.2s ease, transform 0.2s ease;

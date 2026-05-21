@@ -42,23 +42,77 @@ export type GalleryPhoto = {
 	full: string;
 };
 
+type CachedGallery = {
+	eventName: string;
+	driveUrl: string;
+	photos: GalleryPhoto[];
+	expiresAt: number;
+};
+const galleryCache = new Map<string, CachedGallery>();
+const GALLERY_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+const activeRefreshes = new Set<string>();
+
+const fetchGallery = async (folderId: string) => {
+	const [photos, name] = await Promise.all([listFolderImages(folderId), lookupFolderName(folderId)]);
+	const gallery: GalleryPhoto[] = photos.map((p) => ({
+		id: p.id,
+		name: p.name,
+		width: p.width,
+		height: p.height,
+		thumb: buildProxyThumbnailUrl(p.id, 600),
+		full: buildProxyThumbnailUrl(p.id, 1600)
+	}));
+	return {
+		eventName: name ?? 'Event',
+		driveUrl: buildFolderViewUrl(folderId),
+		photos: gallery
+	};
+};
+
 export const load: PageServerLoad = async ({ params }) => {
 	const folderId = params.eventId;
+	const now = Date.now();
+	const cached = galleryCache.get(folderId);
+
 	try {
-		const [photos, name] = await Promise.all([listFolderImages(folderId), lookupFolderName(folderId)]);
-		const gallery: GalleryPhoto[] = photos.map((p) => ({
-			id: p.id,
-			name: p.name,
-			width: p.width,
-			height: p.height,
-			thumb: buildProxyThumbnailUrl(p.id, 600),
-			full: buildProxyThumbnailUrl(p.id, 1600)
-		}));
+		if (!cached) {
+			// First load of this gallery: block to fetch and populate cache.
+			const data = await fetchGallery(folderId);
+			galleryCache.set(folderId, {
+				...data,
+				expiresAt: now + GALLERY_TTL_MS
+			});
+			return {
+				folderId,
+				...data,
+				error: null as string | null
+			};
+		}
+
+		if (cached.expiresAt <= now && !activeRefreshes.has(folderId)) {
+			// Stale cache: serve stale data instantly and trigger background refresh!
+			activeRefreshes.add(folderId);
+			fetchGallery(folderId)
+				.then((data) => {
+					galleryCache.set(folderId, {
+						...data,
+						expiresAt: Date.now() + GALLERY_TTL_MS
+					});
+				})
+				.catch((err) => {
+					console.error(`Background refresh failed for gallery ${folderId}:`, err);
+				})
+				.finally(() => {
+					activeRefreshes.delete(folderId);
+				});
+		}
+
+		// Return cached data instantly (0ms response time!)
 		return {
 			folderId,
-			eventName: name ?? 'Event',
-			driveUrl: buildFolderViewUrl(folderId),
-			photos: gallery,
+			eventName: cached.eventName,
+			driveUrl: cached.driveUrl,
+			photos: cached.photos,
 			error: null as string | null
 		};
 	} catch (err) {

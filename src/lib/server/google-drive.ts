@@ -106,7 +106,7 @@ const listImagesIn = async (folderId: string): Promise<DrivePhoto[]> => {
 			fields:
 				'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height), createdTime)',
 			orderBy: 'createdTime desc, name',
-			pageSize: 200,
+			pageSize: 1000,
 			pageToken
 		});
 		for (const file of data.files ?? []) {
@@ -137,7 +137,7 @@ export const listFolderImages = async (
 	const seen = new Set<string>();
 	const all: DrivePhoto[] = [];
 	const walk = async (id: string, depth: number) => {
-		if (depth > maxDepth || seen.has(id)) return;
+		if (depth > maxDepth || seen.has(id) || all.length >= 20000) return;
 		seen.add(id);
 		const [images, subfolders] = await Promise.all([
 			listImagesIn(id),
@@ -375,14 +375,14 @@ export const getMediaEventsSummary = async (): Promise<MediaEventSummary[]> => {
 			q: `mimeType contains 'image/' and trashed = false`,
 			fields: 'nextPageToken, files(id, name, mimeType, parents, imageMediaMetadata(width, height), createdTime)',
 			orderBy: 'createdTime desc, name',
-			pageSize: 500,
+			pageSize: 1000,
 			pageToken: imagePageToken
 		});
 		if (resp.data.files) {
 			allImages.push(...resp.data.files);
 		}
 		imagePageToken = resp.data.nextPageToken ?? undefined;
-	} while (imagePageToken && allImages.length < 2000);
+	} while (imagePageToken && allImages.length < 25000);
 
 	// Group images by parent folder ID
 	const folderIdToImages = new Map<string, DrivePhoto[]>();
