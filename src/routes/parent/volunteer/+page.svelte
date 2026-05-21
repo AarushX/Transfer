@@ -11,6 +11,7 @@
 	// ── Inline signup expansion: maps opportunity_id -> boolean ─
 	let expandedSignup = $state<Record<string, boolean>>({});
 	let signupNotes = $state<Record<string, string>>({});
+	let customSlots = $state<Record<string, boolean>>({});
 
 	// ── Commitments ────────────────────────────────────────────
 	const commitmentMap = $derived(
@@ -643,24 +644,57 @@
 															/>
 															
 															{#if opp.slots > 1 && (opp.slots - filled) > 1}
-																{@const maxSlots = Math.min(5, opp.slots - filled)}
+																{@const maxSlots = opp.slots - filled}
 																<div class="w-32 shrink-0">
-																	<label
-																		for={`signup-slots-${opp.id}`}
-																		class="mb-1 block text-[10px] font-semibold uppercase tracking-wider"
-																		style="color: var(--app-text-muted);"
-																		>Slots to claim</label
-																	>
-																	<select
-																		id={`signup-slots-${opp.id}`}
-																		name="slots_claimed"
-																		class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
-																		style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-																	>
-																		{#each Array.from({ length: maxSlots }, (_, i) => i + 1) as num}
-																			<option value={num} style="background: var(--app-surface); color: var(--app-text);">{num} slot{num > 1 ? 's' : ''}</option>
-																		{/each}
-																	</select>
+																	<div class="flex items-center justify-between mb-1">
+																		<label
+																			for={`signup-slots-${opp.id}`}
+																			class="block text-[10px] font-semibold uppercase tracking-wider"
+																			style="color: var(--app-text-muted);"
+																			>Slots to claim</label
+																		>
+																		{#if customSlots[opp.id]}
+																			<button
+																				type="button"
+																				class="text-[9px] font-semibold hover:underline"
+																				style="color: var(--app-accent);"
+																				onclick={() => { customSlots[opp.id] = false; }}
+																			>
+																				Preset
+																			</button>
+																		{/if}
+																	</div>
+																	{#if customSlots[opp.id]}
+																		<input
+																			type="number"
+																			id={`signup-slots-${opp.id}`}
+																			name="slots_claimed"
+																			value="6"
+																			min="1"
+																			max={maxSlots}
+																			class="w-full rounded-lg border px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500/50"
+																			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																		/>
+																	{:else}
+																		<select
+																			id={`signup-slots-${opp.id}`}
+																			name="slots_claimed"
+																			class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
+																			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																			onchange={(e) => {
+																				if (e.currentTarget.value === 'custom') {
+																					customSlots[opp.id] = true;
+																				}
+																			}}
+																		>
+																			{#each Array.from({ length: Math.min(5, maxSlots) }, (_, i) => i + 1) as num}
+																				<option value={num} style="background: var(--app-surface); color: var(--app-text);">{num} slot{num > 1 ? 's' : ''}</option>
+																			{/each}
+																			{#if maxSlots > 5}
+																				<option value="custom" style="background: var(--app-surface); color: var(--app-text);">Custom...</option>
+																			{/if}
+																		</select>
+																	{/if}
 																</div>
 															{/if}
 
