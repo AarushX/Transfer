@@ -1,10 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+export type LetteringCategoryProgress = {
+	category: string;
+	label: string;
+	actual: number;
+	required: number;
+	pct: number;
+	isMet: boolean;
+};
+
 export type LetteringProgress = {
 	pct: number;
 	completedCount: number;
 	totalRequired: number;
 	overflow: boolean;
+	categories?: LetteringCategoryProgress[];
 };
 
 type Requirement = { category: string; required_value: number };
@@ -30,23 +40,44 @@ export function computeLetteringProgressPure(
 	tally: Tally
 ): LetteringProgress {
 	if (requirements.length === 0) {
-		return { pct: 0, completedCount: 0, totalRequired: 0, overflow: false };
+		return { pct: 0, completedCount: 0, totalRequired: 0, overflow: false, categories: [] };
 	}
+
+	const categoryLabels: Record<string, string> = {
+		outreach_hours: 'Outreach Hours',
+		competition_hours: 'Competitions',
+		parent_volunteer_hours: 'Parent Volunteering',
+		shop_hours: 'Shop Hours'
+	};
 
 	let clampedSum = 0;
 	let rawSum = 0;
 	let completed = 0;
 	let anyExcess = false;
+	const categoriesList: LetteringCategoryProgress[] = [];
 
 	for (const r of requirements) {
 		const actual = tally[r.category] ?? 0;
-		const rawRatio = actual / r.required_value;
-		if (rawRatio >= 1) {
+		const required = r.required_value;
+		const rawRatio = required > 0 ? actual / required : 1;
+		const isMet = actual >= required;
+
+		if (isMet) {
 			completed++;
 			if (rawRatio > 1) anyExcess = true;
 		}
 		clampedSum += Math.min(rawRatio, 1);
 		rawSum += rawRatio;
+
+		const label = categoryLabels[r.category] ?? r.category.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+		categoriesList.push({
+			category: r.category,
+			label,
+			actual: Math.round(actual * 10) / 10,
+			required,
+			pct: required > 0 ? Math.min(100, Math.round((actual / required) * 100)) : 100,
+			isMet
+		});
 	}
 
 	const allComplete = completed === requirements.length;
@@ -61,7 +92,8 @@ export function computeLetteringProgressPure(
 		pct: Math.round(avg * 100),
 		completedCount: completed,
 		totalRequired: requirements.length,
-		overflow
+		overflow,
+		categories: categoriesList
 	};
 }
 
@@ -172,12 +204,12 @@ export async function computeLetteringProgress(
 							const [sh, sm] = opp.start_time.split(':').map(Number);
 							const [eh, em] = opp.end_time.split(':').map(Number);
 							const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
-							totalHours += diff > 0 ? diff : 0;
+							totalHours += (diff > 0 ? diff : 0) * (s.slots_claimed ?? 1);
 						} else {
-							totalHours += 4;
+							totalHours += 4 * (s.slots_claimed ?? 1);
 						}
 					} else {
-						totalHours += 2; // standard 2 hours credit for occasions
+						totalHours += 2 * (s.slots_claimed ?? 1); // standard 2 hours credit for occasions
 					}
 				}
 				tally.parent_volunteer_hours = totalHours;

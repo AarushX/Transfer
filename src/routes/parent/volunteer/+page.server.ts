@@ -66,12 +66,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		categories: categories ?? [],
 		commitments: commitments ?? [],
 		events: events ?? [],
-		opportunities: (opportunities ?? []).map((o: any) => ({
-			...o,
-			signups: signupsByOpp.get(o.id) ?? [],
-			currentSignups: (signupsByOpp.get(o.id) ?? []).length,
-			myFamily: mySignupOppIds.has(o.id)
-		})),
+		opportunities: (opportunities ?? []).map((o: any) => {
+			const sList = signupsByOpp.get(o.id) ?? [];
+			return {
+				...o,
+				signups: sList,
+				currentSignups: sList.reduce((sum: number, s: any) => sum + (s.slots_claimed ?? 1), 0),
+				myFamily: mySignupOppIds.has(o.id)
+			};
+		}),
 		allSignups: (allSignups ?? []).filter((s: any) => s.family_id === family.id),
 		mySignups: (allSignups ?? []).filter((s: any) => s.family_id === family.id),
 		announcements: (announcements ?? []).filter((a: any) => a.audience === 'all' || a.audience === 'parents')
@@ -117,6 +120,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const opportunityId = String(form.get('opportunity_id') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
+		const slotsClaimed = Math.max(1, Math.floor(Number(form.get('slots_claimed') ?? 1)));
 		const payloadRaw = String(form.get('signup_payload') ?? '{}');
 
 		let payload = {};
@@ -132,8 +136,16 @@ export const actions: Actions = {
 
 		if (opp.signup_deadline && new Date(opp.signup_deadline) < new Date()) return fail(400, { error: 'Signup deadline has passed.' });
 
-		const { count } = await service.from('volunteer_signups').select('id', { count: 'exact', head: true }).eq('opportunity_id', opportunityId).neq('status', 'cancelled');
-		if ((count ?? 0) >= opp.slots) return fail(400, { error: 'All slots are filled.' });
+		const { data: activeSignups } = await service
+			.from('volunteer_signups')
+			.select('slots_claimed')
+			.eq('opportunity_id', opportunityId)
+			.neq('status', 'cancelled');
+
+		const filledSlots = (activeSignups ?? []).reduce((sum, s) => sum + (s.slots_claimed ?? 1), 0);
+		if (filledSlots + slotsClaimed > opp.slots) {
+			return fail(400, { error: `Not enough slots remaining. Requested: ${slotsClaimed}, Remaining: ${opp.slots - filledSlots}` });
+		}
 
 		const { error } = await service.from('volunteer_signups').insert({
 			family_id: fm.family_id,
@@ -141,7 +153,8 @@ export const actions: Actions = {
 			user_id: user.id,
 			status: opp.requires_approval ? 'pending' : 'confirmed',
 			notes,
-			signup_payload: payload
+			signup_payload: payload,
+			slots_claimed: slotsClaimed
 		});
 		if (error) {
 			if (error.code === '23505') return fail(400, { error: 'Already signed up for this.' });

@@ -64,6 +64,8 @@
 					}
 				}
 
+				amount = amount * (s.slots_claimed ?? 1);
+
 				if (s.status === 'verified') {
 					verified += amount;
 				} else if (s.status === 'confirmed') {
@@ -639,6 +641,29 @@
 																name="signup_payload"
 																value={JSON.stringify({})}
 															/>
+															
+															{#if opp.slots > 1 && (opp.slots - filled) > 1}
+																{@const maxSlots = Math.min(5, opp.slots - filled)}
+																<div class="w-32 shrink-0">
+																	<label
+																		for={`signup-slots-${opp.id}`}
+																		class="mb-1 block text-[10px] font-semibold uppercase tracking-wider"
+																		style="color: var(--app-text-muted);"
+																		>Slots to claim</label
+																	>
+																	<select
+																		id={`signup-slots-${opp.id}`}
+																		name="slots_claimed"
+																		class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
+																		style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+																	>
+																		{#each Array.from({ length: maxSlots }, (_, i) => i + 1) as num}
+																			<option value={num} style="background: var(--app-surface); color: var(--app-text);">{num} slot{num > 1 ? 's' : ''}</option>
+																		{/each}
+																	</select>
+																</div>
+															{/if}
+
 															<div class="flex-1" style="min-width: 180px;">
 																<label
 																	for={`signup-notes-${opp.id}`}
@@ -652,7 +677,7 @@
 																	name="notes"
 																	bind:value={signupNotes[opp.id]}
 																	placeholder="Any notes for the coordinator..."
-																	class="w-full rounded-lg border px-3 py-2 text-xs"
+																	class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
 																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																/>
 															</div>
@@ -675,6 +700,9 @@
 																	style="background: color-mix(in srgb, var(--app-accent) 10%, transparent); color: var(--app-text-muted); border: 1px solid color-mix(in srgb, var(--app-accent) 16%, transparent);"
 																>
 																	{name}
+																	{#if s.slots_claimed > 1}
+																		<span class="font-semibold" style="color: var(--app-info);">({s.slots_claimed} slots)</span>
+																	{/if}
 																	{#if s.notes}
 																		<span style="color: var(--app-text-dim);">· {s.notes}</span>
 																	{/if}
@@ -1026,6 +1054,9 @@
 											{#if opp?.event_date}<span>{fmtDate(opp.event_date)}</span>{/if}
 											{#if opp?.start_time}<span>{fmtTime(opp.start_time)}</span>{/if}
 											{#if opp?.location}<span>{opp.location}</span>{/if}
+											{#if signup.slots_claimed > 1}
+												<span class="font-semibold" style="color: var(--app-accent);">{signup.slots_claimed} slots claimed</span>
+											{/if}
 											{#if signup.notes}<span style="color: var(--app-text-muted);">{signup.notes}</span>{/if}
 										</div>
 									</div>

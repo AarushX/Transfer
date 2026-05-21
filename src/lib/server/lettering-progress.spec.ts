@@ -4,7 +4,7 @@ import { computeLetteringProgressPure, computeLetteringProgress } from './letter
 describe('computeLetteringProgressPure', () => {
 	it('returns zero state when no requirements exist', () => {
 		const result = computeLetteringProgressPure([], {});
-		expect(result).toEqual({ pct: 0, completedCount: 0, totalRequired: 0, overflow: false });
+		expect(result).toEqual({ pct: 0, completedCount: 0, totalRequired: 0, overflow: false, categories: [] });
 	});
 
 	it('computes percent from completed-vs-required ratio across requirements', () => {

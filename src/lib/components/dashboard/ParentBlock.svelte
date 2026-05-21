@@ -3,6 +3,15 @@
 
 	let { data, form }: { data: any; form: any } = $props();
 
+	let expandedStudents = $state<Record<string, boolean>>({});
+
+	const categoryEmojis: Record<string, string> = {
+		outreach_hours: '🤝',
+		competition_hours: '🏆',
+		parent_volunteer_hours: '👨‍👩‍👦',
+		shop_hours: '🛠️'
+	};
+
 	// --- Helper: Get initials from name ---
 	const initials = (name: string) =>
 		(name ?? '')
@@ -41,7 +50,7 @@
 		const commitments = data.parentCommitments ?? [];
 		const signups = data.parentSignups ?? [];
 
-		const comMap = new Map(commitments.map((c: any) => [c.category_id, c]));
+		const comMap = new Map<any, any>(commitments.map((c: any) => [c.category_id, c]));
 
 		return categories.map((cat: any) => {
 			const pledge = comMap.get(cat.id);
@@ -71,6 +80,8 @@
 						if (diff > 0) amount = diff;
 					}
 				}
+
+				amount = amount * (s.slots_claimed ?? 1);
 
 				if (s.status === 'verified') {
 					verified += amount;
@@ -115,11 +126,11 @@
 
 	// --- Overall Pledges and Volunteer Stats ---
 	const volunteerStats = $derived.by(() => {
-		const activePledges = categoryProgress.filter((cp) => cp.response === 'yes');
-		const completedPledges = activePledges.filter((cp) => cp.verified >= cp.target);
+		const activePledges = categoryProgress.filter((cp: any) => cp.response === 'yes');
+		const completedPledges = activePledges.filter((cp: any) => cp.verified >= cp.target);
 		
-		const totalVerified = categoryProgress.reduce((sum, cp) => sum + cp.verified, 0);
-		const totalPending = categoryProgress.reduce((sum, cp) => sum + cp.pending + cp.confirmed, 0);
+		const totalVerified = categoryProgress.reduce((sum: number, cp: any) => sum + cp.verified, 0);
+		const totalPending = categoryProgress.reduce((sum: number, cp: any) => sum + cp.pending + cp.confirmed, 0);
 
 		return {
 			pledgedCount: activePledges.length,
@@ -127,6 +138,15 @@
 			totalVerified,
 			totalPending
 		};
+	});
+
+	// --- Upcoming Signups for Family ---
+	const upcomingSignups = $derived.by(() => {
+		const signups = data.parentSignups ?? [];
+		return signups
+			.filter((s: any) => s.status !== 'cancelled' && s.opportunity && new Date(s.opportunity.event_date + 'T23:59:59') >= new Date())
+			.sort((a: any, b: any) => new Date(a.opportunity.event_date).getTime() - new Date(b.opportunity.event_date).getTime())
+			.slice(0, 3);
 	});
 
 	// --- Helper: Format elapsed time in live check-in ---
@@ -224,18 +244,64 @@
 							</div>
 
 							<!-- Lettering Progress bar -->
-							<div class="space-y-1">
-								<div class="flex items-center justify-between text-[11px]">
-									<span style="color: var(--app-text-dim);">Varsity Letter Status</span>
-									<span class="font-mono font-bold" style="color: var(--app-accent);">
+							<div class="space-y-1.5">
+								<button
+									type="button"
+									class="flex w-full items-center justify-between text-left focus:outline-none hover:opacity-85 transition-opacity"
+									onclick={() => expandedStudents[student.id] = !expandedStudents[student.id]}
+								>
+									<span class="text-[11px] font-medium" style="color: var(--app-text-dim);">Varsity Letter Status</span>
+									<span class="flex items-center gap-1 font-mono text-[11px] font-bold" style="color: var(--app-accent);">
 										{student.lettering.pct}% ({student.lettering.completedCount}/{student.lettering.totalRequired} reqs)
+										<svg 
+											viewBox="0 0 24 24" 
+											width="12" 
+											height="12" 
+											stroke="currentColor" 
+											stroke-width="2.5" 
+											fill="none" 
+											stroke-linecap="round" 
+											stroke-linejoin="round"
+											class="transition-transform duration-200"
+											style="transform: rotate({expandedStudents[student.id] ? '180deg' : '0deg'}); color: var(--app-text-muted);"
+										>
+											<polyline points="6 9 12 15 18 9"/>
+										</svg>
 									</span>
-								</div>
+								</button>
 								<div class="relative overflow-hidden rounded-full" style="height: 6px; background: color-mix(in srgb, var(--app-text) 8%, transparent);">
 									<div class="h-full rounded-full transition-all duration-700"
 										style="width: {student.lettering.pct}%; background: var(--aurora); box-shadow: 0 0 8px var(--app-accent)50;">
 									</div>
 								</div>
+
+								{#if expandedStudents[student.id] && student.lettering.categories && student.lettering.categories.length > 0}
+									<div class="mt-3 space-y-2.5 pt-3 border-t" style="border-color: color-mix(in srgb, var(--app-glass-border) 40%, transparent);">
+										{#each student.lettering.categories as cat}
+											<div class="space-y-1">
+												<div class="flex items-center justify-between text-[10px]">
+													<span class="flex items-center gap-1 font-medium" style="color: var(--app-text-muted);">
+														<span>{categoryEmojis[cat.category] ?? '📋'}</span>
+														{cat.label}
+													</span>
+													<span class="font-mono font-bold" style="color: {cat.isMet ? 'var(--app-success)' : 'var(--app-text-dim)'};">
+														{cat.actual} / {cat.required}
+													</span>
+												</div>
+												<div class="flex items-center gap-2">
+													<div class="flex-1 rounded-full overflow-hidden" style="height: 4px; background: color-mix(in srgb, var(--app-text) 6%, transparent);">
+														<div class="h-full rounded-full transition-all duration-500" style="width: {cat.pct}%; background: {cat.isMet ? 'var(--app-success)' : 'var(--app-info)'};"></div>
+													</div>
+													{#if cat.isMet}
+														<span class="text-[9px] font-bold" style="color: var(--app-success);">✓</span>
+													{:else}
+														<span class="text-[9px] font-medium" style="color: var(--app-text-dim);">{cat.pct}%</span>
+													{/if}
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -381,7 +447,6 @@
 			</div>
 
 			<!-- Upcoming timeline (if any upcoming family signups) -->
-			{@const upcomingSignups = (data.parentSignups ?? []).filter((s: any) => s.status !== 'cancelled' && s.opportunity && new Date(s.opportunity.event_date + 'T23:59:59') >= new Date()).sort((a: any, b: any) => new Date(a.opportunity.event_date).getTime() - new Date(b.opportunity.event_date).getTime()).slice(0, 3)}
 			{#if upcomingSignups.length > 0}
 				<div class="space-y-3">
 					<h2 class="text-sm font-bold uppercase tracking-wider" style="color: var(--app-text-muted);">

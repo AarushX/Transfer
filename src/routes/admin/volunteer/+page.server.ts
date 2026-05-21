@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const signupCountByOpp = new Map<string, number>();
 	for (const s of allSignups ?? []) {
-		signupCountByOpp.set(s.opportunity_id, (signupCountByOpp.get(s.opportunity_id) ?? 0) + 1);
+		signupCountByOpp.set(s.opportunity_id, (signupCountByOpp.get(s.opportunity_id) ?? 0) + (s.slots_claimed ?? 1));
 	}
 
 	const catMap = new Map((categories ?? []).map((c: any) => [c.id, c]));
@@ -77,18 +77,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 			familyCategoryProgress[s.family_id][catId] = 0;
 		}
 
+		let amount = 1;
 		if (cat.unit === 'hours') {
-			let duration = 4; // standard default
+			amount = 4; // standard default
 			if (opp.start_time && opp.end_time) {
 				const [sh, sm] = opp.start_time.split(':').map(Number);
 				const [eh, em] = opp.end_time.split(':').map(Number);
 				const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
-				if (diff > 0) duration = diff;
+				if (diff > 0) amount = diff;
 			}
-			familyCategoryProgress[s.family_id][catId] += duration;
-		} else {
-			familyCategoryProgress[s.family_id][catId] += 1;
 		}
+		familyCategoryProgress[s.family_id][catId] += amount * (s.slots_claimed ?? 1);
 	}
 
 	// Tally fulfilled pledged categories for each family
@@ -118,10 +117,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				category_id: opp.category_id,
 				category: opp.category,
 				reporter: s.signer,
-				amount: opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
-					Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1,
+				amount: (opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
+					Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1) * (s.slots_claimed ?? 1),
 				activity_date: opp.event_date,
-				description: `Slot signup for "${opp.title}" (Needs Approval)`,
+				description: `Slot signup for "${opp.title}" (Needs Approval)${s.slots_claimed > 1 ? ` - ${s.slots_claimed} slots` : ''}`,
 				verification_status: 'pending',
 				is_approval_needed: true
 			});
@@ -135,10 +134,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 					category_id: opp.category_id,
 					category: opp.category,
 					reporter: s.signer,
-					amount: opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
-						Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1,
+					amount: (opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
+						Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1) * (s.slots_claimed ?? 1),
 					activity_date: opp.event_date,
-					description: `Attendance verification for "${opp.title}"`,
+					description: `Attendance verification for "${opp.title}"${s.slots_claimed > 1 ? ` - ${s.slots_claimed} slots` : ''}`,
 					verification_status: 'pending',
 					is_attendance_checkoff: true
 				});
