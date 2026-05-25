@@ -33,16 +33,47 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		{ data: nodeStatuses },
 		{ data: nodeTeamTargets },
 		{ data: nodeTeamGroupTargets },
-		{ data: notesRow }
+		{ data: notesRow },
+		notesEntriesResp
 	] = await Promise.all([
-		locals.supabase.from('team_groups').select('id,name,slug,color_hex,designator').eq('id', primaryTeamGroupId).maybeSingle(),
-		locals.supabase.from('subteam_categories').select('slug,name').eq('slug', subteamSlug).maybeSingle(),
+		locals.supabase
+			.from('team_groups')
+			.select('id,name,slug,color_hex,designator')
+			.eq('id', primaryTeamGroupId)
+			.maybeSingle(),
+		locals.supabase
+			.from('subteam_categories')
+			.select('slug,name')
+			.eq('slug', subteamSlug)
+			.maybeSingle(),
 		locals.supabase.from('subteams').select('id,name,slug').eq('slug', subteamSlug).maybeSingle(),
-		locals.supabase.from('nodes').select('id,title,slug,subteam_id'),
-		locals.supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', user.id),
+		locals.supabase.from('nodes').select('id,title,slug,subteam_id,proficiency_level,code'),
+		locals.supabase
+			.from('v_user_node_status')
+			.select('node_id,computed_status')
+			.eq('user_id', user.id),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
 		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
-		locals.supabase.from('team_notes').select('body').eq('team_group_id', primaryTeamGroupId).eq('subteam_category_slug', subteamSlug).maybeSingle()
+		locals.supabase
+			.from('team_notes')
+			.select('body')
+			.eq('team_group_id', primaryTeamGroupId)
+			.eq('subteam_category_slug', subteamSlug)
+			.maybeSingle(),
+		// Tolerate the migration not being applied yet — the page should still
+		// render with an empty timeline rather than 500.
+		locals.supabase
+			.from('team_notes_entries')
+			.select('id,body,author_user_id,created_at,edited_at,deleted_at')
+			.eq('team_group_id', primaryTeamGroupId)
+			.eq('subteam_category_slug', subteamSlug)
+			.is('deleted_at', null)
+			.order('created_at', { ascending: false })
+			.limit(50)
+			.then(
+				(r) => r,
+				() => ({ data: [] as any[] })
+			)
 	]);
 
 	if (!subteamCategory) throw error(404, 'Subteam not found');
@@ -57,7 +88,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	)?.team_id;
 
 	// Courses: those targeting this specific team_id, OR the team_group AND matching the subteam_id
-	const statusByNode = new Map((nodeStatuses ?? []).map((r: any) => [String(r.node_id), String(r.computed_status)]));
+	const statusByNode = new Map(
+		(nodeStatuses ?? []).map((r: any) => [String(r.node_id), String(r.computed_status)])
+	);
 	const teamTargetsByNode = new Map<string, Set<string>>();
 	for (const row of nodeTeamTargets ?? []) {
 		const set = teamTargetsByNode.get(row.node_id) ?? new Set<string>();
@@ -75,6 +108,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			id: n.id,
 			title: n.title,
 			slug: n.slug,
+			proficiency_level: n.proficiency_level ?? null,
+			code: n.code ?? null,
 			status: statusByNode.get(String(n.id)) ?? 'not_started'
 		}));
 
@@ -110,6 +145,35 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				.select('id,full_name,email,is_mentor,is_lead,role,base_role')
 				.in('id', ids);
 			roster = profiles ?? [];
+
+			// Derive each member's proficiency level within this subteam: the
+			// highest level for which they have completed >= 1 course tied to
+			// the subteam. Done as a single per-subteam pass; no extra column.
+			const subteamNodeIds = courses.map((c) => String(c.id));
+			if (subteamNodeIds.length > 0) {
+				const { data: completionRows } = await service
+					.from('certifications')
+					.select('user_id,node_id')
+					.in('user_id', ids)
+					.in('node_id', subteamNodeIds)
+					.eq('status', 'completed');
+				const courseLevelById = new Map(
+					courses.map((c) => [String(c.id), c.proficiency_level as string | null])
+				);
+				const rank = (l: string | null | undefined) =>
+					l === 'advanced' ? 3 : l === 'intermediate' ? 2 : l === 'beginner' ? 1 : 0;
+				const memberLevel = new Map<string, string | null>();
+				for (const row of completionRows ?? []) {
+					const level = courseLevelById.get(String(row.node_id)) ?? null;
+					if (!level) continue;
+					const prev = memberLevel.get(String(row.user_id)) ?? null;
+					if (rank(level) > rank(prev)) memberLevel.set(String(row.user_id), level);
+				}
+				roster = roster.map((m: any) => ({
+					...m,
+					proficiency_level: memberLevel.get(String(m.id)) ?? null
+				}));
+			}
 		}
 	}
 
@@ -147,6 +211,35 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const scopeNodeIds = courses.map((c) => String(c.id));
 	const userStatuses = courses.map((c) => ({ node_id: String(c.id), computed_status: c.status }));
 
+	// Enrich entries with author profile so the UI can show name + avatar
+	// initials. One extra query, scoped to the (small) set of authors only.
+	const rawEntries: any[] = (notesEntriesResp as any)?.data ?? [];
+	const authorIds = Array.from(
+		new Set(rawEntries.map((e: any) => e.author_user_id).filter(Boolean))
+	);
+	let authorById = new Map<
+		string,
+		{ id: string; full_name: string | null; email: string | null }
+	>();
+	if (authorIds.length > 0) {
+		const { data: authors } = await locals.supabase
+			.from('profiles')
+			.select('id,full_name,email')
+			.in('id', authorIds);
+		authorById = new Map((authors ?? []).map((a: any) => [a.id, a]));
+	}
+	const notesEntries = rawEntries.map((e: any) => ({
+		id: String(e.id),
+		body: String(e.body ?? ''),
+		author: e.author_user_id ? (authorById.get(e.author_user_id) ?? null) : null,
+		author_user_id: e.author_user_id ?? null,
+		created_at: e.created_at,
+		edited_at: e.edited_at,
+		// 15-minute edit window (matches the RLS policy).
+		can_edit:
+			user.id === e.author_user_id && new Date(e.created_at).getTime() > Date.now() - 15 * 60 * 1000
+	}));
+
 	return {
 		teamGroup,
 		subteamCategory,
@@ -154,13 +247,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		userIsOnSubteam,
 		courses,
 		notes: (notesRow as any)?.body ?? '',
+		notesEntries,
 		canEditNotes,
+		canPostNotesEntry: canEditNotes,
 		canViewRoster,
 		roster,
 		statusCounts: counts,
 		recentCompletions,
-		graphNodes: (graphNodes ?? []).map((n: any) => ({ id: String(n.id), title: n.title, slug: n.slug })),
-		graphPrereqs: (graphPrereqs ?? []).map((r: any) => ({ node_id: String(r.node_id), prerequisite_node_id: String(r.prerequisite_node_id) })),
+		graphNodes: (graphNodes ?? []).map((n: any) => ({
+			id: String(n.id),
+			title: n.title,
+			slug: n.slug
+		})),
+		graphPrereqs: (graphPrereqs ?? []).map((r: any) => ({
+			node_id: String(r.node_id),
+			prerequisite_node_id: String(r.prerequisite_node_id)
+		})),
 		scopeNodeIds,
 		userStatuses
 	};
@@ -176,7 +278,11 @@ export const actions: Actions = {
 		const subteamSlug = params.subteam;
 
 		const service = createSupabaseServiceClient();
-		const { data: subteam } = await service.from('subteams').select('id').eq('slug', subteamSlug).maybeSingle();
+		const { data: subteam } = await service
+			.from('subteams')
+			.select('id')
+			.eq('slug', subteamSlug)
+			.maybeSingle();
 		const { data: leadFields } = await service
 			.from('profiles')
 			.select('lead_team_group_id,lead_subteam_id')
@@ -190,17 +296,105 @@ export const actions: Actions = {
 		if (!allowed) return fail(403, { error: 'Only leads can edit notes.' });
 
 		try {
-			const { error: err } = await service.from('team_notes').upsert({
-				team_group_id: teamGroupId,
-				subteam_category_slug: subteamSlug,
-				body,
-				updated_by: user.id,
-				updated_at: new Date().toISOString()
-			}, { onConflict: 'team_group_id,subteam_category_slug' });
-			if (err) return fail(400, { error: err.message.includes('schema cache') ? 'Notes require a pending database migration — apply 202605140005 in Supabase.' : err.message });
+			const { error: err } = await service.from('team_notes').upsert(
+				{
+					team_group_id: teamGroupId,
+					subteam_category_slug: subteamSlug,
+					body,
+					updated_by: user.id,
+					updated_at: new Date().toISOString()
+				},
+				{ onConflict: 'team_group_id,subteam_category_slug' }
+			);
+			if (err)
+				return fail(400, {
+					error: err.message.includes('schema cache')
+						? 'Notes require a pending database migration — apply 202605140005 in Supabase.'
+						: err.message
+				});
 		} catch {
 			return fail(503, { error: 'Notes require a pending database migration.' });
 		}
 		return { ok: true };
+	},
+	postNotesEntry: async ({ locals, request, params }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile) return fail(401, { error: 'Unauthorized' });
+		const form = await request.formData();
+		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
+		const body = String(form.get('body') ?? '').trim();
+		const subteamSlug = params.subteam;
+		if (!body) return fail(400, { error: 'Note cannot be empty.', section: 'entry' });
+		if (body.length > 4000)
+			return fail(400, { error: 'Note is too long (max 4000 chars).', section: 'entry' });
+
+		const service = createSupabaseServiceClient();
+		const { data: subteam } = await service
+			.from('subteams')
+			.select('id')
+			.eq('slug', subteamSlug)
+			.maybeSingle();
+		const { data: leadFields } = await service
+			.from('profiles')
+			.select('lead_team_group_id,lead_subteam_id')
+			.eq('id', user.id)
+			.maybeSingle();
+		const lf = leadFields as any;
+		const allowed =
+			lf?.lead_team_group_id === teamGroupId ||
+			(subteam?.id && lf?.lead_subteam_id === subteam.id) ||
+			isAdmin(profile);
+		if (!allowed) return fail(403, { error: 'Only leads can post notes.', section: 'entry' });
+
+		try {
+			const { error: err } = await service.from('team_notes_entries').insert({
+				team_group_id: teamGroupId,
+				subteam_category_slug: subteamSlug,
+				author_user_id: user.id,
+				body
+			});
+			if (err) return fail(400, { error: err.message, section: 'entry' });
+		} catch {
+			return fail(503, {
+				error: 'Notes timeline requires a pending database migration.',
+				section: 'entry'
+			});
+		}
+		return { ok: true, section: 'entry' };
+	},
+	editNotesEntry: async ({ locals, request }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Unauthorized', section: 'entry' });
+		const form = await request.formData();
+		const entryId = String(form.get('entry_id') ?? '').trim();
+		const body = String(form.get('body') ?? '').trim();
+		if (!entryId || !body) return fail(400, { error: 'Missing entry or body.', section: 'entry' });
+
+		// RLS enforces the 15-minute author-only window; we just attempt the
+		// update and surface any policy denial as a generic error.
+		const { error: err } = await locals.supabase
+			.from('team_notes_entries')
+			.update({ body, edited_at: new Date().toISOString() })
+			.eq('id', entryId)
+			.eq('author_user_id', user.id);
+		if (err) return fail(400, { error: err.message, section: 'entry' });
+		return { ok: true, section: 'entry' };
+	},
+	deleteNotesEntry: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile) return fail(401, { error: 'Unauthorized', section: 'entry' });
+		const form = await request.formData();
+		const entryId = String(form.get('entry_id') ?? '').trim();
+		if (!entryId) return fail(400, { error: 'Missing entry id.', section: 'entry' });
+
+		// Author can soft-delete within window via locals.supabase (RLS).
+		// Admins can soft-delete anything via service client.
+		const client = isAdmin(profile) ? createSupabaseServiceClient() : locals.supabase;
+		const { error: err } = await client
+			.from('team_notes_entries')
+			.update({ deleted_at: new Date().toISOString() })
+			.eq('id', entryId);
+		if (err) return fail(400, { error: err.message, section: 'entry' });
+		return { ok: true, section: 'entry' };
 	}
 };

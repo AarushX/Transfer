@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { isMentor, isAdmin } from '$lib/roles';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -8,6 +9,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const historyPage = Number.isFinite(rawHistoryPage) ? Math.max(1, Math.trunc(rawHistoryPage)) : 1;
 	const historyPageSize = 25;
 	const historyRowsNeeded = historyPage * historyPageSize;
+
+	const isStaff = isMentor(profile) || isAdmin(profile);
 
 	const [{ data: certRows, error: certError }, { data: subteams }] = await Promise.all([
 		locals.supabase
@@ -33,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	let mentorTeamIds: string[] = [];
-	if (user && profile && ['mentor', 'admin'].includes(profile.role)) {
+	if (user && isStaff) {
 		const { data: prefs } = await locals.supabase
 			.from('mentor_subteam_preferences')
 			.select('subteam_id')
@@ -41,7 +44,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		mentorTeamIds = (prefs ?? []).map((row: { subteam_id: string }) => row.subteam_id);
 	}
 
-	const baseQueue = certRows ?? [];
+	// Non-staff users may still see this page if they have course_veterans
+	// grants. In that case the queue is restricted to those specific nodes.
+	let veteranNodeIds: string[] = [];
+	if (user && !isStaff) {
+		const { data: vetRows } = await locals.supabase
+			.from('course_veterans')
+			.select('node_id')
+			.eq('user_id', user.id);
+		veteranNodeIds = (vetRows ?? []).map((r: any) => String(r.node_id));
+		if (veteranNodeIds.length === 0) {
+			return {
+				queue: [],
+				history: [],
+				historyPage: 1,
+				historyPageSize,
+				historyTotal: 0,
+				historyTotalPages: 1,
+				subteams: subteams ?? [],
+				mentorTeamIds: [],
+				scope,
+				selectedTeamId,
+				error: null,
+				viewerKind: 'none' as const
+			};
+		}
+	}
+
+	const baseQueue = (certRows ?? []).filter(
+		(item: any) => isStaff || veteranNodeIds.includes(String(item.node_id))
+	);
 	const [
 		{ data: historyCertRows },
 		{ data: reviewHistoryRows },

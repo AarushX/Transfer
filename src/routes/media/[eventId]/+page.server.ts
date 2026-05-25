@@ -48,12 +48,18 @@ type CachedGallery = {
 	photos: GalleryPhoto[];
 	expiresAt: number;
 };
+type GalleryData = Omit<CachedGallery, 'expiresAt'>;
 const galleryCache = new Map<string, CachedGallery>();
 const GALLERY_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
-const activeRefreshes = new Set<string>();
+// Promise lock per folder — concurrent requests for the same gallery share
+// the in-flight fetch instead of each kicking off their own Drive call.
+const inflightFetches = new Map<string, Promise<GalleryData>>();
 
-const fetchGallery = async (folderId: string) => {
-	const [photos, name] = await Promise.all([listFolderImages(folderId), lookupFolderName(folderId)]);
+const fetchGallery = async (folderId: string): Promise<GalleryData> => {
+	const [photos, name] = await Promise.all([
+		listFolderImages(folderId),
+		lookupFolderName(folderId)
+	]);
 	const gallery: GalleryPhoto[] = photos.map((p) => ({
 		id: p.id,
 		name: p.name,
@@ -69,6 +75,25 @@ const fetchGallery = async (folderId: string) => {
 	};
 };
 
+const refreshGallery = (folderId: string): Promise<GalleryData> => {
+	const existing = inflightFetches.get(folderId);
+	if (existing) return existing;
+	const promise = fetchGallery(folderId)
+		.then((data) => {
+			galleryCache.set(folderId, { ...data, expiresAt: Date.now() + GALLERY_TTL_MS });
+			return data;
+		})
+		.catch((err) => {
+			console.error(`Gallery refresh failed for ${folderId}:`, err);
+			throw err;
+		})
+		.finally(() => {
+			inflightFetches.delete(folderId);
+		});
+	inflightFetches.set(folderId, promise);
+	return promise;
+};
+
 export const load: PageServerLoad = async ({ params }) => {
 	const folderId = params.eventId;
 	const now = Date.now();
@@ -76,12 +101,8 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	try {
 		if (!cached) {
-			// First load of this gallery: block to fetch and populate cache.
-			const data = await fetchGallery(folderId);
-			galleryCache.set(folderId, {
-				...data,
-				expiresAt: now + GALLERY_TTL_MS
-			});
+			// First load of this gallery: await the shared in-flight fetch.
+			const data = await refreshGallery(folderId);
 			return {
 				folderId,
 				...data,
@@ -89,22 +110,12 @@ export const load: PageServerLoad = async ({ params }) => {
 			};
 		}
 
-		if (cached.expiresAt <= now && !activeRefreshes.has(folderId)) {
-			// Stale cache: serve stale data instantly and trigger background refresh!
-			activeRefreshes.add(folderId);
-			fetchGallery(folderId)
-				.then((data) => {
-					galleryCache.set(folderId, {
-						...data,
-						expiresAt: Date.now() + GALLERY_TTL_MS
-					});
-				})
-				.catch((err) => {
-					console.error(`Background refresh failed for gallery ${folderId}:`, err);
-				})
-				.finally(() => {
-					activeRefreshes.delete(folderId);
-				});
+		if (cached.expiresAt <= now) {
+			// Stale cache: kick off a background refresh (no await) and serve
+			// stale data instantly. The lock prevents duplicate fetches.
+			void refreshGallery(folderId).catch(() => {
+				// Already logged in refreshGallery; swallow here to keep stale serve.
+			});
 		}
 
 		// Return cached data instantly (0ms response time!)

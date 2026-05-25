@@ -30,12 +30,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			const { data: profile } = await serviceClient
 				.from('profiles')
-				.select('id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url')
+				.select(
+					'id,email,full_name,role,base_role,is_mentor,is_lead,is_parent_guardian,subteam_id,bio,avatar_url'
+				)
 				.eq('id', user.id)
 				.single();
 
 			const isParent = profile?.is_parent_guardian === true;
-			if (TEAM_EMAIL_DOMAIN && !isParent && !user.email?.toLowerCase().endsWith(`@${TEAM_EMAIL_DOMAIN}`)) {
+			if (
+				TEAM_EMAIL_DOMAIN &&
+				!isParent &&
+				!user.email?.toLowerCase().endsWith(`@${TEAM_EMAIL_DOMAIN}`)
+			) {
 				await event.locals.supabase.auth.signOut();
 				throw redirect(303, '/login?error=domain');
 			}
@@ -57,7 +63,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(303, '/dashboard');
 	}
 
-	if (path.startsWith('/mentor') && profile && !isMentor(profile)) {
+	// /mentor (exact) is reachable by non-mentors who hold course_veterans
+	// grants — the page filters its queue accordingly. All other /mentor/*
+	// subpaths (courses editor, machines, etc.) stay mentor-only.
+	if (path.startsWith('/mentor/') && profile && !isMentor(profile)) {
 		throw redirect(303, '/dashboard');
 	}
 	if (path.startsWith('/roster') && profile && !isMentor(profile)) {

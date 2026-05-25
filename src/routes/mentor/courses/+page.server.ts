@@ -24,12 +24,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	let query = locals.supabase
 		.from('nodes')
-		.select('id,title,slug,subteam_id')
+		.select('id,title,slug,subteam_id,proficiency_level,code')
 		.order('title', { ascending: true });
 
 	if (q) query = query.ilike('title', `%${q}%`);
 
-	const [{ data: nodes }, { data: nodeTargets }, { data: nodeGroupTargets }, { data: teamGroups }, { data: templates }] = await Promise.all([
+	const [
+		{ data: nodes },
+		{ data: nodeTargets },
+		{ data: nodeGroupTargets },
+		{ data: teamGroups },
+		{ data: templates }
+	] = await Promise.all([
 		query,
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
 		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
@@ -53,7 +59,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						teamIdsByNode.get(String(node.id))?.has(teamFilter) ||
 						String(node.subteam_id ?? '') === String(teamFilter)
 				)
-			: nodes ?? [];
+			: (nodes ?? []);
 
 	const nodeIds = (filteredNodes ?? []).map((n: any) => String(n.id));
 	const [aggregates, { data: prereqEdges }] = await Promise.all([
@@ -105,7 +111,8 @@ export const actions: Actions = {
 			})
 			.select('id,slug')
 			.single();
-		if (createErr || !node) return fail(400, { error: createErr?.message ?? 'Could not create course from template.' });
+		if (createErr || !node)
+			return fail(400, { error: createErr?.message ?? 'Could not create course from template.' });
 
 		const teamIds: string[] = Array.isArray((template as any).team_ids)
 			? (template as any).team_ids.map((v: any) => String(v))
@@ -116,7 +123,9 @@ export const actions: Actions = {
 		const prereqIds: string[] = Array.isArray((template as any).prereq_ids)
 			? (template as any).prereq_ids.map((v: any) => String(v))
 			: [];
-		const blocks = Array.isArray((template as any).blocks_json) ? (template as any).blocks_json : [];
+		const blocks = Array.isArray((template as any).blocks_json)
+			? (template as any).blocks_json
+			: [];
 
 		if (teamIds.length) {
 			const { error: teamErr } = await locals.supabase
@@ -125,14 +134,12 @@ export const actions: Actions = {
 			if (teamErr) return fail(400, { error: teamErr.message });
 		}
 		if (categoryIds.length) {
-			const { error: categoryErr } = await locals.supabase
-				.from('node_categories')
-				.insert(
-					categoryIds.map((categoryId: string) => ({
-						node_id: node.id,
-						category_id: categoryId
-					}))
-				);
+			const { error: categoryErr } = await locals.supabase.from('node_categories').insert(
+				categoryIds.map((categoryId: string) => ({
+					node_id: node.id,
+					category_id: categoryId
+				}))
+			);
 			if (categoryErr) return fail(400, { error: categoryErr.message });
 		}
 		if (prereqIds.length) {
@@ -140,7 +147,9 @@ export const actions: Actions = {
 				.filter((id: string) => id !== node.id)
 				.map((id: string) => ({ node_id: node.id, prerequisite_node_id: id }));
 			if (insertRows.length) {
-				const { error: prereqErr } = await locals.supabase.from('node_prerequisites').insert(insertRows);
+				const { error: prereqErr } = await locals.supabase
+					.from('node_prerequisites')
+					.insert(insertRows);
 				if (prereqErr) return fail(400, { error: prereqErr.message });
 			}
 		}
@@ -159,17 +168,19 @@ export const actions: Actions = {
 		const checkoffBlock = blocks.find((b: any) => String(b?.type) === 'checkoff');
 		if (checkoffBlock?.config) {
 			const cfg = checkoffBlock.config;
-			const { error: checkoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
-				{
-					node_id: node.id,
-					title: String(cfg.title ?? 'Skills Check'),
-					directions: String(cfg.directions ?? ''),
-					mentor_checklist: Array.isArray(cfg.mentor_checklist) ? cfg.mentor_checklist : [],
-					resource_links: Array.isArray(cfg.resource_links) ? cfg.resource_links : [],
-					evidence_mode: String(cfg.evidence_mode ?? 'none')
-				},
-				{ onConflict: 'node_id' }
-			);
+			const { error: checkoffErr } = await locals.supabase
+				.from('node_checkoff_requirements')
+				.upsert(
+					{
+						node_id: node.id,
+						title: String(cfg.title ?? 'Skills Check'),
+						directions: String(cfg.directions ?? ''),
+						mentor_checklist: Array.isArray(cfg.mentor_checklist) ? cfg.mentor_checklist : [],
+						resource_links: Array.isArray(cfg.resource_links) ? cfg.resource_links : [],
+						evidence_mode: String(cfg.evidence_mode ?? 'none')
+					},
+					{ onConflict: 'node_id' }
+				);
 			if (checkoffErr) return fail(400, { error: checkoffErr.message });
 		}
 		const quizBlock = blocks.find((b: any) => String(b?.type) === 'quiz');

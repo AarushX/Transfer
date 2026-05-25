@@ -29,7 +29,7 @@
 		title: string;
 		passing_score: number;
 		min_seconds_between_attempts: number;
-	max_attempts: number | null;
+		max_attempts: number | null;
 		fail_window_minutes: number;
 		max_failed_in_window: number;
 		short_answer_min_chars: number;
@@ -46,36 +46,36 @@
 		show_mentor_checklist_to_students: boolean;
 	};
 
-type ReadingConfig = {
-	title: string;
-	content: string;
-	resource_links: string[];
-};
+	type ReadingConfig = {
+		title: string;
+		content: string;
+		resource_links: string[];
+	};
 
-type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
+	type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type Block =
-		| { id?: string; type: 'video'; config: VideoConfig }
-		| { id?: string; type: 'quiz'; config: QuizConfig }
-	| { id?: string; type: 'checkoff'; config: CheckoffConfig }
-	| { id?: string; type: 'reading'; config: ReadingConfig };
+		| { id?: string; type: 'video'; config: VideoConfig; optional?: boolean }
+		| { id?: string; type: 'quiz'; config: QuizConfig; optional?: boolean }
+		| { id?: string; type: 'checkoff'; config: CheckoffConfig; optional?: boolean }
+		| { id?: string; type: 'reading'; config: ReadingConfig; optional?: boolean };
 
 	let { data, form } = $props();
-const selectableCategories = $derived(
-	((data.trainingCategories as Array<any>) ?? []).filter((category) => category.parent_id != null)
-);
-const selectedNodeCategoryIds = $derived(new Set((data.nodeCategoryIds as string[]) ?? []));
-const selectedNodeTeamIds = $derived(new Set((data.nodeTeamIds as string[]) ?? []));
-const teamsByGroup = $derived.by(() => {
-	const groups = new Map<string, { name: string; teams: Array<any> }>();
-	for (const team of (data.teams as any[]) ?? []) {
-		const groupSlug = String(team.team_groups?.slug ?? 'other');
-		const groupName = String(team.team_groups?.name ?? 'Other');
-		const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
-		bucket.teams.push(team);
-		groups.set(groupSlug, bucket);
-	}
-	return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
-});
+	const selectableCategories = $derived(
+		((data.trainingCategories as Array<any>) ?? []).filter((category) => category.parent_id != null)
+	);
+	const selectedNodeCategoryIds = $derived(new Set((data.nodeCategoryIds as string[]) ?? []));
+	const selectedNodeTeamIds = $derived(new Set((data.nodeTeamIds as string[]) ?? []));
+	const teamsByGroup = $derived.by(() => {
+		const groups = new Map<string, { name: string; teams: Array<any> }>();
+		for (const team of (data.teams as any[]) ?? []) {
+			const groupSlug = String(team.team_groups?.slug ?? 'other');
+			const groupName = String(team.team_groups?.name ?? 'Other');
+			const bucket = groups.get(groupSlug) ?? { name: groupName, teams: [] };
+			bucket.teams.push(team);
+			groups.set(groupSlug, bucket);
+		}
+		return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
+	});
 	const postedBlocks = $derived.by<Block[] | null>(() => {
 		if (form?.section !== 'blocks' || !form?.blocks_json) return null;
 		try {
@@ -90,75 +90,81 @@ const teamsByGroup = $derived.by(() => {
 		postedBlocks ??
 			(Array.isArray(data.blocks)
 				? (data.blocks as any[]).map((row) => {
-					const cfg = row.config ?? {};
-					if (row.type === 'video') {
+						const cfg = row.config ?? {};
+						if (row.type === 'video') {
+							return {
+								id: row.id,
+								type: 'video',
+								optional: Boolean(row.optional),
+								config: {
+									title: String(cfg.title ?? ''),
+									video_url: String(cfg.video_url ?? ''),
+									start_seconds: Number(cfg.start_seconds ?? 0),
+									end_seconds:
+										cfg.end_seconds == null || cfg.end_seconds === ''
+											? null
+											: Number(cfg.end_seconds)
+								}
+							} as Block;
+						}
+						if (row.type === 'quiz') {
+							return {
+								id: row.id,
+								type: 'quiz',
+								optional: Boolean(row.optional),
+								config: {
+									title: String(cfg.title ?? ''),
+									passing_score: Number(cfg.passing_score ?? 80),
+									min_seconds_between_attempts: Number(cfg.min_seconds_between_attempts ?? 15),
+									max_attempts:
+										cfg.max_attempts == null || cfg.max_attempts === ''
+											? null
+											: Number(cfg.max_attempts),
+									fail_window_minutes: Number(cfg.fail_window_minutes ?? 10),
+									max_failed_in_window: Number(cfg.max_failed_in_window ?? 5),
+									short_answer_min_chars: Number(cfg.short_answer_min_chars ?? 3),
+									short_answer_max_chars: Number(cfg.short_answer_max_chars ?? 300),
+									questions: Array.isArray(cfg.questions) ? (cfg.questions as Question[]) : []
+								}
+							} as Block;
+						}
+						if (row.type === 'reading') {
+							return {
+								id: row.id,
+								type: 'reading',
+								optional: Boolean(row.optional),
+								config: {
+									title: String(cfg.title ?? 'Reading'),
+									content: String(cfg.content ?? ''),
+									resource_links: Array.isArray(cfg.resource_links)
+										? cfg.resource_links.map((v: unknown) => String(v))
+										: []
+								}
+							} as Block;
+						}
 						return {
 							id: row.id,
-							type: 'video',
+							type: 'checkoff',
+							optional: Boolean(row.optional),
 							config: {
-								title: String(cfg.title ?? ''),
-								video_url: String(cfg.video_url ?? ''),
-								start_seconds: Number(cfg.start_seconds ?? 0),
-								end_seconds:
-									cfg.end_seconds == null || cfg.end_seconds === '' ? null : Number(cfg.end_seconds)
-							}
-						} as Block;
-					}
-					if (row.type === 'quiz') {
-						return {
-							id: row.id,
-							type: 'quiz',
-							config: {
-								title: String(cfg.title ?? ''),
-								passing_score: Number(cfg.passing_score ?? 80),
-								min_seconds_between_attempts: Number(cfg.min_seconds_between_attempts ?? 15),
-								max_attempts:
-									cfg.max_attempts == null || cfg.max_attempts === ''
-										? null
-										: Number(cfg.max_attempts),
-								fail_window_minutes: Number(cfg.fail_window_minutes ?? 10),
-								max_failed_in_window: Number(cfg.max_failed_in_window ?? 5),
-								short_answer_min_chars: Number(cfg.short_answer_min_chars ?? 3),
-								short_answer_max_chars: Number(cfg.short_answer_max_chars ?? 300),
-								questions: Array.isArray(cfg.questions) ? (cfg.questions as Question[]) : []
-							}
-						} as Block;
-					}
-					if (row.type === 'reading') {
-						return {
-							id: row.id,
-							type: 'reading',
-							config: {
-								title: String(cfg.title ?? 'Reading'),
-								content: String(cfg.content ?? ''),
+								title: String(cfg.title ?? 'Skills Check'),
+								directions: String(cfg.directions ?? ''),
+								evidence_mode:
+									cfg.evidence_mode === 'photo_required' || cfg.evidence_mode === 'photo_optional'
+										? cfg.evidence_mode
+										: 'none',
+								mentor_checklist: Array.isArray(cfg.mentor_checklist)
+									? cfg.mentor_checklist.map((v: unknown) => String(v))
+									: [],
 								resource_links: Array.isArray(cfg.resource_links)
 									? cfg.resource_links.map((v: unknown) => String(v))
-									: []
+									: [],
+								show_mentor_checklist_to_students: Boolean(
+									cfg.show_mentor_checklist_to_students ?? false
+								)
 							}
 						} as Block;
-					}
-					return {
-						id: row.id,
-						type: 'checkoff',
-						config: {
-							title: String(cfg.title ?? 'Skills Check'),
-							directions: String(cfg.directions ?? ''),
-							evidence_mode:
-								cfg.evidence_mode === 'photo_required' || cfg.evidence_mode === 'photo_optional'
-									? cfg.evidence_mode
-									: 'none',
-							mentor_checklist: Array.isArray(cfg.mentor_checklist)
-								? cfg.mentor_checklist.map((v: unknown) => String(v))
-								: [],
-							resource_links: Array.isArray(cfg.resource_links)
-								? cfg.resource_links.map((v: unknown) => String(v))
-								: [],
-							show_mentor_checklist_to_students: Boolean(
-								cfg.show_mentor_checklist_to_students ?? false
-							)
-						}
-					} as Block;
-				})
+					})
 				: [])
 	);
 
@@ -170,7 +176,9 @@ const teamsByGroup = $derived.by(() => {
 	});
 
 	const blocksJson = $derived(JSON.stringify(blocks));
-	const blockErrors = $derived(((form as any)?.block_errors as Record<number, string> | undefined) ?? {});
+	const blockErrors = $derived(
+		((form as any)?.block_errors as Record<number, string> | undefined) ?? {}
+	);
 
 	let prereqFilter = $state('');
 	const filteredNodes = $derived.by(() => {
@@ -183,7 +191,9 @@ const teamsByGroup = $derived.by(() => {
 
 	function formatClock(totalSeconds: number | null | undefined): string {
 		const seconds = Math.max(0, Math.trunc(Number(totalSeconds ?? 0)));
-		const mm = Math.floor(seconds / 60).toString().padStart(2, '0');
+		const mm = Math.floor(seconds / 60)
+			.toString()
+			.padStart(2, '0');
 		const ss = (seconds % 60).toString().padStart(2, '0');
 		return `${mm}:${ss}`;
 	}
@@ -383,12 +393,12 @@ const teamsByGroup = $derived.by(() => {
 	function removeResourceLink(block: Extract<Block, { type: 'checkoff' }>, idx: number) {
 		block.config.resource_links = block.config.resource_links.filter((_, i) => i !== idx);
 	}
-function addReadingResourceLink(block: Extract<Block, { type: 'reading' }>) {
-	block.config.resource_links = [...block.config.resource_links, ''];
-}
-function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, idx: number) {
-	block.config.resource_links = block.config.resource_links.filter((_, i) => i !== idx);
-}
+	function addReadingResourceLink(block: Extract<Block, { type: 'reading' }>) {
+		block.config.resource_links = [...block.config.resource_links, ''];
+	}
+	function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, idx: number) {
+		block.config.resource_links = block.config.resource_links.filter((_, i) => i !== idx);
+	}
 
 	function blockSummary(block: Block): string {
 		if (block.type === 'video') {
@@ -459,15 +469,23 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 	let templateName = $state('');
 </script>
 
-<section class="space-y-6 fade-up">
+<section class="fade-up space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<a href="/mentor/courses" class="eyebrow-label inline-flex items-center gap-1 no-underline" style="color: var(--app-text-dim); text-decoration: none;">
+			<a
+				href="/mentor/courses"
+				class="eyebrow-label inline-flex items-center gap-1 no-underline"
+				style="color: var(--app-text-dim); text-decoration: none;"
+			>
 				<span style="font-size: 14px;">&#8592;</span> All courses
 			</a>
 			<h1 class="gradient-text mt-1 text-2xl font-bold tracking-tight">{data.node.title}</h1>
 			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
-				<code class="mono rounded-lg px-1.5 py-0.5" style="background: var(--app-surface-alt); color: var(--app-text-dim);">{data.node.slug}</code>
+				<code
+					class="mono rounded-lg px-1.5 py-0.5"
+					style="background: var(--app-surface-alt); color: var(--app-text-dim);"
+					>{data.node.slug}</code
+				>
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
@@ -513,6 +531,39 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 			<span class="eyebrow-label">Slug</span>
 			<input class="glass-input mono" name="slug" value={data.node.slug} required />
 		</label>
+		<label class="flex flex-col gap-1.5 text-sm">
+			<span class="eyebrow-label">Proficiency level</span>
+			<select class="glass-input" name="proficiency_level">
+				<option value="" selected={!data.node.proficiency_level}>— unset —</option>
+				<option value="beginner" selected={data.node.proficiency_level === 'beginner'}
+					>Beginner</option
+				>
+				<option value="intermediate" selected={data.node.proficiency_level === 'intermediate'}
+					>Intermediate</option
+				>
+				<option value="advanced" selected={data.node.proficiency_level === 'advanced'}
+					>Advanced</option
+				>
+			</select>
+			<span class="text-[11px]" style="color: var(--app-text-dim);">
+				Catalog code: <span class="mono">{data.node.code ?? '—'}</span>
+				(auto-assigned when level is set)
+			</span>
+		</label>
+		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
+			<span class="eyebrow-label">Unlocking rule for dependent courses</span>
+			<select class="glass-input" name="gating_mode">
+				<option
+					value="require_checkoff"
+					selected={(data.node.gating_mode ?? 'require_checkoff') === 'require_checkoff'}
+				>
+					Require approved checkoff (default)
+				</option>
+				<option value="blocks_only" selected={data.node.gating_mode === 'blocks_only'}>
+					Unlock as soon as required blocks are done — no checkoff needed
+				</option>
+			</select>
+		</label>
 		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
 			<span class="eyebrow-label">Description</span>
 			<textarea class="glass-input" name="description" rows="3"
@@ -524,11 +575,7 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		</div>
 	</form>
 
-	<form
-		method="POST"
-		action="?/saveBlocks"
-		class="glass-card space-y-5 rounded-2xl p-5"
-	>
+	<form method="POST" action="?/saveBlocks" class="glass-card space-y-5 rounded-2xl p-5">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<h2 class="text-lg font-semibold" style="color: var(--app-text);">Course Builder</h2>
@@ -537,18 +584,10 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<button
-					type="button"
-					class="add-block-chip chip-cyan"
-					onclick={() => addBlock('video')}
-				>
+				<button type="button" class="add-block-chip chip-cyan" onclick={() => addBlock('video')}>
 					<span class="add-block-icon">&#9654;</span> Video
 				</button>
-				<button
-					type="button"
-					class="add-block-chip chip-amber"
-					onclick={() => addBlock('quiz')}
-				>
+				<button type="button" class="add-block-chip chip-amber" onclick={() => addBlock('quiz')}>
 					<span class="add-block-icon">&#10067;</span> Quiz
 				</button>
 				<button
@@ -583,7 +622,11 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 							class="flex cursor-pointer flex-wrap items-center gap-2"
 							onclick={() => (expandedIndex = expandedIndex === i ? null : i)}
 						>
-							<span class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-0.5 text-xs font-semibold {blockChipClass(block.type)}">
+							<span
+								class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-0.5 text-xs font-semibold {blockChipClass(
+									block.type
+								)}"
+							>
 								{i + 1}. {blockLabel(block.type)}
 							</span>
 							<p class="truncate text-sm" style="color: var(--app-text);">{blockSummary(block)}</p>
@@ -597,8 +640,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 										moveBlock(i, -1);
 									}}
 									title="Move up"
-									aria-label="Move up"
-								>&#9650;</button>
+									aria-label="Move up">&#9650;</button
+								>
 								<button
 									type="button"
 									class="block-action-btn"
@@ -608,8 +651,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 										moveBlock(i, 1);
 									}}
 									title="Move down"
-									aria-label="Move down"
-								>&#9660;</button>
+									aria-label="Move down">&#9660;</button
+								>
 								<button
 									type="button"
 									class="block-action-btn"
@@ -626,42 +669,80 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 									onclick={(event) => {
 										event.stopPropagation();
 										removeBlock(i);
-									}}
-								>Remove</button>
+									}}>Remove</button
+								>
 							</div>
 						</div>
 
 						{#if expandedIndex === i}
 							<div class="block-expanded-body">
 								{#if blockErrors[i]}
-									<p class="rounded-xl border p-2 text-xs" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
+									<p
+										class="rounded-xl border p-2 text-xs"
+										style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+									>
 										{blockErrors[i]}
 									</p>
 								{/if}
+								<label
+									class="flex items-center gap-2 text-xs"
+									style="color: var(--app-text-muted);"
+								>
+									<input type="checkbox" bind:checked={block.optional} />
+									<span>
+										<strong>Optional:</strong> doesn't block course completion. Useful when a mentor verifies
+										this part in person.
+									</span>
+								</label>
 								{#if block.type === 'video'}
 									<div class="grid gap-3 md:grid-cols-2">
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Title (shown to students)</span>
-											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="e.g. Intro to Pneumatics" />
-										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
-											<span class="eyebrow-label">YouTube URL</span>
-											<input class="glass-input text-sm" bind:value={block.config.video_url} placeholder="https://www.youtube.com/watch?v=..." />
-										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
-											<span class="eyebrow-label">Start time (mm:ss)</span>
 											<input
-												class="glass-input text-sm mono"
-												value={formatClock(block.config.start_seconds)}
-												onchange={(e) => (block.config.start_seconds = parseClock((e.currentTarget as HTMLInputElement).value))}
+												class="glass-input text-sm"
+												bind:value={block.config.title}
+												placeholder="e.g. Intro to Pneumatics"
 											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
+											<span class="eyebrow-label">YouTube URL</span>
+											<input
+												class="glass-input text-sm"
+												bind:value={block.config.video_url}
+												placeholder="https://www.youtube.com/watch?v=..."
+											/>
+										</label>
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
+											<span class="eyebrow-label">Start time (mm:ss)</span>
+											<input
+												class="glass-input mono text-sm"
+												value={formatClock(block.config.start_seconds)}
+												onchange={(e) =>
+													(block.config.start_seconds = parseClock(
+														(e.currentTarget as HTMLInputElement).value
+													))}
+											/>
+										</label>
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">End time (mm:ss, optional)</span>
 											<input
-												class="glass-input text-sm mono"
+												class="glass-input mono text-sm"
 												placeholder="e.g. 12:30"
-												value={block.config.end_seconds == null ? '' : formatClock(block.config.end_seconds)}
+												value={block.config.end_seconds == null
+													? ''
+													: formatClock(block.config.end_seconds)}
 												onchange={(e) => {
 													const raw = (e.currentTarget as HTMLInputElement).value.trim();
 													block.config.end_seconds = raw ? parseClock(raw) : null;
@@ -671,19 +752,47 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 									</div>
 								{:else if block.type === 'quiz'}
 									<div class="grid gap-3 md:grid-cols-2">
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Title</span>
-											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="Quiz name (optional)" />
+											<input
+												class="glass-input text-sm"
+												bind:value={block.config.title}
+												placeholder="Quiz name (optional)"
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Passing score (%)</span>
-											<input class="glass-input text-sm" type="number" min="1" max="100" bind:value={block.config.passing_score} />
+											<input
+												class="glass-input text-sm"
+												type="number"
+												min="1"
+												max="100"
+												bind:value={block.config.passing_score}
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Min seconds between attempts</span>
-											<input class="glass-input text-sm" type="number" min="0" max="3600" bind:value={block.config.min_seconds_between_attempts} />
+											<input
+												class="glass-input text-sm"
+												type="number"
+												min="0"
+												max="3600"
+												bind:value={block.config.min_seconds_between_attempts}
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Max attempts (optional)</span>
 											<input
 												class="glass-input text-sm"
@@ -698,19 +807,52 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 												}}
 											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Failed-attempt window (minutes)</span>
-											<input class="glass-input text-sm" type="number" min="1" max="1440" bind:value={block.config.fail_window_minutes} />
+											<input
+												class="glass-input text-sm"
+												type="number"
+												min="1"
+												max="1440"
+												bind:value={block.config.fail_window_minutes}
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Max failed in window</span>
-											<input class="glass-input text-sm" type="number" min="1" max="200" bind:value={block.config.max_failed_in_window} />
+											<input
+												class="glass-input text-sm"
+												type="number"
+												min="1"
+												max="200"
+												bind:value={block.config.max_failed_in_window}
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Short answer min / max chars</span>
 											<div class="flex gap-2">
-												<input class="glass-input w-full text-sm" type="number" min="0" max="5000" bind:value={block.config.short_answer_min_chars} />
-												<input class="glass-input w-full text-sm" type="number" min="1" max="5000" bind:value={block.config.short_answer_max_chars} />
+												<input
+													class="glass-input w-full text-sm"
+													type="number"
+													min="0"
+													max="5000"
+													bind:value={block.config.short_answer_min_chars}
+												/>
+												<input
+													class="glass-input w-full text-sm"
+													type="number"
+													min="1"
+													max="5000"
+													bind:value={block.config.short_answer_max_chars}
+												/>
 											</div>
 										</label>
 									</div>
@@ -718,17 +860,36 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 									<div class="space-y-3">
 										<div class="flex items-center justify-between">
 											<p class="eyebrow-label">Questions</p>
-											<button type="button" class="block-action-btn" onclick={() => addQuizQuestion(block)}>+ Add question</button>
+											<button
+												type="button"
+												class="block-action-btn"
+												onclick={() => addQuizQuestion(block)}>+ Add question</button
+											>
 										</div>
 										{#each block.config.questions as q, qIdx (qIdx)}
 											<div class="question-card">
 												<div class="flex items-center justify-between">
-													<span class="text-xs font-semibold" style="color: var(--app-text-dim);">Q{qIdx + 1}</span>
-													<button type="button" class="text-xs font-medium" style="color: var(--app-danger);" onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button>
+													<span class="text-xs font-semibold" style="color: var(--app-text-dim);"
+														>Q{qIdx + 1}</span
+													>
+													<button
+														type="button"
+														class="text-xs font-medium"
+														style="color: var(--app-danger);"
+														onclick={() => removeQuizQuestion(block, qIdx)}>Remove</button
+													>
 												</div>
-												<input class="glass-input w-full text-sm" placeholder="Question prompt" bind:value={q.prompt} />
+												<input
+													class="glass-input w-full text-sm"
+													placeholder="Question prompt"
+													bind:value={q.prompt}
+												/>
 												<div class="flex items-center gap-2">
-													<select class="glass-input text-sm" bind:value={q.type} onchange={() => onQuestionTypeChange(q)}>
+													<select
+														class="glass-input text-sm"
+														bind:value={q.type}
+														onchange={() => onQuestionTypeChange(q)}
+													>
 														<option value="mc">Multiple choice</option>
 														<option value="ms">Multiple select</option>
 														<option value="tf">True / False</option>
@@ -745,18 +906,39 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																<input
 																	type="radio"
 																	name={`correct-${i}-${qIdx}`}
-																	checked={typeof q.correct === 'string' && q.correct !== '' && q.correct === q.options![oi]}
+																	checked={typeof q.correct === 'string' &&
+																		q.correct !== '' &&
+																		q.correct === q.options![oi]}
 																	onchange={() => (q.correct = q.options![oi])}
 																/>
-																<input class="glass-input flex-1 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+																<input
+																	class="glass-input flex-1 py-1 text-sm"
+																	placeholder={`Option ${oi + 1}`}
+																	bind:value={q.options![oi]}
+																/>
 															</div>
 														{/each}
-														<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
-															<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+														<label
+															class="mt-1 inline-flex items-center gap-2 text-xs"
+															style="color: var(--app-text);"
+														>
+															<input
+																type="checkbox"
+																checked={q.randomize_options ?? false}
+																onchange={(e) =>
+																	(q.randomize_options = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
+															/>
 															Randomize option order for students
 														</label>
 														<div class="flex gap-2 pt-1">
-															<button type="button" class="block-action-btn" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+															<button
+																type="button"
+																class="block-action-btn"
+																onclick={() => (q.options = [...(q.options ?? []), ''])}
+																>+ Option</button
+															>
 														</div>
 													</div>
 												{:else if q.type === 'ms'}
@@ -765,7 +947,8 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 															<div class="flex items-center gap-2">
 																<input
 																	type="checkbox"
-																	checked={Array.isArray(q.correct) && q.correct.includes(q.options![oi])}
+																	checked={Array.isArray(q.correct) &&
+																		q.correct.includes(q.options![oi])}
 																	onchange={(e) => {
 																		const option = q.options![oi];
 																		const current = Array.isArray(q.correct) ? q.correct : [];
@@ -775,14 +958,31 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																			: current.filter((value) => value !== option);
 																	}}
 																/>
-																<input class="glass-input flex-1 py-1 text-sm" placeholder={`Option ${oi + 1}`} bind:value={q.options![oi]} />
+																<input
+																	class="glass-input flex-1 py-1 text-sm"
+																	placeholder={`Option ${oi + 1}`}
+																	bind:value={q.options![oi]}
+																/>
 															</div>
 														{/each}
-														<label class="mt-1 inline-flex items-center gap-2 text-xs" style="color: var(--app-text);">
-															<input type="checkbox" checked={q.randomize_options ?? false} onchange={(e) => (q.randomize_options = (e.currentTarget as HTMLInputElement).checked)} />
+														<label
+															class="mt-1 inline-flex items-center gap-2 text-xs"
+															style="color: var(--app-text);"
+														>
+															<input
+																type="checkbox"
+																checked={q.randomize_options ?? false}
+																onchange={(e) =>
+																	(q.randomize_options = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
+															/>
 															Randomize option order for students
 														</label>
-														<label class="mt-1 flex items-center gap-2 text-xs" style="color: var(--app-text);">
+														<label
+															class="mt-1 flex items-center gap-2 text-xs"
+															style="color: var(--app-text);"
+														>
 															<span>Max selections (optional)</span>
 															<input
 																type="number"
@@ -793,9 +993,16 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																oninput={(e) => {
 																	const raw = (e.currentTarget as HTMLInputElement).value.trim();
 																	q.max_select = raw
-																		? Math.max(1, Math.min(Number(raw) || 1, (q.options ?? []).length))
+																		? Math.max(
+																				1,
+																				Math.min(Number(raw) || 1, (q.options ?? []).length)
+																			)
 																		: undefined;
-																	if (Array.isArray(q.correct) && q.max_select && q.correct.length > q.max_select) {
+																	if (
+																		Array.isArray(q.correct) &&
+																		q.max_select &&
+																		q.correct.length > q.max_select
+																	) {
 																		q.correct = q.correct.slice(0, q.max_select);
 																	}
 																}}
@@ -803,13 +1010,35 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 															/>
 														</label>
 														<div class="flex gap-2 pt-1">
-															<button type="button" class="block-action-btn" onclick={() => (q.options = [...(q.options ?? []), ''])}>+ Option</button>
+															<button
+																type="button"
+																class="block-action-btn"
+																onclick={() => (q.options = [...(q.options ?? []), ''])}
+																>+ Option</button
+															>
 														</div>
 													</div>
 												{:else if q.type === 'tf'}
-													<div class="inline-flex overflow-hidden rounded-xl border" style="border-color: var(--app-glass-border);">
-														<button type="button" class="px-4 py-1 text-sm transition" style={q.correct === 'true' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'true')}>True</button>
-														<button type="button" class="px-4 py-1 text-sm transition" style={q.correct === 'false' ? 'background: var(--app-gradient-accent); color: var(--app-accent-text);' : 'background: var(--app-glass-bg); color: var(--app-text);'} onclick={() => (q.correct = 'false')}>False</button>
+													<div
+														class="inline-flex overflow-hidden rounded-xl border"
+														style="border-color: var(--app-glass-border);"
+													>
+														<button
+															type="button"
+															class="px-4 py-1 text-sm transition"
+															style={q.correct === 'true'
+																? 'background: var(--app-gradient-accent); color: var(--app-accent-text);'
+																: 'background: var(--app-glass-bg); color: var(--app-text);'}
+															onclick={() => (q.correct = 'true')}>True</button
+														>
+														<button
+															type="button"
+															class="px-4 py-1 text-sm transition"
+															style={q.correct === 'false'
+																? 'background: var(--app-gradient-accent); color: var(--app-accent-text);'
+																: 'background: var(--app-glass-bg); color: var(--app-text);'}
+															onclick={() => (q.correct = 'false')}>False</button
+														>
 													</div>
 												{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
 													<div class="space-y-2">
@@ -817,24 +1046,55 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 															<div class="inner-glass-panel">
 																<div class="mb-1 flex items-center justify-between">
 																	<p class="eyebrow-label">Rows</p>
-																	<button type="button" class="block-action-btn" onclick={() => (q.rows = [...(q.rows ?? []), ''])}>+ Row</button>
+																	<button
+																		type="button"
+																		class="block-action-btn"
+																		onclick={() => (q.rows = [...(q.rows ?? []), ''])}>+ Row</button
+																	>
 																</div>
 																{#each q.rows ?? [] as _row, ri (ri)}
 																	<div class="mb-1 flex items-center gap-1">
-																		<input class="glass-input flex-1 py-1 text-sm" bind:value={q.rows![ri]} placeholder={`Row ${ri + 1}`} />
-																		<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}>x</button>
+																		<input
+																			class="glass-input flex-1 py-1 text-sm"
+																			bind:value={q.rows![ri]}
+																			placeholder={`Row ${ri + 1}`}
+																		/>
+																		<button
+																			type="button"
+																			class="px-2 text-xs"
+																			style="color: var(--app-danger);"
+																			onclick={() =>
+																				(q.rows = (q.rows ?? []).filter((_, i) => i !== ri))}
+																			>x</button
+																		>
 																	</div>
 																{/each}
 															</div>
 															<div class="inner-glass-panel">
 																<div class="mb-1 flex items-center justify-between">
 																	<p class="eyebrow-label">Columns</p>
-																	<button type="button" class="block-action-btn" onclick={() => (q.columns = [...(q.columns ?? []), ''])}>+ Column</button>
+																	<button
+																		type="button"
+																		class="block-action-btn"
+																		onclick={() => (q.columns = [...(q.columns ?? []), ''])}
+																		>+ Column</button
+																	>
 																</div>
 																{#each q.columns ?? [] as _col, ci (ci)}
 																	<div class="mb-1 flex items-center gap-1">
-																		<input class="glass-input flex-1 py-1 text-sm" bind:value={q.columns![ci]} placeholder={`Column ${ci + 1}`} />
-																		<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => (q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}>x</button>
+																		<input
+																			class="glass-input flex-1 py-1 text-sm"
+																			bind:value={q.columns![ci]}
+																			placeholder={`Column ${ci + 1}`}
+																		/>
+																		<button
+																			type="button"
+																			class="px-2 text-xs"
+																			style="color: var(--app-danger);"
+																			onclick={() =>
+																				(q.columns = (q.columns ?? []).filter((_, i) => i !== ci))}
+																			>x</button
+																		>
 																	</div>
 																{/each}
 															</div>
@@ -844,13 +1104,16 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																<p class="eyebrow-label mb-2">Optional answer key per row</p>
 																{#each (q.rows ?? []).filter((row) => String(row).trim().length > 0) as row}
 																	{#if q.type === 'matrix'}
-																		<div class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]">
+																		<div
+																			class="mb-1 grid items-center gap-1 text-xs md:grid-cols-[1fr_220px]"
+																		>
 																			<span style="color: var(--app-text);">{row}</span>
 																			<select
 																				class="glass-input text-xs"
 																				value={q.correct_map?.[row] ?? ''}
 																				onchange={(e) => {
-																					const value = (e.currentTarget as HTMLSelectElement).value;
+																					const value = (e.currentTarget as HTMLSelectElement)
+																						.value;
 																					const next = { ...(q.correct_map ?? {}) };
 																					if (value) next[row] = value;
 																					else delete next[row];
@@ -868,14 +1131,22 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																			<p class="mb-1" style="color: var(--app-text);">{row}</p>
 																			<div class="grid gap-1 md:grid-cols-2">
 																				{#each (q.columns ?? []).filter((col) => String(col).trim().length > 0) as col}
-																					<label class="inline-flex items-center gap-1" style="color: var(--app-text);">
+																					<label
+																						class="inline-flex items-center gap-1"
+																						style="color: var(--app-text);"
+																					>
 																						<input
 																							type="checkbox"
-																							checked={Array.isArray(q.correct_map_multi?.[row]) && q.correct_map_multi![row].includes(col)}
+																							checked={Array.isArray(q.correct_map_multi?.[row]) &&
+																								q.correct_map_multi![row].includes(col)}
 																							onchange={(e) => {
-																								const checked = (e.currentTarget as HTMLInputElement).checked;
+																								const checked = (
+																									e.currentTarget as HTMLInputElement
+																								).checked;
 																								const next = { ...(q.correct_map_multi ?? {}) };
-																								const current = Array.isArray(next[row]) ? [...next[row]] : [];
+																								const current = Array.isArray(next[row])
+																									? [...next[row]]
+																									: [];
 																								next[row] = checked
 																									? Array.from(new Set([...current, col]))
 																									: current.filter((v) => v !== col);
@@ -889,9 +1160,11 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																		</div>
 																	{/if}
 																{/each}
-														</div>
+															</div>
 														{:else}
-															<p class="text-xs" style="color: var(--app-text-muted);">Each row/column cell will render as a short answer input.</p>
+															<p class="text-xs" style="color: var(--app-text-muted);">
+																Each row/column cell will render as a short answer input.
+															</p>
 														{/if}
 													</div>
 												{:else}
@@ -899,14 +1172,18 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 														class="glass-input w-full text-sm"
 														placeholder="Expected answer"
 														value={Array.isArray(q.correct) ? (q.correct[0] ?? '') : q.correct}
-														oninput={(e) => (q.correct = (e.currentTarget as HTMLInputElement).value)}
+														oninput={(e) =>
+															(q.correct = (e.currentTarget as HTMLInputElement).value)}
 													/>
 													<div class="flex flex-wrap gap-4 text-xs" style="color: var(--app-text);">
 														<label class="inline-flex items-center gap-2">
 															<input
 																type="checkbox"
 																checked={q.short_required ?? true}
-																onchange={(e) => (q.short_required = (e.currentTarget as HTMLInputElement).checked)}
+																onchange={(e) =>
+																	(q.short_required = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
 															/>
 															Required response
 														</label>
@@ -914,7 +1191,10 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 															<input
 																type="checkbox"
 																checked={q.short_ignore_case ?? true}
-																onchange={(e) => (q.short_ignore_case = (e.currentTarget as HTMLInputElement).checked)}
+																onchange={(e) =>
+																	(q.short_ignore_case = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
 															/>
 															Ignore capitalization
 														</label>
@@ -923,7 +1203,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																type="checkbox"
 																checked={q.short_ignore_punctuation ?? false}
 																onchange={(e) =>
-																	(q.short_ignore_punctuation = (e.currentTarget as HTMLInputElement).checked)}
+																	(q.short_ignore_punctuation = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
 															/>
 															Ignore periods/punctuation
 														</label>
@@ -932,15 +1214,18 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 																type="checkbox"
 																checked={q.short_requires_mentor_checkoff ?? false}
 																onchange={(e) =>
-																	(q.short_requires_mentor_checkoff = (e.currentTarget as HTMLInputElement).checked)}
+																	(q.short_requires_mentor_checkoff = (
+																		e.currentTarget as HTMLInputElement
+																	).checked)}
 															/>
-															Require mentor checkoff (any valid answer earns quiz credit; mentor confirms during checkoff)
+															Require mentor checkoff (any valid answer earns quiz credit; mentor confirms
+															during checkoff)
 														</label>
 													</div>
 													<p class="text-xs" style="color: var(--app-text-muted);">
-														Set expected answer to <code class="mono">acknowledged</code> to give credit for any non-empty response
-														without mentor review. Optional reference answer above is shown to mentors when checkoff is
-														required.
+														Set expected answer to <code class="mono">acknowledged</code> to give credit
+														for any non-empty response without mentor review. Optional reference answer
+														above is shown to mentors when checkoff is required.
 													</p>
 												{/if}
 											</div>
@@ -950,23 +1235,51 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 									</div>
 								{:else if block.type === 'reading'}
 									<div class="space-y-3">
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Title</span>
-											<input class="glass-input text-sm" bind:value={block.config.title} placeholder="Reading title" />
+											<input
+												class="glass-input text-sm"
+												bind:value={block.config.title}
+												placeholder="Reading title"
+											/>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Reading content</span>
-											<textarea class="glass-input text-sm" rows="5" bind:value={block.config.content} placeholder="Paste text, instructions, or key notes students must read..."></textarea>
+											<textarea
+												class="glass-input text-sm"
+												rows="5"
+												bind:value={block.config.content}
+												placeholder="Paste text, instructions, or key notes students must read..."
+											></textarea>
 										</label>
 										<div class="inner-glass-panel">
 											<div class="mb-1 flex items-center justify-between">
 												<p class="eyebrow-label">Resource links</p>
-												<button type="button" class="block-action-btn" onclick={() => addReadingResourceLink(block)}>+ Link</button>
+												<button
+													type="button"
+													class="block-action-btn"
+													onclick={() => addReadingResourceLink(block)}>+ Link</button
+												>
 											</div>
 											{#each block.config.resource_links as _link, idx (idx)}
 												<div class="flex items-center gap-1">
-													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeReadingResourceLink(block, idx)}>x</button>
+													<input
+														class="glass-input flex-1 py-1 text-sm"
+														bind:value={block.config.resource_links[idx]}
+														placeholder="https://..."
+													/>
+													<button
+														type="button"
+														class="px-2 text-xs"
+														style="color: var(--app-danger);"
+														onclick={() => removeReadingResourceLink(block, idx)}>x</button
+													>
 												</div>
 											{:else}
 												<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
@@ -975,15 +1288,29 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 									</div>
 								{:else}
 									<div class="grid gap-3 md:grid-cols-2">
-										<label class="flex flex-col gap-1.5 text-xs md:col-span-2" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs md:col-span-2"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Section title</span>
 											<input class="glass-input text-sm" bind:value={block.config.title} />
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs md:col-span-2" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs md:col-span-2"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Student directions</span>
-											<textarea class="glass-input text-sm" rows="3" bind:value={block.config.directions} placeholder="Explain exactly what they must demo or submit..."></textarea>
+											<textarea
+												class="glass-input text-sm"
+												rows="3"
+												bind:value={block.config.directions}
+												placeholder="Explain exactly what they must demo or submit..."
+											></textarea>
 										</label>
-										<label class="flex flex-col gap-1.5 text-xs" style="color: var(--app-text-dim);">
+										<label
+											class="flex flex-col gap-1.5 text-xs"
+											style="color: var(--app-text-dim);"
+										>
 											<span class="eyebrow-label">Photo evidence</span>
 											<select class="glass-input text-sm" bind:value={block.config.evidence_mode}>
 												<option value="none">No photo</option>
@@ -1008,26 +1335,54 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 										<div class="inner-glass-panel">
 											<div class="mb-1 flex items-center justify-between">
 												<p class="eyebrow-label">Mentor checklist</p>
-												<button type="button" class="block-action-btn" onclick={() => addChecklistItem(block)}>+ Item</button>
+												<button
+													type="button"
+													class="block-action-btn"
+													onclick={() => addChecklistItem(block)}>+ Item</button
+												>
 											</div>
 											{#each block.config.mentor_checklist as _item, idx (idx)}
 												<div class="flex items-center gap-1">
-													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.mentor_checklist[idx]} placeholder="e.g. Safety glasses worn" />
-													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeChecklistItem(block, idx)}>x</button>
+													<input
+														class="glass-input flex-1 py-1 text-sm"
+														bind:value={block.config.mentor_checklist[idx]}
+														placeholder="e.g. Safety glasses worn"
+													/>
+													<button
+														type="button"
+														class="px-2 text-xs"
+														style="color: var(--app-danger);"
+														onclick={() => removeChecklistItem(block, idx)}>x</button
+													>
 												</div>
 											{:else}
-												<p class="text-xs" style="color: var(--app-text-muted);">No checklist items yet.</p>
+												<p class="text-xs" style="color: var(--app-text-muted);">
+													No checklist items yet.
+												</p>
 											{/each}
 										</div>
 										<div class="inner-glass-panel">
 											<div class="mb-1 flex items-center justify-between">
 												<p class="eyebrow-label">Resource links</p>
-												<button type="button" class="block-action-btn" onclick={() => addResourceLink(block)}>+ Link</button>
+												<button
+													type="button"
+													class="block-action-btn"
+													onclick={() => addResourceLink(block)}>+ Link</button
+												>
 											</div>
 											{#each block.config.resource_links as _link, idx (idx)}
 												<div class="flex items-center gap-1">
-													<input class="glass-input flex-1 py-1 text-sm" bind:value={block.config.resource_links[idx]} placeholder="https://..." />
-													<button type="button" class="px-2 text-xs" style="color: var(--app-danger);" onclick={() => removeResourceLink(block, idx)}>x</button>
+													<input
+														class="glass-input flex-1 py-1 text-sm"
+														bind:value={block.config.resource_links[idx]}
+														placeholder="https://..."
+													/>
+													<button
+														type="button"
+														class="px-2 text-xs"
+														style="color: var(--app-danger);"
+														onclick={() => removeResourceLink(block, idx)}>x</button
+													>
 												</div>
 											{:else}
 												<p class="text-xs" style="color: var(--app-text-muted);">No links yet.</p>
@@ -1040,7 +1395,10 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 					</div>
 				</div>
 			{:else}
-				<div class="rounded-2xl border border-dashed p-8 text-center text-sm" style="border-color: var(--app-glass-border); color: var(--app-text-muted);">
+				<div
+					class="rounded-2xl border border-dashed p-8 text-center text-sm"
+					style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
+				>
 					No blocks yet. Use the buttons above to add a video, quiz, reading, or skills check.
 				</div>
 			{/each}
@@ -1065,8 +1423,16 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		/>
 		<div class="grid max-h-80 gap-1 overflow-y-auto md:grid-cols-2">
 			{#each filteredNodes as n (n.id)}
-				<label class="glass-prereq-row flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm" style="border-color: var(--app-glass-border);">
-					<input type="checkbox" name="prereq_ids" value={n.id} checked={data.prereqIds.includes(n.id)} />
+				<label
+					class="glass-prereq-row flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm"
+					style="border-color: var(--app-glass-border);"
+				>
+					<input
+						type="checkbox"
+						name="prereq_ids"
+						value={n.id}
+						checked={data.prereqIds.includes(n.id)}
+					/>
 					<span class="truncate" style="color: var(--app-text);">{n.title}</span>
 					<span class="mono ml-auto text-xs" style="color: var(--app-text-dim);">{n.slug}</span>
 				</label>
@@ -1104,7 +1470,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		color: var(--app-input-text);
 		padding: 0.5rem 0.75rem;
 		backdrop-filter: blur(8px);
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 	.glass-input:hover:not(:focus) {
 		border-color: var(--app-glass-border-hover);
@@ -1125,7 +1493,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: filter 0.15s ease, transform 0.1s ease;
+		transition:
+			filter 0.15s ease,
+			transform 0.1s ease;
 	}
 	.add-block-chip:hover {
 		filter: brightness(1.2);
@@ -1182,7 +1552,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		padding: 0.75rem 1rem;
 		margin-bottom: 0.5rem;
 		backdrop-filter: blur(16px);
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
 		border-left: 3px solid var(--block-accent);
 	}
 	.block-card:hover {
@@ -1210,7 +1582,9 @@ function removeReadingResourceLink(block: Extract<Block, { type: 'reading' }>, i
 		color: var(--app-text);
 		background: transparent;
 		cursor: pointer;
-		transition: background 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
 	}
 	.block-action-btn:hover {
 		background: var(--app-glass-bg-hover);

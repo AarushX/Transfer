@@ -19,6 +19,18 @@
 	let scannedQrToken = $state('');
 	let scannedStudentId = $state('');
 	let scanMessage = $state('');
+	let historyTab = $state<'unfinished' | 'finished'>('unfinished');
+	const isFinished = (h: any) => h.kind === 'approved';
+	const filteredHistory = $derived(
+		(data.history ?? []).filter((h: any) =>
+			historyTab === 'finished' ? isFinished(h) : !isFinished(h)
+		)
+	);
+	const historyCounts = $derived.by(() => {
+		const all = data.history ?? [];
+		const finished = all.filter(isFinished).length;
+		return { finished, unfinished: all.length - finished };
+	});
 	const getHistoryNotes = (entry: any) => entry?.mentor_notes ?? '';
 	const historyHref = (page: number) => {
 		const params = new URLSearchParams();
@@ -30,8 +42,14 @@
 	};
 	const summary = $derived({
 		total: queue.length,
-		withEvidence: queue.filter((q) => (q.submission?.photo_data_urls?.length ?? 0) > 0 || q.submission?.photo_data_url).length,
-		needsEvidence: queue.filter((q) => q.requirement?.evidence_mode === 'photo_required' && !(q.submission?.photo_data_urls?.length || q.submission?.photo_data_url)).length
+		withEvidence: queue.filter(
+			(q) => (q.submission?.photo_data_urls?.length ?? 0) > 0 || q.submission?.photo_data_url
+		).length,
+		needsEvidence: queue.filter(
+			(q) =>
+				q.requirement?.evidence_mode === 'photo_required' &&
+				!(q.submission?.photo_data_urls?.length || q.submission?.photo_data_url)
+		).length
 	});
 	const photosFor = (submission: any): string[] => {
 		if (Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0) {
@@ -101,7 +119,9 @@
 			const uid = String(body?.userId ?? '');
 			const nid = String(body?.nodeId ?? '');
 			if (uid && nid) {
-				queue = queue.filter((entry: any) => !(String(entry.user_id) === uid && String(entry.node_id) === nid));
+				queue = queue.filter(
+					(entry: any) => !(String(entry.user_id) === uid && String(entry.node_id) === nid)
+				);
 			}
 			return;
 		}
@@ -118,7 +138,9 @@
 		}
 		scannedQrToken = token;
 		scannedStudentId = body?.profile?.id ?? '';
-		scanMessage = scannedStudentId ? 'Passport verified for checkoff actions.' : 'Passport scan succeeded.';
+		scanMessage = scannedStudentId
+			? 'Passport verified for checkoff actions.'
+			: 'Passport scan succeeded.';
 	};
 
 	const onApprove = async (item: any, notes = '', checklist_results: any[] = []) => {
@@ -172,11 +194,13 @@
 		if (selectedItem?.id === item.id) selectedItem = null;
 		return '';
 	};
-
 </script>
 
 <section class="space-y-5">
-	<PageHeader title="Pending Checkoffs" description="Review submissions, evidence, and send actionable feedback.">
+	<PageHeader
+		title="Pending Checkoffs"
+		description="Review submissions, evidence, and send actionable feedback."
+	>
 		<div class="flex items-center gap-2">
 			<div class="flex items-center gap-2">
 				<span class="live-dot" style="color: var(--app-success);"></span>
@@ -188,20 +212,38 @@
 	</PageHeader>
 
 	{#if data.error}
-		<div class="fade-up rounded-2xl border p-4 text-sm" style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
+		<div
+			class="fade-up rounded-2xl border p-4 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+		>
 			{data.error}
 		</div>
 	{/if}
 
-	<div class="fade-up rounded-2xl border p-4 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
-		<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+	<div
+		class="fade-up rounded-2xl border p-4 backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+	>
+		<div
+			class="pointer-events-none absolute inset-0 rounded-2xl"
+			style="background: var(--app-glass-shine);"
+		></div>
 		<form method="GET" class="relative flex flex-wrap items-center gap-3">
 			<p class="eyebrow-label">Scope</p>
-			<select id="scope" name="scope" class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+			<select
+				id="scope"
+				name="scope"
+				class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+			>
 				<option value="mine" selected={data.scope === 'mine'}>My teams</option>
 				<option value="all" selected={data.scope === 'all'}>All teams</option>
 			</select>
-			<select name="team" class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);">
+			<select
+				name="team"
+				class="rounded-xl border px-3 py-2 text-sm backdrop-blur-sm"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+			>
 				<option value="">All course teams</option>
 				{#each data.subteams as team}
 					<option value={team.id} selected={team.id === data.selectedTeamId}>{team.name}</option>
@@ -209,7 +251,9 @@
 			</select>
 			<Button variant="secondary" size="sm" type="submit">Apply</Button>
 			<Button variant="ghost" size="sm" href="/mentor">Reset</Button>
-			<a href="/teams" class="ml-auto text-xs underline" style="color: var(--app-link);">Edit team preferences</a>
+			<a href="/teams" class="ml-auto text-xs underline" style="color: var(--app-link);"
+				>Edit team preferences</a
+			>
 		</form>
 		{#if data.scope === 'mine' && data.mentorTeamIds?.length === 0}
 			<p class="relative mt-2 text-xs" style="color: var(--app-warning);">
@@ -231,8 +275,13 @@
 	</div>
 
 	{#if !filteredQueue.length}
-		<div class="fade-up rounded-2xl border p-8 text-center backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.15s;">
-			<p class="text-sm" style="color: var(--app-text-muted);">No students are waiting for checkoff.</p>
+		<div
+			class="fade-up rounded-2xl border p-8 text-center backdrop-blur-xl"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.15s;"
+		>
+			<p class="text-sm" style="color: var(--app-text-muted);">
+				No students are waiting for checkoff.
+			</p>
 		</div>
 	{:else}
 		<div class="fade-up grid gap-4 md:grid-cols-2 xl:grid-cols-3" style="animation-delay: 0.15s;">
@@ -250,14 +299,23 @@
 						}
 					}}
 				>
-					<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+					<div
+						class="pointer-events-none absolute inset-0 rounded-2xl"
+						style="background: var(--app-glass-shine);"
+					></div>
 					<div class="relative space-y-3">
 						<div class="flex items-start justify-between gap-2">
 							<div class="min-w-0">
-								<p class="truncate text-[15px] font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
-								<p class="truncate text-xs" style="color: var(--app-text-muted);">{item.node?.title}</p>
+								<p class="truncate text-[15px] font-semibold" style="color: var(--app-text);">
+									{item.profile?.full_name || item.profile?.email}
+								</p>
+								<p class="truncate text-xs" style="color: var(--app-text-muted);">
+									{item.node?.title}
+								</p>
 								{#if item.node?.subteam?.name}
-									<span class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium chip-violet">
+									<span
+										class="chip-violet mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
+									>
 										{item.node.subteam.name}
 									</span>
 								{/if}
@@ -320,18 +378,51 @@
 			<div class="mb-3 flex items-center justify-between">
 				<div>
 					<p class="eyebrow-label" style="margin-bottom: 4px;">History</p>
-					<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">Past Checkoffs</h2>
+					<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">
+						Past Checkoffs
+					</h2>
 				</div>
 				<span class="mono text-xs" style="color: var(--app-text-dim);">
 					{data.historyTotal} total · page {data.historyPage}/{data.historyTotalPages}
 				</span>
 			</div>
+			<div
+				class="history-tabs mb-3 inline-flex rounded-xl border p-1"
+				style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);"
+			>
+				<button
+					type="button"
+					class="history-tab"
+					data-active={historyTab === 'unfinished'}
+					onclick={() => (historyTab = 'unfinished')}
+				>
+					Unfinished <span class="tab-count">{historyCounts.unfinished}</span>
+				</button>
+				<button
+					type="button"
+					class="history-tab"
+					data-active={historyTab === 'finished'}
+					onclick={() => (historyTab = 'finished')}
+				>
+					Finished <span class="tab-count">{historyCounts.finished}</span>
+				</button>
+			</div>
 			<ul class="space-y-2 text-sm">
-				{#each data.history as h}
-					<li class="history-row rounded-xl border p-3 transition duration-200" style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);">
+				{#each filteredHistory as h}
+					<li
+						class="history-row rounded-xl border p-3 transition duration-200"
+						style="background: color-mix(in srgb, var(--app-glass-bg) 60%, transparent); border-color: var(--app-glass-border);"
+					>
 						<div class="flex items-center justify-between gap-2">
-							<div class="flex items-center gap-2 min-w-0">
-								<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium {h.kind === 'approved' ? 'chip-emerald' : h.kind === 'blocked' ? 'chip-rose' : 'chip-amber'}">
+							<div class="flex min-w-0 items-center gap-2">
+								<span
+									class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium {h.kind ===
+									'approved'
+										? 'chip-emerald'
+										: h.kind === 'blocked'
+											? 'chip-rose'
+											: 'chip-amber'}"
+								>
 									{h.kind === 'approved'
 										? 'Approved'
 										: h.kind === 'blocked'
@@ -346,14 +437,22 @@
 									<span style="color: var(--app-text-muted);">{h.node?.title}</span>
 								</p>
 							</div>
-							<span class="mono shrink-0 text-[11px]" style="color: var(--app-text-dim);">{new Date(h.updated_at).toLocaleString()}</span>
+							<span class="mono shrink-0 text-[11px]" style="color: var(--app-text-dim);"
+								>{new Date(h.updated_at).toLocaleString()}</span
+							>
 						</div>
 						{#if getHistoryNotes(h)}
-							<p class="mt-1.5 text-xs" style="color: var(--app-text-muted);">{getHistoryNotes(h)}</p>
+							<p class="mt-1.5 text-xs" style="color: var(--app-text-muted);">
+								{getHistoryNotes(h)}
+							</p>
 						{/if}
 					</li>
 				{:else}
-					<li class="py-4 text-center text-sm" style="color: var(--app-text-dim);">No past checkoffs yet.</li>
+					<li class="py-4 text-center text-sm" style="color: var(--app-text-dim);">
+						{historyTab === 'finished'
+							? 'No approved checkoffs on this page.'
+							: 'No retries or blocked checkoffs on this page.'}
+					</li>
 				{/each}
 			</ul>
 			{#if data.historyTotalPages > 1}
@@ -362,22 +461,20 @@
 						href={historyHref(Math.max(1, data.historyPage - 1))}
 						aria-disabled={data.historyPage <= 1}
 						class={`pagination-link rounded-xl border px-4 py-2 text-sm font-medium transition duration-200 ${
-							data.historyPage <= 1
-								? 'pointer-events-none opacity-40'
-								: ''
+							data.historyPage <= 1 ? 'pointer-events-none opacity-40' : ''
 						}`}
 						style="border-color: var(--app-glass-border); color: var(--app-text); background: var(--app-glass-bg);"
 					>
 						Previous
 					</a>
-					<span class="mono text-xs" style="color: var(--app-text-dim);">{data.historyPage} / {data.historyTotalPages}</span>
+					<span class="mono text-xs" style="color: var(--app-text-dim);"
+						>{data.historyPage} / {data.historyTotalPages}</span
+					>
 					<a
 						href={historyHref(Math.min(data.historyTotalPages, data.historyPage + 1))}
 						aria-disabled={data.historyPage >= data.historyTotalPages}
 						class={`pagination-link rounded-xl border px-4 py-2 text-sm font-medium transition duration-200 ${
-							data.historyPage >= data.historyTotalPages
-								? 'pointer-events-none opacity-40'
-								: ''
+							data.historyPage >= data.historyTotalPages ? 'pointer-events-none opacity-40' : ''
 						}`}
 						style="border-color: var(--app-glass-border); color: var(--app-text); background: var(--app-glass-bg);"
 					>
@@ -396,7 +493,8 @@
 			tabindex="0"
 			onclick={() => (selectedItem = null)}
 			onkeydown={(event) => {
-				if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') selectedItem = null;
+				if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ')
+					selectedItem = null;
 			}}
 		>
 			<div
@@ -404,12 +502,17 @@
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 				onclick={(event) => event.stopPropagation()}
 			>
-				<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+				<div
+					class="pointer-events-none absolute inset-0 rounded-2xl"
+					style="background: var(--app-glass-shine);"
+				></div>
 				<div class="relative">
 					<div class="mb-4 flex items-center justify-between">
 						<div>
 							<p class="eyebrow-label" style="margin-bottom: 4px;">Review</p>
-							<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">Full Review</h2>
+							<h2 class="text-lg font-semibold tracking-tight" style="color: var(--app-text);">
+								Full Review
+							</h2>
 						</div>
 						<Button
 							variant="secondary"
@@ -417,8 +520,8 @@
 							onclick={(event) => {
 								event.stopPropagation();
 								selectedItem = null;
-							}}
-						>Close</Button>
+							}}>Close</Button
+						>
 					</div>
 					<CheckoffCard
 						item={selectedItem}
@@ -440,7 +543,8 @@
 			tabindex="0"
 			onclick={() => (selectedImage = null)}
 			onkeydown={(event) => {
-				if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') selectedImage = null;
+				if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ')
+					selectedImage = null;
 			}}
 		>
 			<img
@@ -486,5 +590,43 @@
 	}
 	.modal-panel {
 		animation: fadeUp 0.25s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+	}
+	.history-tab {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 5px 12px;
+		border: none;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--app-text-muted);
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
+	}
+	.history-tab:hover {
+		color: var(--app-text);
+	}
+	.history-tab[data-active='true'] {
+		background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+		color: var(--app-text);
+	}
+	.history-tab .tab-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		padding: 0 5px;
+		height: 16px;
+		font-size: 10px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--app-text-muted) 22%, transparent);
+		color: var(--app-text);
+	}
+	.history-tab[data-active='true'] .tab-count {
+		background: color-mix(in srgb, var(--app-accent) 35%, transparent);
 	}
 </style>
