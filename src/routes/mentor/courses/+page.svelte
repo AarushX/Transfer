@@ -1,9 +1,8 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/Button.svelte';
+	import ProficiencyBadge from '$lib/components/ProficiencyBadge.svelte';
 	let { data, form } = $props();
-	const teamsById = $derived(
-		new Map((data.teams as any[]).map((team) => [String(team.id), team]))
-	);
+	const teamsById = $derived(new Map((data.teams as any[]).map((team) => [String(team.id), team])));
 	const teamGroupsById = $derived(
 		new Map((data.teamGroups as any[]).map((group) => [String(group.id), group]))
 	);
@@ -12,7 +11,9 @@
 	let newTitle = $state('');
 	let newSlug = $state('');
 	let showTemplatePanel = $state(false);
-	const selectedTemplate = $derived((data.templates ?? []).find((t: any) => t.id === selectedTemplateId) ?? null);
+	const selectedTemplate = $derived(
+		(data.templates ?? []).find((t: any) => t.id === selectedTemplateId) ?? null
+	);
 	$effect(() => {
 		if (!newTitle && selectedTemplate) newTitle = String(selectedTemplate.title ?? '');
 	});
@@ -52,26 +53,18 @@
 		}
 		return labels.length > 0 ? labels : ['No team targets'];
 	};
-
 </script>
 
-<style>
-	.course-row:hover {
-		background: var(--app-glass-bg-hover) !important;
-		border-color: var(--app-glass-border-hover) !important;
-		transform: translateY(-1px);
-	}
-</style>
-
 <section class="space-y-5">
-
 	<!-- Header -->
 	<div class="fade-up flex items-start justify-between gap-4">
 		<div class="flex items-center gap-3">
 			<div>
 				<p class="eyebrow-label" style="margin-bottom: 4px;">Mentor Panel</p>
 				<div class="flex items-center gap-2.5">
-					<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Courses</span></h1>
+					<h1 class="text-2xl font-bold tracking-tight">
+						<span class="gradient-text">Courses</span>
+					</h1>
 					<span
 						class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
 						style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 30%, transparent);"
@@ -86,21 +79,54 @@
 				href="/courses/map"
 				class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
 				style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
-			>Open full graph</a>
+				>Open full graph</a
+			>
 			{#if (data.templates ?? []).length > 0}
 				<Button variant="ghost" onclick={() => (showTemplatePanel = !showTemplatePanel)}>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity:.7;">
-						<rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-						<rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-						<rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-						<rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+						<rect
+							x="1"
+							y="1"
+							width="6"
+							height="6"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.5"
+						/>
+						<rect
+							x="9"
+							y="1"
+							width="6"
+							height="6"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.5"
+						/>
+						<rect
+							x="1"
+							y="9"
+							width="6"
+							height="6"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.5"
+						/>
+						<rect
+							x="9"
+							y="9"
+							width="6"
+							height="6"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.5"
+						/>
 					</svg>
 					Use template
 				</Button>
 			{/if}
 			<Button variant="primary" href="/mentor/courses/new">
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-					<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+					<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
 				</svg>
 				New course
 			</Button>
@@ -114,8 +140,13 @@
 			style="border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 85%, white);"
 		>
 			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="shrink:0; opacity:.9;">
-				<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-				<path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+				<path
+					d="M8 5v3.5M8 10.5v.5"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+				/>
 			</svg>
 			{form.error}
 		</div>
@@ -127,20 +158,57 @@
 			class="overflow-hidden rounded-2xl border backdrop-blur-xl"
 			style="background: color-mix(in srgb, var(--app-info) 6%, var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-info) 35%, var(--app-glass-border)); box-shadow: var(--app-glass-shadow);"
 		>
-			<div class="flex items-center justify-between border-b px-4 py-3" style="border-color: color-mix(in srgb, var(--app-info) 20%, var(--app-glass-border));">
+			<div
+				class="flex items-center justify-between border-b px-4 py-3"
+				style="border-color: color-mix(in srgb, var(--app-info) 20%, var(--app-glass-border));"
+			>
 				<div class="flex items-center gap-2">
 					<span
 						class="inline-flex h-5 w-5 items-center justify-center rounded-md"
 						style="background: color-mix(in srgb, var(--app-info) 20%, transparent); color: var(--app-info);"
 					>
 						<svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-							<rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-							<rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-							<rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-							<rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+							<rect
+								x="1"
+								y="1"
+								width="6"
+								height="6"
+								rx="1.5"
+								stroke="currentColor"
+								stroke-width="1.5"
+							/>
+							<rect
+								x="9"
+								y="1"
+								width="6"
+								height="6"
+								rx="1.5"
+								stroke="currentColor"
+								stroke-width="1.5"
+							/>
+							<rect
+								x="1"
+								y="9"
+								width="6"
+								height="6"
+								rx="1.5"
+								stroke="currentColor"
+								stroke-width="1.5"
+							/>
+							<rect
+								x="9"
+								y="9"
+								width="6"
+								height="6"
+								rx="1.5"
+								stroke="currentColor"
+								stroke-width="1.5"
+							/>
 						</svg>
 					</span>
-					<span class="text-sm font-semibold" style="color: var(--app-text);">Create from template</span>
+					<span class="text-sm font-semibold" style="color: var(--app-text);"
+						>Create from template</span
+					>
 				</div>
 				<button
 					onclick={() => (showTemplatePanel = false)}
@@ -149,7 +217,12 @@
 					aria-label="Close template panel"
 				>
 					<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-						<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+						<path
+							d="M2 2l12 12M14 2L2 14"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+						/>
 					</svg>
 				</button>
 			</div>
@@ -168,7 +241,9 @@
 					</select>
 				</div>
 				<div class="flex flex-col gap-1">
-					<label class="text-xs font-medium" style="color: var(--app-text-muted);">Course title</label>
+					<label class="text-xs font-medium" style="color: var(--app-text-muted);"
+						>Course title</label
+					>
 					<input
 						name="title"
 						class="rounded-lg border px-3 py-2 text-sm transition-colors"
@@ -179,7 +254,9 @@
 					/>
 				</div>
 				<div class="flex flex-col gap-1">
-					<label class="text-xs font-medium" style="color: var(--app-text-muted);">Slug <span style="color: var(--app-text-dim);">(optional)</span></label>
+					<label class="text-xs font-medium" style="color: var(--app-text-muted);"
+						>Slug <span style="color: var(--app-text-dim);">(optional)</span></label
+					>
 					<input
 						name="slug"
 						class="rounded-lg border px-3 py-2 font-mono text-sm transition-colors"
@@ -190,7 +267,9 @@
 				</div>
 				<div class="flex items-end gap-2">
 					<Button variant="primary" size="sm" type="submit">Create course</Button>
-					<Button variant="ghost" size="sm" onclick={() => (showTemplatePanel = false)}>Cancel</Button>
+					<Button variant="ghost" size="sm" onclick={() => (showTemplatePanel = false)}
+						>Cancel</Button
+					>
 				</div>
 			</form>
 		</div>
@@ -204,12 +283,20 @@
 	>
 		<div class="relative flex-1" style="min-width: 180px;">
 			<svg
-				width="14" height="14" viewBox="0 0 16 16" fill="none"
+				width="14"
+				height="14"
+				viewBox="0 0 16 16"
+				fill="none"
 				class="pointer-events-none absolute top-1/2 -translate-y-1/2"
 				style="left: 10px; color: var(--app-text-dim);"
 			>
-				<circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
-				<path d="M10.5 10.5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				<circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5" />
+				<path
+					d="M10.5 10.5l3.5 3.5"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+				/>
 			</svg>
 			<input
 				name="q"
@@ -225,7 +312,7 @@
 			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text); outline: none; min-width: 150px;"
 		>
 			<option value="">All teams</option>
-			{#each (data.teams as any[]) as team}
+			{#each data.teams as any[] as team}
 				<option value={team.id} selected={team.id === data.filter.team}>
 					{teamGroupsById.get(String(team.team_group_id ?? ''))?.name
 						? `${teamGroupsById.get(String(team.team_group_id ?? ''))?.name}: `
@@ -249,11 +336,25 @@
 				class="flex h-14 w-14 items-center justify-center rounded-2xl"
 				style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 25%, transparent);"
 			>
-				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: var(--app-accent);">
-					<rect x="3" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
-					<rect x="14" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
-					<rect x="3" y="14" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
-					<rect x="14" y="14" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/>
+				<svg
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					style="color: var(--app-accent);"
+				>
+					<rect x="3" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5" />
+					<rect x="14" y="3" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5" />
+					<rect x="3" y="14" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5" />
+					<rect
+						x="14"
+						y="14"
+						width="7"
+						height="7"
+						rx="2"
+						stroke="currentColor"
+						stroke-width="1.5"
+					/>
 				</svg>
 			</div>
 			<div>
@@ -271,7 +372,12 @@
 			{:else}
 				<Button variant="primary" href="/mentor/courses/new">
 					<svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-						<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+						<path
+							d="M8 2v12M2 8h12"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+						/>
 					</svg>
 					New course
 				</Button>
@@ -281,7 +387,8 @@
 		<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
 			{#each data.nodes as node (node.id)}
 				{@const agg = data.aggregates?.[String(node.id)]}
-				{@const pct = agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
+				{@const pct =
+					agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
 				<li>
 					<a
 						href={`/mentor/courses/${node.slug}`}
@@ -289,7 +396,10 @@
 						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					>
 						<div class="min-w-0 flex-1">
-							<p class="truncate font-semibold" style="color: var(--app-text);">{node.title}</p>
+							<div class="flex items-center gap-2">
+								<p class="truncate font-semibold" style="color: var(--app-text);">{node.title}</p>
+								<ProficiencyBadge level={node.proficiency_level} code={node.code} size="xs" />
+							</div>
 							<p class="truncate text-[11px]" style="color: var(--app-text-muted);">{node.slug}</p>
 							{#if agg}
 								<div class="mt-1.5 flex items-center gap-2">
@@ -326,3 +436,11 @@
 		</ul>
 	{/if}
 </section>
+
+<style>
+	.course-row:hover {
+		background: var(--app-glass-bg-hover) !important;
+		border-color: var(--app-glass-border-hover) !important;
+		transform: translateY(-1px);
+	}
+</style>

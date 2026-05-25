@@ -34,38 +34,94 @@
 			]
 		: [
 				...(data.needsOnboarding
-					? [{ href: '/onboarding', label: 'Onboarding', icon: 'shieldcheck', match: (p: string) => p.startsWith('/onboarding') }]
+					? [
+							{
+								href: '/onboarding',
+								label: 'Onboarding',
+								icon: 'shieldcheck',
+								match: (p: string) => p.startsWith('/onboarding')
+							}
+						]
 					: []),
 				{ href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-				{ href: '/clickup', label: 'ClickUp', icon: 'clickup', match: (p: string) => p.startsWith('/clickup') },
+				{
+					href: '/coursework',
+					label: 'Coursework',
+					icon: 'courses',
+					match: (p: string) => p.startsWith('/coursework')
+				},
+				{
+					href: '/clickup',
+					label: 'ClickUp',
+					icon: 'clickup',
+					match: (p: string) => p.startsWith('/clickup')
+				},
 				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') },
-				{ href: '/media', label: 'Media', icon: 'image', match: (p: string) => p.startsWith('/media') }
+				{
+					href: '/media',
+					label: 'Media',
+					icon: 'image',
+					match: (p: string) => p.startsWith('/media')
+				}
 			];
 
 	const teamSection: NavItem[] = [
 		{ href: '/team', label: 'Team Page', icon: 'team', match: (p) => p === '/team' }
 	];
 
-	const subteamLinks: NavItem[] = (data.userSubteams ?? []).map((s: { slug: string; name: string }) => ({
-		href: `/team/${s.slug}`,
-		label: s.name,
-		icon: 'team',
-		match: (p: string) => p === `/team/${s.slug}`
-	}));
+	const subteamLinks: NavItem[] = (data.userSubteams ?? []).map(
+		(s: { slug: string; name: string }) => ({
+			href: `/team/${s.slug}`,
+			label: s.name,
+			icon: 'team',
+			match: (p: string) => p === `/team/${s.slug}`
+		})
+	);
 
 	const mentorNav: NavItem[] = [
 		{ href: '/mentor', label: 'Checkoffs', icon: 'checkoffs', match: (p) => p === '/mentor' },
-		{ href: '/mentor/courses', label: 'Courses', icon: 'courses', match: (p) => p.startsWith('/mentor/courses') },
-		{ href: '/mentor/machines', label: 'Machines', icon: 'machines', match: (p) => p.startsWith('/mentor/machines') },
+		{
+			href: '/mentor/courses',
+			label: 'Courses',
+			icon: 'courses',
+			match: (p) => p.startsWith('/mentor/courses')
+		},
+		{
+			href: '/mentor/machines',
+			label: 'Machines',
+			icon: 'machines',
+			match: (p) => p.startsWith('/mentor/machines')
+		},
 		{ href: '/roster', label: 'Roster', icon: 'roster', match: (p) => p.startsWith('/roster') },
-		{ href: '/admin/volunteer', label: 'Volunteer verification', icon: 'shieldcheck', match: (p) => p.startsWith('/admin/volunteer') }
+		{
+			href: '/admin/volunteer',
+			label: 'Volunteer verification',
+			icon: 'shieldcheck',
+			match: (p) => p.startsWith('/admin/volunteer')
+		}
 	];
 
 	const adminNav: NavItem[] = [
 		{ href: '/admin/settings', label: 'Settings', icon: 'settings' },
-		{ href: '/admin/settings/teams', label: 'Teams', icon: 'building', match: (p) => p.startsWith('/admin/settings/teams') },
+		{
+			href: '/admin/settings/teams',
+			label: 'Teams',
+			icon: 'building',
+			match: (p) => p.startsWith('/admin/settings/teams')
+		},
 		{ href: '/admin/attendance', label: 'Attendance', icon: 'calendar' },
-		{ href: '/admin/lettering', label: 'Lettering rules', icon: 'award', match: (p) => p.startsWith('/admin/lettering') }
+		{
+			href: '/admin/course-veterans',
+			label: 'Course veterans',
+			icon: 'courses',
+			match: (p) => p.startsWith('/admin/course-veterans')
+		},
+		{
+			href: '/admin/lettering',
+			label: 'Lettering rules',
+			icon: 'award',
+			match: (p) => p.startsWith('/admin/lettering')
+		}
 	];
 
 	const isActive = (item: NavItem, p: string) => (item.match ? item.match(p) : p === item.href);
@@ -152,7 +208,10 @@
 </svelte:head>
 
 {#if isAttendanceKiosk || isLoggedOut || isLoginPage}
-	<main class="flex min-h-dvh items-center justify-center" style="{themeVars} background: var(--app-bg); color: var(--app-text);">
+	<main
+		class="flex min-h-dvh items-center justify-center"
+		style="{themeVars} background: var(--app-bg); color: var(--app-text);"
+	>
 		{@render children()}
 	</main>
 {:else}
@@ -165,22 +224,39 @@
 			class={`sidebar-glass fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r pb-[env(safe-area-inset-bottom)] transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
 		>
 			<!-- Workspace header -->
-			<a href="/dashboard" class="flex items-center gap-2.5 border-b px-4 py-4" style="border-color: var(--app-glass-border);">
+			<a
+				href="/dashboard"
+				class="flex items-center gap-2.5 border-b px-4 py-4"
+				style="border-color: var(--app-glass-border);"
+			>
 				{#if data.orgIconDataUrl}
 					<img src={data.orgIconDataUrl} alt="" class="h-6 w-6 rounded" />
 				{:else}
-					<div class="h-6 w-6 rounded" style="background: linear-gradient(135deg, var(--app-info), var(--app-accent));"></div>
+					<div
+						class="h-6 w-6 rounded"
+						style="background: linear-gradient(135deg, var(--app-info), var(--app-accent));"
+					></div>
 				{/if}
 				<div class="min-w-0 flex-1 leading-tight">
-					<p class="text-[9px] font-bold tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">Transfer</p>
-					<p class="truncate text-[13px] font-semibold" style="color: var(--app-text);">{data.orgName}</p>
+					<p
+						class="text-[9px] font-bold tracking-[0.18em] uppercase"
+						style="color: var(--app-text-muted);"
+					>
+						Transfer
+					</p>
+					<p class="truncate text-[13px] font-semibold" style="color: var(--app-text);">
+						{data.orgName}
+					</p>
 				</div>
 				<button
 					type="button"
 					class="nav-btn ml-auto shrink-0 rounded p-1 md:hidden"
 					style="color: var(--app-text-muted);"
 					aria-label="Close navigation"
-					onclick={(e) => { e.preventDefault(); mobileOpen = false; }}
+					onclick={(e) => {
+						e.preventDefault();
+						mobileOpen = false;
+					}}
 				>
 					<svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5"
 						><path
@@ -209,21 +285,26 @@
 								data-role="queue-badge"
 								class="ml-auto rounded-md px-1.5 py-0 text-[10px] font-semibold"
 								style="background: color-mix(in srgb, var(--app-accent) 25%, transparent); color: var(--app-accent);"
-							>{opts.badge}</span>
+								>{opts.badge}</span
+							>
 						{/if}
 					</a>
 				{/snippet}
 
 				{#snippet sectionLabel(label: string, pill: string = '')}
 					<div class="relative mx-1 mt-4 mb-1.5 pt-2">
-						<div class="absolute inset-x-2 top-0 h-px" style="background: linear-gradient(90deg, transparent, var(--app-glass-border), transparent);"></div>
+						<div
+							class="absolute inset-x-2 top-0 h-px"
+							style="background: linear-gradient(90deg, transparent, var(--app-glass-border), transparent);"
+						></div>
 						<div class="flex items-center gap-1.5 px-2">
 							<p class="text-[11px] font-semibold" style="color: var(--app-text-muted);">{label}</p>
 							{#if pill}
 								<span
 									class="rounded-md px-1.5 py-0 text-[9px] font-semibold tracking-wider uppercase"
 									style="background: var(--app-glass-bg); color: var(--app-text-muted); border: 1px solid var(--app-glass-border);"
-								>{pill}</span>
+									>{pill}</span
+								>
 							{/if}
 						</div>
 					</div>
@@ -246,7 +327,7 @@
 								<a
 									href={item.href}
 									onclick={() => (mobileOpen = false)}
-									class="subteam-link flex items-center gap-2 rounded-lg pl-9 pr-2.5 py-1 text-xs"
+									class="subteam-link flex items-center gap-2 rounded-lg py-1 pr-2.5 pl-9 text-xs"
 									style={isActive(item, page.url.pathname)
 										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
 										: `color: var(--app-text-muted);`}
@@ -262,7 +343,11 @@
 					{@render sectionLabel('Mentor')}
 					<ul class="space-y-0.5">
 						{#each mentorNav as item (item.href)}
-							<li>{@render navRow(item, { badge: item.label === 'Checkoffs' ? (data.mentorQueueCount ?? 0) : 0 })}</li>
+							<li>
+								{@render navRow(item, {
+									badge: item.label === 'Checkoffs' ? (data.mentorQueueCount ?? 0) : 0
+								})}
+							</li>
 						{/each}
 					</ul>
 				{/if}
@@ -293,7 +378,10 @@
 								<p class="truncate text-sm font-medium" style="color: var(--app-text);">
 									{data.profile.full_name || data.profile.email}
 								</p>
-								<p class="truncate text-[11px] tracking-wider uppercase" style="color: var(--app-text-muted);">
+								<p
+									class="truncate text-[11px] tracking-wider uppercase"
+									style="color: var(--app-text-muted);"
+								>
 									{roleLabel}
 								</p>
 							</div>
@@ -316,7 +404,10 @@
 								<p class="truncate text-sm font-medium" style="color: var(--app-text);">
 									{data.profile.full_name || data.profile.email}
 								</p>
-								<p class="truncate text-[11px] tracking-wider uppercase" style="color: var(--app-text-muted);">
+								<p
+									class="truncate text-[11px] tracking-wider uppercase"
+									style="color: var(--app-text-muted);"
+								>
 									{roleLabel}
 								</p>
 							</div>
@@ -327,8 +418,12 @@
 							type="submit"
 							class="w-full rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
 							style="border-color: var(--app-glass-border); color: var(--app-text-muted); background: transparent;"
-							onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; }}
-							onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+							onmouseenter={(e) => {
+								e.currentTarget.style.background = 'var(--app-glass-bg-hover)';
+							}}
+							onmouseleave={(e) => {
+								e.currentTarget.style.background = 'transparent';
+							}}
 						>
 							Sign out
 						</button>
@@ -368,11 +463,17 @@
 						/></svg
 					>
 				</button>
-				<p class="min-w-0 flex-1 truncate px-3 text-center text-sm font-semibold" style="color: var(--app-text);">
+				<p
+					class="min-w-0 flex-1 truncate px-3 text-center text-sm font-semibold"
+					style="color: var(--app-text);"
+				>
 					Transfer · {data.orgName}
 				</p>
 				{#if data.profile}
-					<a href={canParent ? '/dashboard' : '/profile'} class="shrink-0 touch-manipulation rounded p-0.5">
+					<a
+						href={canParent ? '/dashboard' : '/profile'}
+						class="shrink-0 touch-manipulation rounded p-0.5"
+					>
 						<Avatar
 							name={data.profile.full_name}
 							email={data.profile.email}
@@ -385,7 +486,10 @@
 				{/if}
 			</header>
 			{#if showInstallButton}
-				<div class="border-b px-4 py-2 md:hidden" style="border-color: var(--app-glass-border); background: var(--app-glass-bg);">
+				<div
+					class="border-b px-4 py-2 md:hidden"
+					style="border-color: var(--app-glass-border); background: var(--app-glass-bg);"
+				>
 					<button
 						type="button"
 						onclick={handleInstallClick}
@@ -397,7 +501,10 @@
 				</div>
 			{/if}
 
-			<main class="relative z-[1] flex-1 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10" style="color: var(--app-text);">
+			<main
+				class="relative z-[1] flex-1 px-6 py-8 md:min-h-0 md:overflow-y-auto md:px-10 md:py-10"
+				style="color: var(--app-text);"
+			>
 				<div class="mx-auto w-full max-w-6xl">
 					{@render children()}
 				</div>

@@ -9,22 +9,40 @@ const extractJwtCandidate = (value: string) => {
 	return jwtMatch?.[0] ?? trimmed;
 };
 
+// Structured server-side log for checkoff failures. The shape stays the
+// same for every failure so /mentor errors can be grep'd from logs.
+const logCheckoffError = (
+	stage: string,
+	err: unknown,
+	ctx: {
+		action: string;
+		userId: string;
+		nodeId: string;
+		blockId: string | null;
+		reviewerId: string | null;
+	}
+) => {
+	const message = err instanceof Error ? err.message : String(err);
+	console.error('[checkoff]', stage, message, ctx);
+};
+
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user || !profile || !(isMentor(profile) || isAdmin(profile))) {
+	if (!user || !profile) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
+	// Mentors and admins are always allowed; course veterans are checked
+	// per-node below once we know which node this request targets.
+	const isStaffApprover = isMentor(profile) || isAdmin(profile);
 
-	const {
-		nodeId,
-		userId,
-		blockId,
-		action,
-		notes,
-		checklist_results,
-		qrToken,
-		checkoffToken
-	} = await request.json();
+	let body: any;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Malformed request body' }, { status: 400 });
+	}
+	const { nodeId, userId, blockId, action, notes, checklist_results, qrToken, checkoffToken } =
+		body;
 	const normalizedAction = action === 'review' ? 'reset_quiz' : action;
 	let resolvedNodeId = String(nodeId ?? '');
 	let resolvedUserId = String(userId ?? '');
@@ -46,6 +64,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'Invalid or expired checkoff QR token.' }, { status: 400 });
 		}
 	}
+
+	const ctx = {
+		action: String(normalizedAction ?? ''),
+		userId: resolvedUserId,
+		nodeId: resolvedNodeId,
+		blockId: resolvedBlockId,
+		reviewerId: user.id
+	};
 
 	const upsertReview = async (status: 'approved' | 'needs_review' | 'blocked') => {
 		const payload = {
@@ -80,158 +106,255 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Invalid request payload' }, { status: 400 });
 	}
 
-	if (normalizedAction === 'approve') {
-		const submissionQuery = locals.supabase
-			.from('checkoff_submissions')
-			.select('photo_data_url,photo_data_urls')
+	if (!isStaffApprover) {
+		// Per-course veteran fallback. RLS allows reading own row; if missing
+		// we reject. Selecting limit(1) keeps this cheap.
+		const { data: vetRow, error: vetErr } = await locals.supabase
+			.from('course_veterans')
+			.select('node_id')
 			.eq('node_id', resolvedNodeId)
-			.eq('user_id', resolvedUserId);
-		const [{ data: requirement }, { data: submission }] = await Promise.all([
-			locals.supabase
-				.from('node_checkoff_requirements')
-				.select('evidence_mode,mentor_checklist')
+			.eq('user_id', user.id)
+			.maybeSingle();
+		if (vetErr) {
+			logCheckoffError('check_veteran', vetErr, ctx);
+			return json({ error: 'Could not verify approver permission.' }, { status: 500 });
+		}
+		if (!vetRow) {
+			return json({ error: 'Forbidden' }, { status: 403 });
+		}
+	}
+
+	try {
+		if (normalizedAction === 'approve') {
+			const submissionQuery = locals.supabase
+				.from('checkoff_submissions')
+				.select('photo_data_url,photo_data_urls')
 				.eq('node_id', resolvedNodeId)
-				.maybeSingle(),
-			(resolvedBlockId
-				? submissionQuery.eq('block_id', resolvedBlockId)
-				: submissionQuery.is('block_id', null)
-			).maybeSingle()
-		]);
-		const hasPhoto = Boolean(
-			submission?.photo_data_url ||
-				(Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0)
-		);
-		if (!submission) {
-			return json({ error: 'Student must submit a checkoff record before approval.' }, { status: 400 });
-		}
-		if (requirement?.evidence_mode === 'photo_required' && !hasPhoto) {
-			return json(
-				{ error: 'Photo evidence is required before this checkoff can be approved.' },
-				{ status: 400 }
-			);
-		}
-		const requiredChecklist = Array.isArray(requirement?.mentor_checklist)
-			? requirement.mentor_checklist.map((v: unknown) => String(v))
-			: [];
-		if (requiredChecklist.length > 0) {
-			const checklistRows = Array.isArray(checklist_results) ? checklist_results : [];
-			const passedSet = new Set(
-				checklistRows
-					.filter((row: any) => row?.passed)
-					.map((row: any) => String(row?.item ?? ''))
-			);
-			const missing = requiredChecklist.filter((item) => !passedSet.has(item));
-			if (missing.length > 0) {
+				.eq('user_id', resolvedUserId);
+			const [
+				{ data: requirement, error: requirementErr },
+				{ data: submission, error: submissionErr }
+			] = await Promise.all([
+				locals.supabase
+					.from('node_checkoff_requirements')
+					.select('evidence_mode,mentor_checklist')
+					.eq('node_id', resolvedNodeId)
+					.maybeSingle(),
+				(resolvedBlockId
+					? submissionQuery.eq('block_id', resolvedBlockId)
+					: submissionQuery.is('block_id', null)
+				).maybeSingle()
+			]);
+			if (requirementErr) {
+				logCheckoffError('load_requirement', requirementErr, ctx);
 				return json(
-					{
-						error: `Cannot approve until all mentor checklist items pass. Remaining: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}`
-					},
+					{ error: 'Could not load checkoff requirements for this course.' },
+					{ status: 500 }
+				);
+			}
+			if (submissionErr) {
+				logCheckoffError('load_submission', submissionErr, ctx);
+				return json({ error: 'Could not load the student submission.' }, { status: 500 });
+			}
+			const hasPhoto = Boolean(
+				submission?.photo_data_url ||
+				(Array.isArray(submission?.photo_data_urls) && submission.photo_data_urls.length > 0)
+			);
+			if (!submission) {
+				return json(
+					{ error: 'Student must submit a checkoff record before approval.' },
 					{ status: 400 }
 				);
 			}
-		}
-	}
-
-	if (profile.role === 'mentor' && user) {
-		if (!checkoffToken && qrToken) {
-			try {
-				const { payload } = await jwtVerify(
-					String(qrToken),
-					encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me')
+			if (requirement?.evidence_mode === 'photo_required' && !hasPhoto) {
+				return json(
+					{ error: 'Photo evidence is required before this checkoff can be approved.' },
+					{ status: 400 }
 				);
-				if (String(payload.user_id ?? '') !== String(resolvedUserId)) {
-					return json({ error: 'Scanned passport does not match selected student.' }, { status: 400 });
+			}
+			const requiredChecklist = Array.isArray(requirement?.mentor_checklist)
+				? requirement.mentor_checklist.map((v: unknown) => String(v))
+				: [];
+			if (requiredChecklist.length > 0) {
+				const checklistRows = Array.isArray(checklist_results) ? checklist_results : [];
+				const passedSet = new Set(
+					checklistRows.filter((row: any) => row?.passed).map((row: any) => String(row?.item ?? ''))
+				);
+				const missing = requiredChecklist.filter((item) => !passedSet.has(item));
+				if (missing.length > 0) {
+					return json(
+						{
+							error: `Cannot approve until all mentor checklist items pass. Remaining: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}`
+						},
+						{ status: 400 }
+					);
 				}
-			} catch {
-				return json({ error: 'Invalid or expired QR token. Rescan student passport.' }, { status: 400 });
 			}
 		}
 
-		const [{ data: node }, { data: prefs }] = await Promise.all([
-			locals.supabase.from('nodes').select('subteam_id').eq('id', resolvedNodeId).maybeSingle(),
-			locals.supabase
-				.from('mentor_subteam_preferences')
-				.select('subteam_id')
-				.eq('mentor_id', user.id)
-		]);
-		const prefIds = (prefs ?? []).map((row: { subteam_id: string }) => row.subteam_id);
-		if (prefIds.length > 0 && node?.subteam_id && !prefIds.includes(node.subteam_id)) {
-			return json({ error: 'This checkoff is outside your selected mentor teams.' }, { status: 403 });
-		}
-	}
-
-	if (normalizedAction === 'reset_quiz') {
-		const { error } = await locals.supabase.rpc('transition_certification', {
-			p_node_id: resolvedNodeId,
-			p_new_status: 'quiz_pending',
-			p_target_user_id: resolvedUserId,
-			p_mentor_notes: notes ?? null
-		});
-		if (error) return json({ error: error.message }, { status: 400 });
-	}
-
-	if (normalizedAction === 'approve') {
-		const { data: checkoffBlock } = await locals.supabase
-			.from('node_blocks')
-			.select('id')
-			.eq('id', resolvedBlockId ?? '')
-			.eq('node_id', resolvedNodeId)
-			.eq('type', 'checkoff')
-			.maybeSingle();
-
-		if (checkoffBlock?.id) {
-			const { error: progressErr } = await locals.supabase.from('user_node_block_progress').upsert(
-				{
-					user_id: resolvedUserId,
-					node_id: resolvedNodeId,
-					block_id: checkoffBlock.id,
-					completed_at: new Date().toISOString()
-				},
-				{ onConflict: 'user_id,block_id' }
-			);
-			if (progressErr) return json({ error: progressErr.message }, { status: 400 });
-		}
-
-		const reviewErr = await upsertReview('approved');
-		if (reviewErr) return json({ error: reviewErr.message }, { status: 400 });
-
-		if (checkoffBlock?.id) {
-			const { data: autoCert, error: autoErr } = await locals.supabase.rpc('try_auto_complete_node', {
-				p_node_id: resolvedNodeId,
-				p_target_user_id: resolvedUserId
-			});
-			if (autoErr) return json({ error: autoErr.message }, { status: 400 });
-			// Keep progress moving for partially-finished block courses,
-			// but do not overwrite a freshly completed certification.
-			if (autoCert?.status !== 'completed') {
-				await locals.supabase.rpc('transition_certification', {
-					p_node_id: resolvedNodeId,
-					p_new_status: 'quiz_pending',
-					p_target_user_id: resolvedUserId
-				});
+		// Subteam preference gate: only "pure" mentors (not admins) are scoped
+		// to their selected subteams. Use the role helpers so modern mentors
+		// created with is_mentor=true but no legacy role enum still get scoped.
+		if (isMentor(profile) && !isAdmin(profile)) {
+			if (!checkoffToken && qrToken) {
+				try {
+					const { payload } = await jwtVerify(
+						String(qrToken),
+						encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me')
+					);
+					if (String(payload.user_id ?? '') !== String(resolvedUserId)) {
+						return json(
+							{ error: 'Scanned passport does not match selected student.' },
+							{ status: 400 }
+						);
+					}
+				} catch {
+					return json(
+						{ error: 'Invalid or expired QR token. Rescan student passport.' },
+						{ status: 400 }
+					);
+				}
 			}
-		} else {
+
+			const [{ data: node, error: nodeErr }, { data: prefs, error: prefsErr }] = await Promise.all([
+				locals.supabase.from('nodes').select('subteam_id').eq('id', resolvedNodeId).maybeSingle(),
+				locals.supabase
+					.from('mentor_subteam_preferences')
+					.select('subteam_id')
+					.eq('mentor_id', user.id)
+			]);
+			if (nodeErr) {
+				logCheckoffError('load_node', nodeErr, ctx);
+				return json({ error: 'Could not look up the course.' }, { status: 500 });
+			}
+			if (prefsErr) {
+				logCheckoffError('load_mentor_prefs', prefsErr, ctx);
+				return json({ error: 'Could not look up your mentor team preferences.' }, { status: 500 });
+			}
+			const prefIds = (prefs ?? []).map((row: { subteam_id: string }) => row.subteam_id);
+			if (prefIds.length > 0 && node?.subteam_id && !prefIds.includes(node.subteam_id)) {
+				return json(
+					{ error: 'This checkoff is outside your selected mentor teams.' },
+					{ status: 403 }
+				);
+			}
+		}
+
+		if (normalizedAction === 'reset_quiz') {
 			const { error } = await locals.supabase.rpc('transition_certification', {
 				p_node_id: resolvedNodeId,
-				p_new_status: 'completed',
+				p_new_status: 'quiz_pending',
 				p_target_user_id: resolvedUserId,
 				p_mentor_notes: notes ?? null
 			});
-			if (error) return json({ error: error.message }, { status: 400 });
+			if (error) {
+				logCheckoffError('rpc_transition_reset_quiz', error, ctx);
+				return json({ error: error.message }, { status: 400 });
+			}
 		}
-		return json({ ok: true, nodeId: resolvedNodeId, userId: resolvedUserId });
+
+		if (normalizedAction === 'approve') {
+			const { data: checkoffBlock, error: blockErr } = await locals.supabase
+				.from('node_blocks')
+				.select('id')
+				.eq('id', resolvedBlockId ?? '')
+				.eq('node_id', resolvedNodeId)
+				.eq('type', 'checkoff')
+				.maybeSingle();
+			if (blockErr) {
+				logCheckoffError('load_checkoff_block', blockErr, ctx);
+				return json({ error: 'Could not load the checkoff block.' }, { status: 500 });
+			}
+
+			if (checkoffBlock?.id) {
+				const { error: progressErr } = await locals.supabase
+					.from('user_node_block_progress')
+					.upsert(
+						{
+							user_id: resolvedUserId,
+							node_id: resolvedNodeId,
+							block_id: checkoffBlock.id,
+							completed_at: new Date().toISOString()
+						},
+						{ onConflict: 'user_id,block_id' }
+					);
+				if (progressErr) {
+					logCheckoffError('upsert_block_progress', progressErr, ctx);
+					return json({ error: progressErr.message }, { status: 400 });
+				}
+			}
+
+			const reviewErr = await upsertReview('approved');
+			if (reviewErr) {
+				logCheckoffError('upsert_review', reviewErr, ctx);
+				return json({ error: reviewErr.message }, { status: 400 });
+			}
+
+			if (checkoffBlock?.id) {
+				const { data: autoCert, error: autoErr } = await locals.supabase.rpc(
+					'try_auto_complete_node',
+					{
+						p_node_id: resolvedNodeId,
+						p_target_user_id: resolvedUserId
+					}
+				);
+				if (autoErr) {
+					logCheckoffError('rpc_try_auto_complete', autoErr, ctx);
+					return json({ error: autoErr.message }, { status: 400 });
+				}
+				// Keep progress moving for partially-finished block courses,
+				// but do not overwrite a freshly completed certification.
+				if (autoCert?.status !== 'completed') {
+					const { error: tcErr } = await locals.supabase.rpc('transition_certification', {
+						p_node_id: resolvedNodeId,
+						p_new_status: 'quiz_pending',
+						p_target_user_id: resolvedUserId,
+						p_mentor_notes: notes ?? null
+					});
+					if (tcErr) {
+						logCheckoffError('rpc_transition_partial_complete', tcErr, ctx);
+						// Non-fatal — the review is already approved, the student
+						// can keep working. Surface the issue but return ok.
+					}
+				}
+			} else {
+				const { error } = await locals.supabase.rpc('transition_certification', {
+					p_node_id: resolvedNodeId,
+					p_new_status: 'completed',
+					p_target_user_id: resolvedUserId,
+					p_mentor_notes: notes ?? null
+				});
+				if (error) {
+					logCheckoffError('rpc_transition_complete', error, ctx);
+					return json({ error: error.message }, { status: 400 });
+				}
+			}
+			return json({ ok: true, nodeId: resolvedNodeId, userId: resolvedUserId });
+		}
+
+		if (normalizedAction === 'retry_checkoff') {
+			const reviewErr = await upsertReview('needs_review');
+			if (reviewErr) {
+				logCheckoffError('upsert_review_retry', reviewErr, ctx);
+				return json({ error: reviewErr.message }, { status: 400 });
+			}
+			return json({ ok: true, status: 'needs_review' });
+		}
+
+		const reviewErr = await upsertReview(
+			normalizedAction === 'block_checkoff' ? 'blocked' : 'needs_review'
+		);
+		if (reviewErr) {
+			logCheckoffError('upsert_review_block', reviewErr, ctx);
+			return json({ error: reviewErr.message }, { status: 400 });
+		}
+
+		return json({ ok: true });
+	} catch (err) {
+		logCheckoffError('unhandled', err, ctx);
+		return json(
+			{ error: 'Internal error processing checkoff. The team has been notified.' },
+			{ status: 500 }
+		);
 	}
-
-	if (normalizedAction === 'retry_checkoff') {
-		const reviewErr = await upsertReview('needs_review');
-		if (reviewErr) return json({ error: reviewErr.message }, { status: 400 });
-		return json({ ok: true, status: 'needs_review' });
-	}
-
-	const reviewErr = await upsertReview(
-		normalizedAction === 'block_checkoff' ? 'blocked' : 'needs_review'
-	);
-	if (reviewErr) return json({ error: reviewErr.message }, { status: 400 });
-
-	return json({ ok: true });
 };

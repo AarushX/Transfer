@@ -14,6 +14,7 @@ type BlockDraft = {
 	id?: string;
 	type: BlockType;
 	config: Record<string, unknown>;
+	optional?: boolean;
 };
 type QuizQuestionType = 'mc' | 'ms' | 'tf' | 'short' | 'matrix' | 'matrix_ms' | 'short_grid';
 
@@ -121,7 +122,9 @@ function normalizeQuizConfig(raw: any) {
 			}
 
 			if (safeType === 'tf') {
-				const rawCorrect = String(rawQuestion.correct ?? '').trim().toLowerCase();
+				const rawCorrect = String(rawQuestion.correct ?? '')
+					.trim()
+					.toLowerCase();
 				const correct = rawCorrect === 'false' ? 'false' : 'true';
 				out.push({ id, prompt, type: safeType, correct });
 				continue;
@@ -250,14 +253,14 @@ function normalizeCheckoffConfig(raw: any) {
 		? String(raw?.evidence_mode)
 		: 'none';
 	const mentor_checklist = Array.isArray(raw?.mentor_checklist)
-		? raw.mentor_checklist
-				.map((v: unknown) => String(v ?? '').trim())
-				.filter(Boolean)
+		? raw.mentor_checklist.map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
 	const resource_links = Array.isArray(raw?.resource_links)
 		? raw.resource_links.map((v: unknown) => String(v ?? '').trim()).filter(Boolean)
 		: [];
-	const show_mentor_checklist_to_students = Boolean(raw?.show_mentor_checklist_to_students ?? false);
+	const show_mentor_checklist_to_students = Boolean(
+		raw?.show_mentor_checklist_to_students ?? false
+	);
 	return {
 		title,
 		directions,
@@ -283,7 +286,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const { data: node, error: nodeErr } = await locals.supabase
 		.from('nodes')
-		.select('id,title,slug,description')
+		.select('id,title,slug,description,proficiency_level,code,gating_mode')
 		.eq('slug', params.slug)
 		.single();
 	if (nodeErr || !node) throw error(404, 'Course not found');
@@ -296,20 +299,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		nodeCategoriesResp,
 		teamsResp,
 		nodeTeamTargetsResp
-	] =
-		await Promise.all([
-		locals.supabase.from('node_prerequisites').select('prerequisite_node_id').eq('node_id', node.id),
+	] = await Promise.all([
 		locals.supabase
-			.from('nodes')
-			.select('id,title,slug')
-			.neq('id', node.id)
-			.order('title'),
+			.from('node_prerequisites')
+			.select('prerequisite_node_id')
+			.eq('node_id', node.id),
+		locals.supabase.from('nodes').select('id,title,slug').neq('id', node.id).order('title'),
 		locals.supabase
 			.from('node_blocks')
-			.select('id,position,type,config')
+			.select('id,position,type,config,optional')
 			.eq('node_id', node.id)
-			.order('position')
-			,
+			.order('position'),
 		locals.supabase
 			.from('training_categories')
 			.select('id,name,slug,parent_id,kind,sort_order')
@@ -325,8 +325,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		node,
-		prereqIds: (prereqsResp.data ?? []).map((p: { prerequisite_node_id: string }) =>
-			p.prerequisite_node_id
+		prereqIds: (prereqsResp.data ?? []).map(
+			(p: { prerequisite_node_id: string }) => p.prerequisite_node_id
 		),
 		allNodes: allNodesResp.data ?? [],
 		blocks: blocksResp.data ?? [],
@@ -344,7 +344,8 @@ export const actions: Actions = {
 			return fail(403, { error: 'Forbidden', section: 'details' });
 		const form = await request.formData();
 		const templateName = String(form.get('template_name') ?? '').trim();
-		if (!templateName) return fail(400, { error: 'Template name is required.', section: 'details' });
+		if (!templateName)
+			return fail(400, { error: 'Template name is required.', section: 'details' });
 
 		const { data: node } = await locals.supabase
 			.from('nodes')
@@ -357,7 +358,10 @@ export const actions: Actions = {
 			await Promise.all([
 				locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id),
 				locals.supabase.from('node_categories').select('category_id').eq('node_id', node.id),
-				locals.supabase.from('node_prerequisites').select('prerequisite_node_id').eq('node_id', node.id),
+				locals.supabase
+					.from('node_prerequisites')
+					.select('prerequisite_node_id')
+					.eq('node_id', node.id),
 				locals.supabase
 					.from('node_blocks')
 					.select('position,type,config')
@@ -391,6 +395,14 @@ export const actions: Actions = {
 			.map((v) => String(v))
 			.filter(Boolean);
 		const description = String(form.get('description') ?? '');
+		const rawLevel = String(form.get('proficiency_level') ?? '').trim();
+		const proficiencyLevel = ['beginner', 'intermediate', 'advanced'].includes(rawLevel)
+			? rawLevel
+			: null;
+		const rawGating = String(form.get('gating_mode') ?? '').trim();
+		const gatingMode = ['require_checkoff', 'blocks_only'].includes(rawGating)
+			? rawGating
+			: 'require_checkoff';
 		const categoryIds = form
 			.getAll('category_ids')
 			.map((v) => String(v))
@@ -406,13 +418,19 @@ export const actions: Actions = {
 				title,
 				slug,
 				subteam_id: null,
-				description
+				description,
+				proficiency_level: proficiencyLevel,
+				gating_mode: gatingMode
 			})
 			.eq('slug', params.slug);
 
 		if (err) return fail(400, { error: err.message, section: 'details' });
 
-		const { data: currentNode } = await locals.supabase.from('nodes').select('id').eq('slug', slug).single();
+		const { data: currentNode } = await locals.supabase
+			.from('nodes')
+			.select('id')
+			.eq('slug', slug)
+			.single();
 		if (currentNode?.id) {
 			const { error: deleteTeamsErr } = await locals.supabase
 				.from('node_team_targets')
@@ -432,7 +450,8 @@ export const actions: Actions = {
 				.from('node_categories')
 				.delete()
 				.eq('node_id', currentNode.id);
-			if (deleteCategoriesErr) return fail(400, { error: deleteCategoriesErr.message, section: 'details' });
+			if (deleteCategoriesErr)
+				return fail(400, { error: deleteCategoriesErr.message, section: 'details' });
 			if (categoryIds.length > 0) {
 				const { error: insertCategoriesErr } = await locals.supabase.from('node_categories').insert(
 					categoryIds.map((categoryId) => ({
@@ -479,10 +498,21 @@ export const actions: Actions = {
 			.eq('slug', params.slug)
 			.single();
 		if (!nodeRow) {
-			return fail(404, { error: 'Course not found', section: 'blocks', blocks_json: rawBlocksJson });
+			return fail(404, {
+				error: 'Course not found',
+				section: 'blocks',
+				blocks_json: rawBlocksJson
+			});
 		}
 
-		const rows: Array<{ id?: string; node_id: string; position: number; type: BlockType; config: object }> = [];
+		const rows: Array<{
+			id?: string;
+			node_id: string;
+			position: number;
+			type: BlockType;
+			config: object;
+			optional: boolean;
+		}> = [];
 		const blockErrors: Record<number, string> = {};
 		for (let i = 0; i < draftBlocks.length; i += 1) {
 			const block = draftBlocks[i];
@@ -516,14 +546,14 @@ export const actions: Actions = {
 				const invalidQuestion = q.questions.find((question) => {
 					if (!String(question.prompt ?? '').trim()) return true;
 					if (question.type === 'mc') {
-						return !Array.isArray(question.options) || question.options.length < 2 || !question.correct;
+						return (
+							!Array.isArray(question.options) || question.options.length < 2 || !question.correct
+						);
 					}
 					if (question.type === 'ms') {
 						const maxSelectRaw = Number((question as any).max_select);
 						const maxSelect =
-							Number.isFinite(maxSelectRaw) && maxSelectRaw > 0
-								? Math.trunc(maxSelectRaw)
-								: null;
+							Number.isFinite(maxSelectRaw) && maxSelectRaw > 0 ? Math.trunc(maxSelectRaw) : null;
 						return (
 							!Array.isArray(question.options) ||
 							question.options.length < 2 ||
@@ -546,26 +576,31 @@ export const actions: Actions = {
 					const questionNumber = q.questions.indexOf(invalidQuestion) + 1;
 					const prompt = String(invalidQuestion.prompt ?? '').trim();
 					if (!prompt) {
-						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: question prompt is required.`;
+						blockErrors[i] =
+							`Quiz block #${i + 1}, Q${questionNumber}: question prompt is required.`;
 						continue;
 					}
 					if (invalidQuestion.type === 'mc') {
 						if (!Array.isArray(invalidQuestion.options) || invalidQuestion.options.length < 2) {
-							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: multiple choice needs at least 2 options.`;
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: multiple choice needs at least 2 options.`;
 							continue;
 						}
 						if (!invalidQuestion.correct) {
-							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: select the correct multiple-choice answer.`;
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: select the correct multiple-choice answer.`;
 							continue;
 						}
 					}
 					if (invalidQuestion.type === 'ms') {
 						if (!Array.isArray(invalidQuestion.options) || invalidQuestion.options.length < 2) {
-							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: multiple select needs at least 2 options.`;
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: multiple select needs at least 2 options.`;
 							continue;
 						}
 						if (!Array.isArray(invalidQuestion.correct) || invalidQuestion.correct.length === 0) {
-							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: choose at least one correct multiple-select answer.`;
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: choose at least one correct multiple-select answer.`;
 							continue;
 						}
 						const maxSelectRaw = Number((invalidQuestion as any).max_select);
@@ -574,7 +609,8 @@ export const actions: Actions = {
 							maxSelectRaw > 0 &&
 							invalidQuestion.correct.length > Math.trunc(maxSelectRaw)
 						) {
-							blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: correct answers exceed max selections.`;
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: correct answers exceed max selections.`;
 							continue;
 						}
 					}
@@ -585,25 +621,31 @@ export const actions: Actions = {
 							: Boolean((invalidQuestion as { short_required?: boolean }).short_required)) &&
 						!String(invalidQuestion.correct ?? '').trim()
 					) {
-						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: expected short-answer text is required.`;
+						blockErrors[i] =
+							`Quiz block #${i + 1}, Q${questionNumber}: expected short-answer text is required.`;
 						continue;
 					}
-				if (
-					invalidQuestion.type === 'matrix' ||
-					invalidQuestion.type === 'matrix_ms' ||
-					invalidQuestion.type === 'short_grid'
-				) {
-					const rows = Array.isArray((invalidQuestion as any).rows)
-						? ((invalidQuestion as any).rows as string[]).map((v) => String(v).trim()).filter(Boolean)
-						: [];
-					const columns = Array.isArray((invalidQuestion as any).columns)
-						? ((invalidQuestion as any).columns as string[]).map((v) => String(v).trim()).filter(Boolean)
-						: [];
-					if (rows.length === 0 || columns.length < 2) {
-						blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: grid needs at least 1 row and 2 columns.`;
-						continue;
+					if (
+						invalidQuestion.type === 'matrix' ||
+						invalidQuestion.type === 'matrix_ms' ||
+						invalidQuestion.type === 'short_grid'
+					) {
+						const rows = Array.isArray((invalidQuestion as any).rows)
+							? ((invalidQuestion as any).rows as string[])
+									.map((v) => String(v).trim())
+									.filter(Boolean)
+							: [];
+						const columns = Array.isArray((invalidQuestion as any).columns)
+							? ((invalidQuestion as any).columns as string[])
+									.map((v) => String(v).trim())
+									.filter(Boolean)
+							: [];
+						if (rows.length === 0 || columns.length < 2) {
+							blockErrors[i] =
+								`Quiz block #${i + 1}, Q${questionNumber}: grid needs at least 1 row and 2 columns.`;
+							continue;
+						}
 					}
-				}
 					blockErrors[i] = `Quiz block #${i + 1}, Q${questionNumber}: invalid question setup.`;
 					continue;
 				}
@@ -618,7 +660,14 @@ export const actions: Actions = {
 				}
 				config = r;
 			}
-			rows.push({ id: block.id, node_id: nodeRow.id, position: i + 1, type, config });
+			rows.push({
+				id: block.id,
+				node_id: nodeRow.id,
+				position: i + 1,
+				type,
+				config,
+				optional: Boolean(block.optional)
+			});
 		}
 
 		if (Object.keys(blockErrors).length > 0) {
@@ -653,7 +702,11 @@ export const actions: Actions = {
 				.eq('node_id', nodeRow.id)
 				.in('id', deleteIds);
 			if (deleteErr) {
-				return fail(400, { error: deleteErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+				return fail(400, {
+					error: deleteErr.message,
+					section: 'blocks',
+					blocks_json: rawBlocksJson
+				});
 			}
 		}
 
@@ -667,7 +720,11 @@ export const actions: Actions = {
 				.eq('id', String(survivingBlocks[i].id))
 				.eq('node_id', nodeRow.id);
 			if (shiftErr) {
-				return fail(400, { error: shiftErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+				return fail(400, {
+					error: shiftErr.message,
+					section: 'blocks',
+					blocks_json: rawBlocksJson
+				});
 			}
 		}
 
@@ -677,23 +734,42 @@ export const actions: Actions = {
 			if (persistedId && existingIds.has(persistedId)) {
 				const { data: updated, error: updateErr } = await locals.supabase
 					.from('node_blocks')
-					.update({ position: row.position, type: row.type, config: row.config })
+					.update({
+						position: row.position,
+						type: row.type,
+						config: row.config,
+						optional: row.optional
+					})
 					.eq('id', persistedId)
 					.eq('node_id', nodeRow.id)
 					.select('id')
 					.single();
 				if (updateErr) {
-					return fail(400, { error: updateErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+					return fail(400, {
+						error: updateErr.message,
+						section: 'blocks',
+						blocks_json: rawBlocksJson
+					});
 				}
 				if (updated?.id) keepIds.push(String(updated.id));
 			} else {
 				const { data: inserted, error: insertErr } = await locals.supabase
 					.from('node_blocks')
-					.insert({ node_id: row.node_id, position: row.position, type: row.type, config: row.config })
+					.insert({
+						node_id: row.node_id,
+						position: row.position,
+						type: row.type,
+						config: row.config,
+						optional: row.optional
+					})
 					.select('id')
 					.single();
 				if (insertErr) {
-					return fail(400, { error: insertErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+					return fail(400, {
+						error: insertErr.message,
+						section: 'blocks',
+						blocks_json: rawBlocksJson
+					});
 				}
 				if (inserted?.id) keepIds.push(String(inserted.id));
 			}
@@ -705,38 +781,47 @@ export const actions: Actions = {
 				.delete()
 				.eq('node_id', nodeRow.id);
 			if (clearErr) {
-				return fail(400, { error: clearErr.message, section: 'blocks', blocks_json: rawBlocksJson });
+				return fail(400, {
+					error: clearErr.message,
+					section: 'blocks',
+					blocks_json: rawBlocksJson
+				});
 			}
 		}
 
 		const checkoffBlock = rows.find((r) => r.type === 'checkoff');
 		if (checkoffBlock) {
 			const cfg = checkoffBlock.config as ReturnType<typeof normalizeCheckoffConfig>;
-			const { error: checkoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
-				{
-					node_id: nodeRow.id,
-					title: cfg.title,
-					directions: cfg.directions,
-					mentor_checklist: cfg.mentor_checklist,
-					resource_links: cfg.resource_links,
-					evidence_mode: cfg.evidence_mode
-				},
-				{ onConflict: 'node_id' }
-			);
+			const { error: checkoffErr } = await locals.supabase
+				.from('node_checkoff_requirements')
+				.upsert(
+					{
+						node_id: nodeRow.id,
+						title: cfg.title,
+						directions: cfg.directions,
+						mentor_checklist: cfg.mentor_checklist,
+						resource_links: cfg.resource_links,
+						evidence_mode: cfg.evidence_mode
+					},
+					{ onConflict: 'node_id' }
+				);
 			if (checkoffErr) return fail(400, { error: checkoffErr.message, section: 'blocks' });
 		} else {
-			const { error: resetCheckoffErr } = await locals.supabase.from('node_checkoff_requirements').upsert(
-				{
-					node_id: nodeRow.id,
-					title: 'Skills Check',
-					directions: '',
-					mentor_checklist: [],
-					resource_links: [],
-					evidence_mode: 'none'
-				},
-				{ onConflict: 'node_id' }
-			);
-			if (resetCheckoffErr) return fail(400, { error: resetCheckoffErr.message, section: 'blocks' });
+			const { error: resetCheckoffErr } = await locals.supabase
+				.from('node_checkoff_requirements')
+				.upsert(
+					{
+						node_id: nodeRow.id,
+						title: 'Skills Check',
+						directions: '',
+						mentor_checklist: [],
+						resource_links: [],
+						evidence_mode: 'none'
+					},
+					{ onConflict: 'node_id' }
+				);
+			if (resetCheckoffErr)
+				return fail(400, { error: resetCheckoffErr.message, section: 'blocks' });
 		}
 
 		const quizBlocks = rows.filter((r) => r.type === 'quiz');
@@ -802,10 +887,7 @@ export const actions: Actions = {
 		const { user, profile } = await locals.safeGetSession();
 		if (!user || !profile || !isMentor(profile))
 			return fail(403, { error: 'Forbidden', section: 'delete' });
-		const { error: err } = await locals.supabase
-			.from('nodes')
-			.delete()
-			.eq('slug', params.slug);
+		const { error: err } = await locals.supabase.from('nodes').delete().eq('slug', params.slug);
 		if (err) return fail(400, { error: err.message, section: 'delete' });
 		throw redirect(303, '/mentor/courses');
 	}

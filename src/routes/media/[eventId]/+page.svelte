@@ -5,10 +5,17 @@
 
 	const PAGE_SIZE_OPTIONS = [30, 60, 120, 240] as const;
 	const COLUMN_OPTIONS = [2, 3, 4, 5] as const;
+	const SORT_OPTIONS = [
+		{ key: 'newest', label: 'Newest' },
+		{ key: 'oldest', label: 'Oldest' },
+		{ key: 'name', label: 'Name' }
+	] as const;
+	type SortMode = (typeof SORT_OPTIONS)[number]['key'];
 
 	let pageSize = $state<number>(60);
 	let columns = $state<number>(3);
 	let page = $state<number>(1);
+	let sortMode = $state<SortMode>('newest');
 	let lightboxIndex = $state<number | null>(null);
 	let loaded = $state<Record<string, boolean>>({});
 	let failed = $state<Record<string, boolean>>({});
@@ -19,7 +26,15 @@
 		node.select();
 	};
 
-	const photos = $derived(data.photos);
+	// Server already returns photos newest-first (orderBy createdTime desc, name).
+	// Reverse for oldest, sort by name for name-mode. Keep it pure so the derived
+	// computation re-runs only when inputs change.
+	const photos = $derived.by(() => {
+		const base = data.photos;
+		if (sortMode === 'oldest') return [...base].reverse();
+		if (sortMode === 'name') return [...base].sort((a, b) => a.name.localeCompare(b.name));
+		return base;
+	});
 	const totalPages = $derived(Math.max(1, Math.ceil(photos.length / pageSize)));
 	// Keep page in range when pageSize changes.
 	$effect(() => {
@@ -121,15 +136,27 @@
 	<header class="fade-up flex flex-wrap items-end justify-between gap-3">
 		<div>
 			<a href="/media" class="text-xs" style="color: var(--app-text-muted);">← Back to media</a>
-			<h1 class="mt-1 text-2xl font-bold tracking-tight" style="color: var(--app-text); letter-spacing: -0.025em;">
+			<h1
+				class="mt-1 text-2xl font-bold tracking-tight"
+				style="color: var(--app-text); letter-spacing: -0.025em;"
+			>
 				{data.eventName}
 			</h1>
 			<p class="mt-0.5 text-sm" style="color: var(--app-text-muted);">
-				{photos.length} {photos.length === 1 ? 'photo' : 'photos'}
+				{photos.length}
+				{photos.length === 1 ? 'photo' : 'photos'}
 			</p>
 		</div>
 		<Button variant="secondary" href={data.driveUrl}>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-4 w-4"
+			>
 				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 				<polyline points="7 10 12 15 17 10" />
 				<line x1="12" y1="15" x2="12" y2="3" />
@@ -146,7 +173,10 @@
 			{data.error}
 		</div>
 	{:else if photos.length === 0}
-		<EmptyState title="No photos in this event" description="Upload images to the Drive folder and they'll appear here." />
+		<EmptyState
+			title="No photos in this event"
+			description="Upload images to the Drive folder and they'll appear here."
+		/>
 	{:else}
 		<!-- Floating control bar: grid density + per-page selector -->
 		<div
@@ -165,6 +195,24 @@
 							aria-label={`${col} columns`}
 						>
 							{col}×
+						</button>
+					{/each}
+				</div>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="eyebrow-label" style="margin-bottom: 0;">Sort</span>
+				<div class="control-segment">
+					{#each SORT_OPTIONS as opt (opt.key)}
+						<button
+							type="button"
+							class="seg-btn"
+							data-active={opt.key === sortMode}
+							onclick={() => {
+								sortMode = opt.key;
+								page = 1;
+							}}
+						>
+							{opt.label}
 						</button>
 					{/each}
 				</div>
@@ -197,9 +245,13 @@
 				<button
 					type="button"
 					class="tile group relative overflow-hidden rounded-xl border"
-					style="border-color: var(--app-glass-border); aspect-ratio: {aspectFor(photo.width, photo.height)};"
+					style="border-color: var(--app-glass-border); aspect-ratio: {aspectFor(
+						photo.width,
+						photo.height
+					)};"
 					onclick={() => open(start + i)}
-					aria-label={`Open ${photo.name}`}
+					disabled={failed[photo.id]}
+					aria-label={failed[photo.id] ? `${photo.name} failed to load` : `Open ${photo.name}`}
 				>
 					{#if !loaded[photo.id] && !failed[photo.id]}
 						<div class="skeleton absolute inset-0" aria-hidden="true"></div>
@@ -235,7 +287,9 @@
 							onload={() => onImgLoad(photo.id)}
 							onerror={() => onImgError(photo.id)}
 							class="absolute inset-0 block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-							style="opacity: {loaded[photo.id] ? 1 : 0}; transition: opacity 0.35s ease, transform 0.5s ease;"
+							style="opacity: {loaded[photo.id]
+								? 1
+								: 0}; transition: opacity 0.35s ease, transform 0.5s ease;"
 						/>
 					{/if}
 					<div class="tile-fade pointer-events-none absolute inset-0"></div>
@@ -244,7 +298,10 @@
 		</div>
 
 		{#if totalPages > 1}
-			<nav class="page-bar mt-6 flex flex-wrap items-center justify-center gap-1" aria-label="Gallery pagination">
+			<nav
+				class="page-bar mt-6 flex flex-wrap items-center justify-center gap-1"
+				aria-label="Gallery pagination"
+			>
 				<button
 					type="button"
 					class="page-btn"
@@ -252,7 +309,15 @@
 					disabled={page <= 1}
 					aria-label="Previous page"
 				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="15 18 9 12 15 6"/></svg>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-3.5 w-3.5"><polyline points="15 18 9 12 15 6" /></svg
+					>
 				</button>
 				{#each pageNumbers as item, i (i)}
 					{#if item === 'gap'}
@@ -294,8 +359,8 @@
 							class="page-btn"
 							data-active={item === page}
 							aria-current={item === page ? 'page' : undefined}
-							onclick={() => goToPage(item)}
-						>{item}</button>
+							onclick={() => goToPage(item)}>{item}</button
+						>
 					{/if}
 				{/each}
 				<button
@@ -305,7 +370,15 @@
 					disabled={page >= totalPages}
 					aria-label="Next page"
 				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="9 18 15 12 9 6"/></svg>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-3.5 w-3.5"><polyline points="9 18 15 12 9 6" /></svg
+					>
 				</button>
 			</nav>
 		{/if}
@@ -315,7 +388,13 @@
 {#if activePhoto}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="lightbox" role="dialog" aria-modal="true" aria-label={activePhoto.name} onclick={close}>
+	<div
+		class="lightbox"
+		role="dialog"
+		aria-modal="true"
+		aria-label={activePhoto.name}
+		onclick={close}
+	>
 		<button
 			type="button"
 			class="lightbox-arrow lightbox-arrow--left"
@@ -325,7 +404,15 @@
 			}}
 			aria-label="Previous photo"
 		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><polyline points="15 18 9 12 15 6" /></svg>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.8"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-6 w-6"><polyline points="15 18 9 12 15 6" /></svg
+			>
 		</button>
 
 		<button
@@ -337,7 +424,14 @@
 			}}
 			aria-label="Close"
 		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="h-5 w-5"><path d="M18 6 6 18M6 6l12 12" /></svg>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.8"
+				stroke-linecap="round"
+				class="h-5 w-5"><path d="M18 6 6 18M6 6l12 12" /></svg
+			>
 		</button>
 
 		<figure class="lightbox-figure" onclick={(event) => event.stopPropagation()}>
@@ -364,7 +458,15 @@
 			}}
 			aria-label="Next photo"
 		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><polyline points="9 18 15 12 9 6" /></svg>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.8"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-6 w-6"><polyline points="9 18 15 12 9 6" /></svg
+			>
 		</button>
 	</div>
 {/if}
@@ -392,13 +494,23 @@
 		margin: 0;
 		cursor: pointer;
 		padding: 0;
-		transition: border-color 0.2s ease, transform 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			transform 0.2s ease;
 	}
-	.tile:hover {
+	.tile:hover:not(:disabled) {
 		border-color: var(--app-glass-border-hover);
 	}
+	.tile:disabled {
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
 	.tile-fade {
-		background: linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--app-bg) 55%, transparent) 100%);
+		background: linear-gradient(
+			180deg,
+			transparent 70%,
+			color-mix(in srgb, var(--app-bg) 55%, transparent) 100%
+		);
 	}
 	.skeleton {
 		background-color: color-mix(in srgb, var(--app-text-muted) 12%, var(--app-glass-bg));
@@ -488,7 +600,9 @@
 		background: rgba(255, 255, 255, 0.08);
 		color: white;
 		cursor: pointer;
-		transition: background 0.15s ease, transform 0.15s ease;
+		transition:
+			background 0.15s ease,
+			transform 0.15s ease;
 	}
 	.lightbox-arrow:hover {
 		background: rgba(255, 255, 255, 0.18);
@@ -532,7 +646,9 @@
 		font-size: 11px;
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
 	}
 	.seg-btn:hover {
 		color: var(--app-text);
@@ -556,7 +672,10 @@
 		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease,
+			border-color 0.15s ease;
 	}
 	.page-bar .page-btn:hover:not(:disabled) {
 		background: var(--app-glass-bg-hover);
