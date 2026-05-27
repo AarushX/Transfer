@@ -25,7 +25,14 @@ const normalizeQuestions = (input: unknown) => {
 				const correct = String(q.correct ?? '').trim();
 				if (!correct || !options.includes(correct))
 					return { error: `Question ${i + 1} must select one correct option.` };
-				normalized.push({ id, prompt, type, options, correct, randomize_options: Boolean(q.randomize_options) });
+				normalized.push({
+					id,
+					prompt,
+					type,
+					options,
+					correct,
+					randomize_options: Boolean(q.randomize_options)
+				});
 			} else {
 				const correct = Array.isArray(q.correct)
 					? q.correct.map((v) => String(v ?? '').trim()).filter((v) => options.includes(v))
@@ -53,7 +60,12 @@ const normalizeQuestions = (input: unknown) => {
 			continue;
 		}
 		if (type === 'tf') {
-			normalized.push({ id, prompt, type, correct: String(q.correct ?? '').toLowerCase() === 'false' ? 'false' : 'true' });
+			normalized.push({
+				id,
+				prompt,
+				type,
+				correct: String(q.correct ?? '').toLowerCase() === 'false' ? 'false' : 'true'
+			});
 			continue;
 		}
 		normalized.push({
@@ -92,7 +104,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.eq('survey_id', survey.id)
 			.order('submitted_at', { ascending: false })
 	]);
-	const profileIds = Array.from(new Set((submissions ?? []).map((row: any) => String(row.user_id))));
+	const profileIds = Array.from(
+		new Set((submissions ?? []).map((row: any) => String(row.user_id)))
+	);
 	const { data: profiles } = profileIds.length
 		? await locals.supabase.from('profiles').select('id,full_name,email').in('id', profileIds)
 		: { data: [] as any[] };
@@ -121,12 +135,15 @@ export const actions: Actions = {
 		const showWhenInactive = String(form.get('show_when_inactive') ?? '') === 'on';
 		const visibleFromRaw = String(form.get('visible_from') ?? '').trim();
 		const visibleUntilRaw = String(form.get('visible_until') ?? '').trim();
-		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		const allowStudentViewSubmissions =
+			String(form.get('allow_student_view_submissions') ?? '') === 'on';
 		const allowStudentEdits = String(form.get('allow_student_edits') ?? '') === 'on';
 		const studentEditDeadlineRaw = String(form.get('student_edit_deadline') ?? '').trim();
 		const maxSubmissionsRaw = Number(form.get('max_submissions') ?? '1');
 		const maxSubmissions =
-			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1 ? Math.trunc(maxSubmissionsRaw) : 1;
+			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1
+				? Math.trunc(maxSubmissionsRaw)
+				: 1;
 		const prereqIds = form
 			.getAll('prereq_node_ids')
 			.map((v) => String(v))
@@ -145,7 +162,8 @@ export const actions: Actions = {
 		const visibleUntil = toIsoOrNull(visibleUntilRaw);
 		const studentEditDeadline = toIsoOrNull(studentEditDeadlineRaw);
 		if (visibleFromRaw && !visibleFrom) return fail(400, { error: 'Invalid visible-from date.' });
-		if (visibleUntilRaw && !visibleUntil) return fail(400, { error: 'Invalid visible-until date.' });
+		if (visibleUntilRaw && !visibleUntil)
+			return fail(400, { error: 'Invalid visible-until date.' });
 		if (studentEditDeadlineRaw && !studentEditDeadline)
 			return fail(400, { error: 'Invalid student edit deadline.' });
 		if (visibleFrom && visibleUntil && visibleFrom > visibleUntil) {
@@ -173,7 +191,8 @@ export const actions: Actions = {
 			.eq('slug', params.slug)
 			.select('id')
 			.single();
-		if (surveyErr || !survey) return fail(400, { error: surveyErr?.message ?? 'Could not save survey.' });
+		if (surveyErr || !survey)
+			return fail(400, { error: surveyErr?.message ?? 'Could not save survey.' });
 
 		const { data: existingPrereqs, error: existingErr } = await locals.supabase
 			.from('survey_prerequisites')
@@ -204,7 +223,10 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	deleteSurvey: async ({ locals, params }) => {
-		const { error: deleteErr } = await locals.supabase.from('surveys').delete().eq('slug', params.slug);
+		const { error: deleteErr } = await locals.supabase
+			.from('surveys')
+			.delete()
+			.eq('slug', params.slug);
 		if (deleteErr) return fail(400, { error: deleteErr.message });
 		throw redirect(303, '/mentor/surveys');
 	}

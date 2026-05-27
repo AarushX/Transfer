@@ -10,11 +10,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	if (!user) throw error(401, 'Unauthorized');
 	const [currentTeamsResp, primaryResp, requiredResp] = await Promise.all([
 		locals.supabase.from('profile_teams').select('category_slug').eq('user_id', user.id),
-		locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle(),
 		locals.supabase
-			.from('subteam_categories')
-			.select('slug')
-			.eq('is_required_onboarding', true)
+			.from('profile_primary_teams')
+			.select('team_group_id')
+			.eq('user_id', user.id)
+			.maybeSingle(),
+		locals.supabase.from('subteam_categories').select('slug').eq('is_required_onboarding', true)
 	]);
 	const currentTeams = currentTeamsResp.data ?? [];
 	const selectedDesignators = new Set(
@@ -42,7 +43,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		const [{ data: nodeTeamTargets }, { data: nodeGroupTargets }, { data: profileTeamRows }] =
 			await Promise.all([
 				locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id),
-				locals.supabase.from('node_team_group_targets').select('team_group_id').eq('node_id', node.id),
+				locals.supabase
+					.from('node_team_group_targets')
+					.select('team_group_id')
+					.eq('node_id', node.id),
 				locals.supabase.from('profile_teams').select('team_id,team_group_id').eq('user_id', user.id)
 			]);
 		const hasTeamTargets = (nodeTeamTargets?.length ?? 0) > 0;
@@ -147,7 +151,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	]);
 
 	const computedStatus = statusRow?.computed_status ?? cert?.status ?? 'locked';
-	const effectiveStatus = previewBypass && computedStatus === 'locked' ? 'available' : computedStatus;
+	const effectiveStatus =
+		previewBypass && computedStatus === 'locked' ? 'available' : computedStatus;
 	let checkoffQrDataUrl = '';
 	if (submission) {
 		const secret = encoder.encode(process.env.PASSPORT_QR_SECRET ?? 'dev-secret-change-me');
@@ -307,7 +312,10 @@ export const actions: Actions = {
 			.eq('node_id', node.id)
 			.maybeSingle();
 		if (requirement?.evidence_mode === 'photo_required' && photoDataUrls.length === 0) {
-			return fail(400, { error: 'At least one photo is required for this checkoff.', section: 'checkoff' });
+			return fail(400, {
+				error: 'At least one photo is required for this checkoff.',
+				section: 'checkoff'
+			});
 		}
 
 		const payload = {
@@ -329,7 +337,9 @@ export const actions: Actions = {
 			: await updateQuery.is('block_id', null).select('id').limit(1);
 		if (updateErr) upsertError = { message: updateErr.message };
 		else if (!updatedRows || updatedRows.length === 0) {
-			const { error: insertErr } = await locals.supabase.from('checkoff_submissions').insert(payload);
+			const { error: insertErr } = await locals.supabase
+				.from('checkoff_submissions')
+				.insert(payload);
 			if (insertErr) upsertError = { message: insertErr.message };
 		}
 		if (upsertError) return fail(400, { error: upsertError.message, section: 'checkoff' });

@@ -44,7 +44,10 @@
 			aria-modal="true"
 		>
 			<div class="relative p-5">
-				<div class="pointer-events-none absolute inset-0 rounded-xl" style="background: var(--app-glass-shine);"></div>
+				<div
+					class="pointer-events-none absolute inset-0 rounded-xl"
+					style="background: var(--app-glass-shine);"
+				></div>
 				<h3 class="relative text-lg font-semibold" style="color: var(--app-text);">{title}</h3>
 				{#if children}
 					<div class="relative mt-3">

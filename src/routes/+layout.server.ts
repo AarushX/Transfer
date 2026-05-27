@@ -77,8 +77,7 @@ export const load = async ({ locals }) => {
 	const stale = !cachedOrgName || Date.now() > cacheExpiresAt;
 
 	if (stale || user) {
-		const orgColumns =
-			'name,icon_data_url,' + themeColumnMap.map(([, col]) => col).join(',');
+		const orgColumns = 'name,icon_data_url,' + themeColumnMap.map(([, col]) => col).join(',');
 
 		const orgPromise = locals.supabase
 			.from('org_settings')
@@ -87,15 +86,29 @@ export const load = async ({ locals }) => {
 			.maybeSingle();
 
 		if (user) {
-			const [orgResp, currentResp, primaryResp, requiredResp] = await Promise.all([
-				orgPromise,
-				locals.supabase.from('profile_teams').select('team_id,category_slug').eq('user_id', user.id),
-				locals.supabase.from('profile_primary_teams').select('team_group_id,team_groups(name,designator)').eq('user_id', user.id).maybeSingle(),
-				locals.supabase
-					.from('subteam_categories')
-					.select('slug')
-					.eq('is_required_onboarding', true)
-			]);
+			const [orgResp, currentResp, primaryResp, requiredResp, stepsResp, progressResp] =
+				await Promise.all([
+					orgPromise,
+					locals.supabase
+						.from('profile_teams')
+						.select('team_id,category_slug')
+						.eq('user_id', user.id),
+					locals.supabase
+						.from('profile_primary_teams')
+						.select('team_group_id,team_groups(name,designator)')
+						.eq('user_id', user.id)
+						.maybeSingle(),
+					locals.supabase
+						.from('subteam_categories')
+						.select('slug')
+						.eq('is_required_onboarding', true),
+					locals.supabase.from('onboarding_steps').select('id').eq('is_active', true),
+					locals.supabase
+						.from('onboarding_progress')
+						.select('step_id')
+						.eq('user_id', user.id)
+						.not('completed_at', 'is', null)
+				]);
 
 			const org = orgResp.data as Record<string, unknown> | null;
 			orgName = String(org?.name ?? 'Workspace');
@@ -108,13 +121,24 @@ export const load = async ({ locals }) => {
 			);
 			const required = (requiredResp.data ?? []).map((row: any) => String(row.slug));
 
+			const stepIds = new Set((stepsResp.data ?? []).map((r: any) => String(r.id)));
+			const doneStepIds = new Set((progressResp.data ?? []).map((r: any) => String(r.step_id)));
+			let stepsIncomplete = false;
+			for (const id of stepIds) {
+				if (!doneStepIds.has(id)) {
+					stepsIncomplete = true;
+					break;
+				}
+			}
+
 			if (profile?.is_parent_guardian) {
 				needsOnboarding = false;
 			} else {
 				needsOnboarding =
 					currentTeams.length === 0 ||
 					!String(primaryResp.data?.team_group_id ?? '') ||
-					required.some((slug) => !selectedDesignators.has(slug));
+					required.some((slug) => !selectedDesignators.has(slug)) ||
+					(stepIds.size > 0 && stepsIncomplete);
 			}
 		} else {
 			const orgResp = await orgPromise;
@@ -142,7 +166,8 @@ export const load = async ({ locals }) => {
 			.maybeSingle();
 		const pt = (primaryRow as any)?.team_groups;
 		if (pt) {
-			const des = pt.designator && pt.designator.toLowerCase() !== 'general' ? ` · ${pt.designator}` : '';
+			const des =
+				pt.designator && pt.designator.toLowerCase() !== 'general' ? ` · ${pt.designator}` : '';
 			primaryTeamName = `${pt.name}${des}`;
 		}
 		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
@@ -174,16 +199,11 @@ export const load = async ({ locals }) => {
 					.from('teams')
 					.select('id,name')
 					.in('id', teamIds);
-				teamNameById = new Map(
-					(teamRows ?? []).map((r: any) => [String(r.id), String(r.name)])
-				);
+				teamNameById = new Map((teamRows ?? []).map((r: any) => [String(r.id), String(r.name)]));
 			}
 			userSubteams = (profileTeamsRows ?? [])
 				.filter(
-					(r: any) =>
-						r.category_slug &&
-						String(r.category_slug ?? '') !== 'general' &&
-						r.team_id
+					(r: any) => r.category_slug && String(r.category_slug ?? '') !== 'general' && r.team_id
 				)
 				.map((r: any) => ({
 					slug: String(r.category_slug),

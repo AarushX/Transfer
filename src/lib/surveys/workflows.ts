@@ -12,7 +12,10 @@ export type SurveyTemplateQuestion = {
 	short_ignore_punctuation?: boolean;
 };
 
-export const WORKFLOW_META: Record<Exclude<WorkflowKind, 'custom'>, { label: string; description: string; slugPrefix: string }> = {
+export const WORKFLOW_META: Record<
+	Exclude<WorkflowKind, 'custom'>,
+	{ label: string; description: string; slugPrefix: string }
+> = {
 	leadership: {
 		label: 'Leadership Application',
 		description: 'Use for captain/lead applications with reviewable responses.',
@@ -31,7 +34,9 @@ export const WORKFLOW_META: Record<Exclude<WorkflowKind, 'custom'>, { label: str
 };
 
 export const inferWorkflowKindFromSlug = (slug: string | null | undefined): WorkflowKind => {
-	const value = String(slug ?? '').trim().toLowerCase();
+	const value = String(slug ?? '')
+		.trim()
+		.toLowerCase();
 	if (!value) return 'custom';
 	if (value.startsWith(`${WORKFLOW_META.leadership.slugPrefix}-`)) return 'leadership';
 	if (value.startsWith(`${WORKFLOW_META.school.slugPrefix}-`)) return 'school';
@@ -45,10 +50,23 @@ export const applyWorkflowPrefixToSlug = (workflow: WorkflowKind, slug: string):
 	return slug.startsWith(`${prefix}-`) ? slug : `${prefix}-${slug}`;
 };
 
-export const TEMPLATE_QUESTIONS: Record<Exclude<WorkflowKind, 'custom'>, SurveyTemplateQuestion[]> = {
+export const TEMPLATE_QUESTIONS: Record<
+	Exclude<WorkflowKind, 'custom'>,
+	SurveyTemplateQuestion[]
+> = {
 	leadership: [
-		{ id: 'motivation', prompt: 'Why do you want this leadership role?', type: 'short', correct: '' },
-		{ id: 'experience', prompt: 'Describe a time you helped the team succeed.', type: 'short', correct: '' },
+		{
+			id: 'motivation',
+			prompt: 'Why do you want this leadership role?',
+			type: 'short',
+			correct: ''
+		},
+		{
+			id: 'experience',
+			prompt: 'Describe a time you helped the team succeed.',
+			type: 'short',
+			correct: ''
+		},
 		{
 			id: 'availability',
 			prompt: 'How consistently can you attend meetings and events?',

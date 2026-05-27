@@ -4,7 +4,9 @@ import { createSupabaseServiceClient } from '$lib/server/supabase';
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const form = await request.formData();
 	const intent = String(form.get('intent') ?? 'login').trim();
-	const email = String(form.get('email') ?? '').trim().toLowerCase();
+	const email = String(form.get('email') ?? '')
+		.trim()
+		.toLowerCase();
 	const password = String(form.get('password') ?? '');
 
 	if (!email || !password) {

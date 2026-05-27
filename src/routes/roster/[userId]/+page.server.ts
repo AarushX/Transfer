@@ -21,38 +21,41 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requiredCategoriesResp,
 		userTeamRowsResp,
 		userPrimaryResp
-	] =
-		await Promise.all([
-			locals.supabase
-				.from('profiles')
-				.select('id,full_name,email,role,subteam_id,avatar_url,bio')
-				.eq('id', userId)
-				.single(),
-			locals.supabase
-				.from('certifications')
-				.select('node_id,status,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)')
-				.eq('user_id', userId)
-				.not('status', 'eq', 'locked')
-				.order('approved_at', { ascending: false, nullsFirst: false }),
-			locals.supabase
-				.from('training_categories')
-				.select('id,name,slug,parent_id,color_token')
-				.eq('is_active', true),
-			locals.supabase.from('node_categories').select('node_id,category_id'),
-			computeUserRanks(locals.supabase, [userId]),
-			locals.supabase.from('team_groups').select('id,name,sort_order').order('sort_order'),
-			locals.supabase
-				.from('teams')
-				.select('id,name,slug,category_slug,team_group_id,sort_order')
-				.order('sort_order'),
-			locals.supabase
-				.from('subteam_categories')
-				.select('slug,name,is_required_onboarding,sort_order')
-				.eq('is_required_onboarding', true)
-				.order('sort_order'),
-			locals.supabase.from('profile_teams').select('team_id,category_slug').eq('user_id', userId),
-			locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', userId).maybeSingle()
-		]);
+	] = await Promise.all([
+		locals.supabase
+			.from('profiles')
+			.select('id,full_name,email,role,subteam_id,avatar_url,bio')
+			.eq('id', userId)
+			.single(),
+		locals.supabase
+			.from('certifications')
+			.select('node_id,status,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)')
+			.eq('user_id', userId)
+			.not('status', 'eq', 'locked')
+			.order('approved_at', { ascending: false, nullsFirst: false }),
+		locals.supabase
+			.from('training_categories')
+			.select('id,name,slug,parent_id,color_token')
+			.eq('is_active', true),
+		locals.supabase.from('node_categories').select('node_id,category_id'),
+		computeUserRanks(locals.supabase, [userId]),
+		locals.supabase.from('team_groups').select('id,name,sort_order').order('sort_order'),
+		locals.supabase
+			.from('teams')
+			.select('id,name,slug,category_slug,team_group_id,sort_order')
+			.order('sort_order'),
+		locals.supabase
+			.from('subteam_categories')
+			.select('slug,name,is_required_onboarding,sort_order')
+			.eq('is_required_onboarding', true)
+			.order('sort_order'),
+		locals.supabase.from('profile_teams').select('team_id,category_slug').eq('user_id', userId),
+		locals.supabase
+			.from('profile_primary_teams')
+			.select('team_group_id')
+			.eq('user_id', userId)
+			.maybeSingle()
+	]);
 
 	const member = profileResp.data;
 	if (!member) throw redirect(303, '/roster');
@@ -75,14 +78,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		};
 	});
 
+	const { data: allCategoriesData } = await locals.supabase
+		.from('subteam_categories')
+		.select('slug,name,sort_order')
+		.order('sort_order');
+
 	return {
 		member,
-		canManageUsers: isAdmin(profile),
+		canManageUsers: isAdmin(profile) || isMentor(profile),
+		isCurrentUserAdmin: isAdmin(profile),
 		rankSummary,
 		courseResults: completedCourses,
 		teamGroups: teamGroupsResp.data ?? [],
 		subteams: subteamsResp.data ?? [],
 		requiredCategories: requiredCategoriesResp.data ?? [],
+		allCategories: allCategoriesData ?? [],
 		userTeamRows: userTeamRowsResp.data ?? [],
 		currentPrimaryTeamGroupId: userPrimaryResp.data?.team_group_id ?? ''
 	};
@@ -95,7 +105,8 @@ export const actions: Actions = {
 		const userId = params.userId;
 		const form = await request.formData();
 		const primaryTeamGroupId = String(form.get('primary_team_group_id') ?? '').trim();
-		if (!userId || !primaryTeamGroupId) return fail(400, { error: 'User and main team are required.' });
+		if (!userId || !primaryTeamGroupId)
+			return fail(400, { error: 'User and main team are required.' });
 		const { data: categories } = await locals.supabase
 			.from('subteam_categories')
 			.select('slug,name,is_required_onboarding')
@@ -127,11 +138,19 @@ export const actions: Actions = {
 		for (const category of requiredCategories as any[]) {
 			const categorySlug = String(category.slug);
 			const selectedTeamId = String(form.get(`team_id_${categorySlug}`) ?? '').trim();
-			if (!selectedTeamId) return fail(400, { error: `Select a ${String(category.name).toLowerCase()} subteam.` });
-			const selected = (selectedTeams ?? []).find((row: any) => row.id === selectedTeamId && String(row.category_slug ?? '') === categorySlug);
-			if (!selected) return fail(400, { error: `Selection for ${String(category.name).toLowerCase()} is invalid.` });
+			if (!selectedTeamId)
+				return fail(400, { error: `Select a ${String(category.name).toLowerCase()} subteam.` });
+			const selected = (selectedTeams ?? []).find(
+				(row: any) => row.id === selectedTeamId && String(row.category_slug ?? '') === categorySlug
+			);
+			if (!selected)
+				return fail(400, {
+					error: `Selection for ${String(category.name).toLowerCase()} is invalid.`
+				});
 			if (!linkedTeamIds.has(String(selectedTeamId))) {
-				return fail(400, { error: `Selected ${categorySlug} subteam is not linked to the chosen main team.` });
+				return fail(400, {
+					error: `Selected ${categorySlug} subteam is not linked to the chosen main team.`
+				});
 			}
 			inserts.push({
 				user_id: userId,
@@ -174,8 +193,72 @@ export const actions: Actions = {
 			.from('profile_primary_teams')
 			.upsert({ user_id: userId, team_group_id: primaryTeamGroupId }, { onConflict: 'user_id' });
 		if (primaryError) return fail(400, { error: primaryError.message });
-		const { error: syncError } = await locals.supabase.rpc('sync_profile_courseloads_for_user', { p_user_id: userId });
+		const { error: syncError } = await locals.supabase.rpc('sync_profile_courseloads_for_user', {
+			p_user_id: userId
+		});
 		if (syncError) return fail(400, { error: syncError.message });
 		return { ok: true, section: 'teams' };
+	},
+
+	addExtraSubteam: async ({ locals, request, params }) => {
+		const { profile } = await locals.safeGetSession();
+		if (!profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
+		const userId = params.userId;
+		if (!userId) return fail(400, { error: 'Missing user.' });
+		const form = await request.formData();
+		const teamId = String(form.get('team_id') ?? '').trim();
+		if (!teamId) return fail(400, { error: 'Pick a subteam.' });
+
+		const { data: team, error: teamErr } = await locals.supabase
+			.from('teams')
+			.select('id,team_group_id,category_slug')
+			.eq('id', teamId)
+			.maybeSingle();
+		if (teamErr || !team) return fail(400, { error: teamErr?.message ?? 'Subteam not found.' });
+
+		const { error: upsertErr } = await locals.supabase.from('profile_teams').upsert(
+			{
+				user_id: userId,
+				team_group_id: team.team_group_id,
+				team_id: team.id,
+				category_slug: team.category_slug ?? 'general'
+			},
+			{ onConflict: 'user_id,team_group_id,category_slug' }
+		);
+		if (upsertErr) return fail(400, { error: upsertErr.message });
+
+		const { error: syncError } = await locals.supabase.rpc('sync_profile_courseloads_for_user', {
+			p_user_id: userId
+		});
+		if (syncError) return fail(400, { error: syncError.message });
+		return { ok: true, section: 'addExtraSubteam' };
+	},
+
+	removeSubteam: async ({ locals, request, params }) => {
+		const { profile } = await locals.safeGetSession();
+		if (!profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
+		const userId = params.userId;
+		if (!userId) return fail(400, { error: 'Missing user.' });
+		const form = await request.formData();
+		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
+		const categorySlug = String(form.get('category_slug') ?? '').trim();
+		if (!teamGroupId || !categorySlug)
+			return fail(400, { error: 'Missing membership identifier.' });
+
+		const { error } = await locals.supabase
+			.from('profile_teams')
+			.delete()
+			.eq('user_id', userId)
+			.eq('team_group_id', teamGroupId)
+			.eq('category_slug', categorySlug);
+		if (error) return fail(400, { error: error.message });
+
+		const { error: syncError } = await locals.supabase.rpc('sync_profile_courseloads_for_user', {
+			p_user_id: userId
+		});
+		if (syncError) return fail(400, { error: syncError.message });
+		return { ok: true, section: 'removeSubteam' };
 	}
 };

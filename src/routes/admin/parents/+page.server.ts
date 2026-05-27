@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		applications: (data ?? []).map((row: any) => ({
 			...row,
-			parent: Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null,
+			parent: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : (row.profiles ?? null),
 			completedCourses: completedByParent.get(String(row.parent_user_id)) ?? []
 		}))
 	};

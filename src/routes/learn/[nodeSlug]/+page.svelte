@@ -57,12 +57,12 @@
 
 	const blocks = $derived.by<LearnBlock[]>(() => {
 		const real = Array.isArray(data.blocks) ? (data.blocks as any[]) : [];
-	return real.map((b) => ({
-		id: String(b.id),
-		type: b.type as BlockType,
-		position: Number(b.position),
-		config: (b.config ?? {}) as Record<string, any>
-	}));
+		return real.map((b) => ({
+			id: String(b.id),
+			type: b.type as BlockType,
+			position: Number(b.position),
+			config: (b.config ?? {}) as Record<string, any>
+		}));
 	});
 
 	const progressByBlockId = $derived.by(() => {
@@ -279,23 +279,40 @@
 	}
 
 	const completedBlockCount = $derived(blocks.filter((b) => isBlockCompleted(b)).length);
-	const progressPercent = $derived(blocks.length > 0 ? Math.round((completedBlockCount / blocks.length) * 100) : 0);
+	const progressPercent = $derived(
+		blocks.length > 0 ? Math.round((completedBlockCount / blocks.length) * 100) : 0
+	);
 </script>
 
 <section class="space-y-4">
 	<div class="fade-up aurora-border">
-		<div class="relative overflow-hidden rounded-[17px] p-5 md:p-6" style="background: var(--app-surface);">
-			<div class="pointer-events-none absolute inset-0 rounded-[17px]" style="background: var(--app-glass-shine);"></div>
+		<div
+			class="relative overflow-hidden rounded-[17px] p-5 md:p-6"
+			style="background: var(--app-surface);"
+		>
+			<div
+				class="pointer-events-none absolute inset-0 rounded-[17px]"
+				style="background: var(--app-glass-shine);"
+			></div>
 			<div class="relative">
 				<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs" style="color: var(--app-text-dim);">
-					<a href="/dashboard" class="transition-colors hover:brightness-125" style="color: var(--app-text-dim);">← Dashboard</a>
+					<a
+						href="/dashboard"
+						class="transition-colors hover:brightness-125"
+						style="color: var(--app-text-dim);">← Dashboard</a
+					>
 				</div>
 
-				<h1 class="gradient-text mt-3 text-2xl font-bold tracking-tight md:text-3xl" style="letter-spacing: -0.025em;">
+				<h1
+					class="gradient-text mt-3 text-2xl font-bold tracking-tight md:text-3xl"
+					style="letter-spacing: -0.025em;"
+				>
 					{data.node.title}
 				</h1>
 				{#if data.node.description}
-					<p class="mt-1.5 text-sm" style="color: var(--app-text-muted);">{data.node.description}</p>
+					<p class="mt-1.5 text-sm" style="color: var(--app-text-muted);">
+						{data.node.description}
+					</p>
 				{/if}
 
 				<div class="mt-3 flex flex-wrap items-center gap-3">
@@ -316,7 +333,9 @@
 								></span>
 							{/each}
 						</span>
-						<span class="mono text-xs" style="color: var(--app-text-dim);">{completedBlockCount}/{blocks.length}</span>
+						<span class="mono text-xs" style="color: var(--app-text-dim);"
+							>{completedBlockCount}/{blocks.length}</span
+						>
 					{/if}
 				</div>
 
@@ -338,19 +357,32 @@
 	</div>
 
 	{#if awaitingMentor && !completed}
-		<div class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl" style="animation-delay: 0.06s;">
-			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+		<div
+			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
+			style="animation-delay: 0.06s;"
+		>
+			<div
+				class="pointer-events-none absolute inset-0 rounded-2xl"
+				style="background: var(--app-glass-shine);"
+			></div>
 			<div class="relative">
 				<p class="eyebrow-label mb-2">Mentor Review</p>
-				<h2 class="text-lg font-semibold" style="color: var(--app-text);">Awaiting mentor checkoff</h2>
-				<p class="mt-1 text-sm" style="color: var(--app-text-muted);">Your checkoff submission is ready for mentor review.</p>
+				<h2 class="text-lg font-semibold" style="color: var(--app-text);">
+					Awaiting mentor checkoff
+				</h2>
+				<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
+					Your checkoff submission is ready for mentor review.
+				</p>
 				{#if data.reviewMentor}
 					<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
 						Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
 					</p>
 				{/if}
 				{#if data.checkoffQrDataUrl}
-					<div class="mt-4 rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<div
+						class="mt-4 rounded-xl border p-4"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					>
 						<p class="text-xs" style="color: var(--app-text-muted);">
 							Show this QR to a mentor. Scanning it approves this submitted checkoff directly.
 						</p>
@@ -366,11 +398,21 @@
 	{/if}
 
 	{#if completed || allBlocksComplete}
-		<div class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl" style="animation-delay: 0.06s;">
-			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+		<div
+			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
+			style="animation-delay: 0.06s;"
+		>
+			<div
+				class="pointer-events-none absolute inset-0 rounded-2xl"
+				style="background: var(--app-glass-shine);"
+			></div>
 			<div class="relative">
 				<div class="mb-2 flex items-center gap-2">
-					<span class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs" style="background: color-mix(in srgb, var(--app-success) 20%, transparent); color: var(--app-success);">✓</span>
+					<span
+						class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs"
+						style="background: color-mix(in srgb, var(--app-success) 20%, transparent); color: var(--app-success);"
+						>✓</span
+					>
 					<h2 class="text-lg font-semibold" style="color: var(--app-text);">Completed</h2>
 				</div>
 				<p class="text-sm" style="color: var(--app-text-muted);">
@@ -388,15 +430,24 @@
 	{/if}
 
 	{#if locked}
-		<div class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl" style="animation-delay: 0.06s;">
-			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+		<div
+			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
+			style="animation-delay: 0.06s;"
+		>
+			<div
+				class="pointer-events-none absolute inset-0 rounded-2xl"
+				style="background: var(--app-glass-shine);"
+			></div>
 			<div class="relative space-y-4 text-sm" style="color: var(--app-text-muted);">
 				<p>
 					This module is locked. Complete its prerequisites on the
 					<a style="color: var(--app-link);" href="/dashboard">dashboard</a> first.
 				</p>
 				{#if prereqPlan.length > 0}
-					<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<div
+						class="rounded-xl border p-4"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					>
 						<p class="eyebrow-label mb-2">Doable prerequisites</p>
 						<div class="grid gap-2">
 							{#each doablePrereqs as row (row.id)}
@@ -406,19 +457,26 @@
 								>
 									<span class="truncate" style="color: var(--app-text);">
 										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);">({row.complexity} prereq)</span>
+										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
+											>({row.complexity} prereq)</span
+										>
 									</span>
-									<span class="rounded-full border px-2 py-0.5 text-[10px] chip-cyan">
+									<span class="chip-cyan rounded-full border px-2 py-0.5 text-[10px]">
 										Doable now
 									</span>
 								</a>
 							{:else}
-								<p class="text-xs" style="color: var(--app-text-dim);">No currently doable prerequisites.</p>
+								<p class="text-xs" style="color: var(--app-text-dim);">
+									No currently doable prerequisites.
+								</p>
 							{/each}
 						</div>
 					</div>
 
-					<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<div
+						class="rounded-xl border p-4"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					>
 						<p class="eyebrow-label mb-2">Locked prerequisites</p>
 						<div class="grid gap-2">
 							{#each lockedPrereqs as row (row.id)}
@@ -428,9 +486,11 @@
 								>
 									<span class="truncate" style="color: var(--app-text);">
 										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);">({row.complexity} prereq)</span>
+										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
+											>({row.complexity} prereq)</span
+										>
 									</span>
-									<span class="rounded-full border px-2 py-0.5 text-[10px] chip-rose">
+									<span class="chip-rose rounded-full border px-2 py-0.5 text-[10px]">
 										Locked
 									</span>
 								</a>
@@ -440,7 +500,10 @@
 						</div>
 					</div>
 
-					<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+					<div
+						class="rounded-xl border p-4"
+						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+					>
 						<p class="eyebrow-label mb-2">Completed prerequisites</p>
 						<div class="grid gap-2">
 							{#each completedPrereqs as row (row.id)}
@@ -450,14 +513,18 @@
 								>
 									<span class="truncate" style="color: var(--app-text);">
 										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);">({row.complexity} prereq)</span>
+										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
+											>({row.complexity} prereq)</span
+										>
 									</span>
-									<span class="rounded-full border px-2 py-0.5 text-[10px] chip-emerald">
+									<span class="chip-emerald rounded-full border px-2 py-0.5 text-[10px]">
 										Completed
 									</span>
 								</a>
 							{:else}
-								<p class="text-xs" style="color: var(--app-text-dim);">No completed prerequisites yet.</p>
+								<p class="text-xs" style="color: var(--app-text-dim);">
+									No completed prerequisites yet.
+								</p>
 							{/each}
 						</div>
 					</div>
@@ -465,8 +532,14 @@
 			</div>
 		</div>
 	{:else if blocks.length === 0}
-		<div class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 text-sm backdrop-blur-xl" style="animation-delay: 0.06s;">
-			<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+		<div
+			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 text-sm backdrop-blur-xl"
+			style="animation-delay: 0.06s;"
+		>
+			<div
+				class="pointer-events-none absolute inset-0 rounded-2xl"
+				style="background: var(--app-glass-shine);"
+			></div>
 			<p class="relative" style="color: var(--app-text-muted);">
 				No blocks have been added to this module yet. Ask a mentor to configure the course.
 			</p>
@@ -477,19 +550,32 @@
 				{@const chipClass = blockTypeChip(activeBlock.type)}
 				{@const icon = blockTypeIcon(activeBlock.type)}
 				{@const label = blockTypeLabel(activeBlock.type)}
-				<div class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl" style="animation-delay: 0.08s;">
-					<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+				<div
+					class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
+					style="animation-delay: 0.08s;"
+				>
+					<div
+						class="pointer-events-none absolute inset-0 rounded-2xl"
+						style="background: var(--app-glass-shine);"
+					></div>
 					<div class="relative space-y-4">
 						<div class="flex flex-wrap items-center gap-2">
-							<span class={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${chipClass}`}>
+							<span
+								class={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${chipClass}`}
+							>
 								<span>{icon}</span>
 								{selectedBlockIndex + 1}. {label}
 							</span>
 							{#if isBlockCompleted(activeBlock)}
-								<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium chip-emerald">✓ Done</span>
+								<span
+									class="chip-emerald inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium"
+									>✓ Done</span
+								>
 							{/if}
 						</div>
-						<h2 class="text-lg font-semibold" style="color: var(--app-text);">{blockSummary(activeBlock)}</h2>
+						<h2 class="text-lg font-semibold" style="color: var(--app-text);">
+							{blockSummary(activeBlock)}
+						</h2>
 
 						{#if activeBlock.type === 'video'}
 							{@const vid = extractVideoId(activeBlock.config.video_url)}
@@ -514,9 +600,14 @@
 									</Button>
 								</div>
 							{:else}
-								<p class="text-sm" style="color: var(--app-text-muted);">No video URL configured for this block.</p>
+								<p class="text-sm" style="color: var(--app-text-muted);">
+									No video URL configured for this block.
+								</p>
 							{/if}
-							<div class="flex flex-wrap items-center gap-3 border-t pt-4" style="border-color: var(--app-glass-border);">
+							<div
+								class="flex flex-wrap items-center gap-3 border-t pt-4"
+								style="border-color: var(--app-glass-border);"
+							>
 								{#if viewingCurrentStep}
 									<Button
 										variant="primary"
@@ -564,7 +655,10 @@
 									</div>
 								{/if}
 								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-									<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+									<div
+										class="rounded-xl border p-4"
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+									>
 										<p class="eyebrow-label mb-2">Resources</p>
 										<ul class="space-y-2 text-sm">
 											{#each c.resource_links as link}
@@ -583,7 +677,10 @@
 										</ul>
 									</div>
 								{/if}
-								<div class="flex flex-wrap items-center gap-3 border-t pt-4" style="border-color: var(--app-glass-border);">
+								<div
+									class="flex flex-wrap items-center gap-3 border-t pt-4"
+									style="border-color: var(--app-glass-border);"
+								>
 									{#if viewingCurrentStep}
 										<Button
 											variant="primary"
@@ -609,15 +706,23 @@
 							{@const c = activeBlock.config}
 							<div class="space-y-4">
 								{#if c.directions}
-									<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text-muted);">{c.directions}</p>
+									<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text-muted);">
+										{c.directions}
+									</p>
 								{/if}
 								{#if c.show_mentor_checklist_to_students && Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
-									<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+									<div
+										class="rounded-xl border p-4"
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+									>
 										<p class="eyebrow-label mb-2">Mentor checklist</p>
 										<ul class="space-y-1.5 text-sm" style="color: var(--app-text);">
 											{#each c.mentor_checklist as item}
 												<li class="flex items-start gap-2">
-													<span class="mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full" style="background: var(--app-text-dim);"></span>
+													<span
+														class="mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+														style="background: var(--app-text-dim);"
+													></span>
 													{item}
 												</li>
 											{/each}
@@ -625,7 +730,10 @@
 									</div>
 								{/if}
 								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-									<div class="rounded-xl border p-4" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+									<div
+										class="rounded-xl border p-4"
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+									>
 										<p class="eyebrow-label mb-2">Resources</p>
 										<ul class="space-y-2 text-sm">
 											{#each c.resource_links as link}
@@ -663,14 +771,14 @@
 									style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 								>
 									<p class="eyebrow-label">Submission</p>
-									<input
-										type="hidden"
-										name="block_id"
-										value={activeBlock.id}
-									/>
+									<input type="hidden" name="block_id" value={activeBlock.id} />
 									{#if blockedByMentor}
-										<div class="rounded-lg border p-3 text-xs" style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
-											This checkoff is blocked by a mentor. Resolve the feedback before further review.
+										<div
+											class="rounded-lg border p-3 text-xs"
+											style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+										>
+											This checkoff is blocked by a mentor. Resolve the feedback before further
+											review.
 										</div>
 									{/if}
 									<label class="flex flex-col gap-1.5 text-sm">
@@ -720,7 +828,10 @@
 									{#if uploadPreviews.length}
 										<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
 											{#each uploadPreviews as photo, idx}
-												<div class="photo-preview group relative overflow-hidden rounded-xl border" style="border-color: var(--app-glass-border);">
+												<div
+													class="photo-preview group relative overflow-hidden rounded-xl border"
+													style="border-color: var(--app-glass-border);"
+												>
 													<img
 														src={photo}
 														alt="Checkoff submission preview"
@@ -741,17 +852,19 @@
 									{#if checkoffMessage}
 										<p class="text-xs" style="color: var(--app-text-muted);">{checkoffMessage}</p>
 									{/if}
-									<Button
-										variant="primary"
-										type="submit"
-										disabled={blockedByMentor}
-									>
+									<Button variant="primary" type="submit" disabled={blockedByMentor}>
 										{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
 									</Button>
 								</form>
 								{#if data.review}
-									<div class="rounded-xl border p-4 text-sm" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-										<div class="pointer-events-none absolute inset-0 rounded-xl" style="background: var(--app-glass-shine);"></div>
+									<div
+										class="rounded-xl border p-4 text-sm"
+										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+									>
+										<div
+											class="pointer-events-none absolute inset-0 rounded-xl"
+											style="background: var(--app-glass-shine);"
+										></div>
 										<p class="eyebrow-label mb-2">Latest mentor feedback</p>
 										{#if data.reviewMentor}
 											<p class="text-xs" style="color: var(--app-text-dim);">
@@ -762,13 +875,19 @@
 											{data.review.mentor_notes || 'No notes yet.'}
 										</p>
 										{#if data.review.status === 'needs_review'}
-											<div class="mt-3 rounded-lg border p-2.5 text-xs" style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 8%, transparent); color: color-mix(in srgb, var(--app-warning) 70%, white);">
+											<div
+												class="mt-3 rounded-lg border p-2.5 text-xs"
+												style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 8%, transparent); color: color-mix(in srgb, var(--app-warning) 70%, white);"
+											>
 												Mentor requested updates. Your current submission stays saved; update
 												notes/photos and save again.
 											</div>
 										{/if}
 										{#if data.review.status === 'blocked'}
-											<div class="mt-3 rounded-lg border p-2.5 text-xs" style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 8%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);">
+											<div
+												class="mt-3 rounded-lg border p-2.5 text-xs"
+												style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 8%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);"
+											>
 												Mentor has blocked this checkoff pending safety/compliance resolution.
 											</div>
 										{/if}
@@ -776,7 +895,12 @@
 											<ul class="mt-3 space-y-1 text-xs" style="color: var(--app-text-muted);">
 												{#each data.review.checklist_results as row}
 													<li class="flex items-center gap-2">
-														<span class="inline-block h-1.5 w-1.5 rounded-full" style={row.passed ? 'background: var(--app-success);' : 'background: var(--app-danger);'}></span>
+														<span
+															class="inline-block h-1.5 w-1.5 rounded-full"
+															style={row.passed
+																? 'background: var(--app-success);'
+																: 'background: var(--app-danger);'}
+														></span>
 														{row.item}: {row.passed ? 'passed' : 'needs work'}
 													</li>
 												{/each}
@@ -791,9 +915,7 @@
 			{/if}
 
 			<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
-				<div
-					class="block-strip overflow-x-auto border-t px-3 py-2.5 backdrop-blur-xl"
-				>
+				<div class="block-strip overflow-x-auto border-t px-3 py-2.5 backdrop-blur-xl">
 					<div class="flex min-w-max items-stretch gap-2">
 						{#each blocks as block, i (block.id)}
 							{@const done = isBlockCompleted(block)}
@@ -818,14 +940,25 @@
 							>
 								<div class="flex items-center gap-1.5">
 									<span class="text-sm">{icon}</span>
-									<p class="truncate font-semibold" style="color: var(--app-text);">{i + 1}. {blockSummary(block)}</p>
+									<p class="truncate font-semibold" style="color: var(--app-text);">
+										{i + 1}. {blockSummary(block)}
+									</p>
 								</div>
 								<div class="mt-1.5 flex items-center gap-2">
-									<span class={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${chipClass}`}>{blockTypeLabel(block.type)}</span>
+									<span
+										class={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${chipClass}`}
+										>{blockTypeLabel(block.type)}</span
+									>
 									{#if done}
-										<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium chip-emerald">✓ Done</span>
+										<span
+											class="chip-emerald inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
+											>✓ Done</span
+										>
 									{:else if current}
-										<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium chip-amber">Current</span>
+										<span
+											class="chip-amber inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
+											>Current</span
+										>
 									{:else}
 										<span class="text-[10px]" style="color: var(--app-text-dim);">Upcoming</span>
 									{/if}
@@ -907,7 +1040,9 @@
 		background: color-mix(in srgb, var(--app-warning) 8%, transparent);
 	}
 	.strip-selected {
-		box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-accent) 50%, transparent), 0 0 12px -2px color-mix(in srgb, var(--app-accent) 25%, transparent);
+		box-shadow:
+			0 0 0 1px color-mix(in srgb, var(--app-accent) 50%, transparent),
+			0 0 12px -2px color-mix(in srgb, var(--app-accent) 25%, transparent);
 	}
 	.strip-locked {
 		cursor: not-allowed;

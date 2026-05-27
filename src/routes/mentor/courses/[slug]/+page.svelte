@@ -77,9 +77,10 @@
 		return Array.from(groups.entries()).map(([slug, value]) => ({ slug, ...value }));
 	});
 	const postedBlocks = $derived.by<Block[] | null>(() => {
-		if (form?.section !== 'blocks' || !form?.blocks_json) return null;
+		const f = form as any;
+		if (f?.section !== 'blocks' || !f?.blocks_json) return null;
 		try {
-			const parsed = JSON.parse(String(form.blocks_json));
+			const parsed = JSON.parse(String(f.blocks_json));
 			return Array.isArray(parsed) ? (parsed as Block[]) : null;
 		} catch {
 			return null;
@@ -564,6 +565,41 @@
 				</option>
 			</select>
 		</label>
+		<div class="flex flex-col gap-2 text-sm md:col-span-2">
+			<span class="eyebrow-label">Required for these subteams</span>
+			<p class="text-[11px]" style="color: var(--app-text-dim);">
+				Tick every subteam this course is required for. A course shared across subteams (e.g. Shop
+				Basics) shows up under each one.
+			</p>
+			<div class="grid gap-3 md:grid-cols-2">
+				{#each teamsByGroup as group}
+					<fieldset
+						class="rounded-xl border p-3"
+						style="border-color: var(--app-glass-border); background: color-mix(in srgb, var(--app-surface) 40%, transparent);"
+					>
+						<legend class="px-1 text-xs font-semibold" style="color: var(--app-text);">
+							{group.name}
+						</legend>
+						<div class="mt-1 flex flex-col gap-1.5">
+							{#each group.teams as team}
+								<label
+									class="flex items-center gap-2 text-xs"
+									style="color: var(--app-text-muted);"
+								>
+									<input
+										type="checkbox"
+										name="team_ids"
+										value={team.id}
+										checked={selectedNodeTeamIds.has(String(team.id))}
+									/>
+									<span>{team.name}</span>
+								</label>
+							{/each}
+						</div>
+					</fieldset>
+				{/each}
+			</div>
+		</div>
 		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
 			<span class="eyebrow-label">Description</span>
 			<textarea class="glass-input" name="description" rows="3"

@@ -18,7 +18,10 @@ export const requireApprovedParentPortal = async (locals: App.Locals) => {
 		.maybeSingle();
 	if (appError) throw error(400, appError.message);
 	if (!application || application.status !== 'approved') {
-		throw error(403, 'Your parent application must be approved by admin before using this feature.');
+		throw error(
+			403,
+			'Your parent application must be approved by admin before using this feature.'
+		);
 	}
 	return { user, profile, application };
 };

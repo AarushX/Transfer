@@ -162,7 +162,10 @@ export async function computeUserRanks(
 		attendanceByUser.set(key, (attendanceByUser.get(key) ?? 0) + 1);
 		const startMs = new Date(row.check_in_at).getTime();
 		const endMs = row.check_out_at ? new Date(row.check_out_at).getTime() : Date.now();
-		const elapsedHours = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs ? (endMs - startMs) / (1000 * 60 * 60) : 0;
+		const elapsedHours =
+			Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+				? (endMs - startMs) / (1000 * 60 * 60)
+				: 0;
 		attendanceHoursByUser.set(key, (attendanceHoursByUser.get(key) ?? 0) + elapsedHours);
 	}
 

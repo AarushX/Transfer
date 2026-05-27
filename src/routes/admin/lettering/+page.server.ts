@@ -36,9 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			activeSeasonId
 				? locals.supabase
 						.from('competition_events')
-						.select(
-							'id,season_id,name,location,start_date,end_date,comp_type,created_by'
-						)
+						.select('id,season_id,name,location,start_date,end_date,comp_type,created_by')
 						.eq('season_id', activeSeasonId)
 						.order('start_date', { ascending: false })
 				: Promise.resolve({ data: [] as any[] })
@@ -62,7 +60,8 @@ export const actions: Actions = {
 		const startDate = String(form.get('start_date') ?? '').trim();
 		const endDate = String(form.get('end_date') ?? '').trim();
 		const makeActive = form.get('is_active') === 'on';
-		if (!label || !startDate || !endDate) return fail(400, { error: 'Label, start date, and end date are required.' });
+		if (!label || !startDate || !endDate)
+			return fail(400, { error: 'Label, start date, and end date are required.' });
 
 		if (makeActive) {
 			const serviceClient = createSupabaseServiceClient();
@@ -115,14 +114,19 @@ export const actions: Actions = {
 		const label = String(form.get('label') ?? '').trim();
 		const requiredValue = Number(form.get('required_value') ?? 0);
 		const sortOrder = Number(form.get('sort_order') ?? 0);
-		if (!seasonId || !category || !label) return fail(400, { error: 'Season, category, and label are required.' });
+		if (!seasonId || !category || !label)
+			return fail(400, { error: 'Season, category, and label are required.' });
 
-		const { error } = await locals.supabase
-			.from('lettering_requirements')
-			.upsert(
-				{ season_id: seasonId, category, label, required_value: requiredValue, sort_order: sortOrder },
-				{ onConflict: 'season_id,category' }
-			);
+		const { error } = await locals.supabase.from('lettering_requirements').upsert(
+			{
+				season_id: seasonId,
+				category,
+				label,
+				required_value: requiredValue,
+				sort_order: sortOrder
+			},
+			{ onConflict: 'season_id,category' }
+		);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true };
 	},
@@ -151,7 +155,8 @@ export const actions: Actions = {
 		const endTime = String(form.get('end_time') ?? '').trim();
 		const maxSignups = form.get('max_signups') ? Number(form.get('max_signups')) : null;
 		const signupDeadline = String(form.get('signup_deadline') ?? '').trim() || null;
-		if (!seasonId || !title || !eventDate) return fail(400, { error: 'Season, title, and event date are required.' });
+		if (!seasonId || !title || !eventDate)
+			return fail(400, { error: 'Season, title, and event date are required.' });
 
 		const { error } = await locals.supabase.from('outreach_events').insert({
 			season_id: seasonId,
@@ -190,7 +195,8 @@ export const actions: Actions = {
 		const startDate = String(form.get('start_date') ?? '').trim();
 		const endDate = String(form.get('end_date') ?? '').trim();
 		const compType = String(form.get('comp_type') ?? 'regional').trim();
-		if (!seasonId || !name || !startDate) return fail(400, { error: 'Season, name, and start date are required.' });
+		if (!seasonId || !name || !startDate)
+			return fail(400, { error: 'Season, name, and start date are required.' });
 
 		const { error } = await locals.supabase.from('competition_events').insert({
 			season_id: seasonId,

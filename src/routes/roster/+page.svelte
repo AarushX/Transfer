@@ -19,9 +19,7 @@
 			])
 		)
 	);
-	const teamOptionLabel = (
-		subteam: { name?: string | null; team_group_id?: string | null }
-	) => {
+	const teamOptionLabel = (subteam: { name?: string | null; team_group_id?: string | null }) => {
 		const groupName = teamGroupNameById.get(String(subteam.team_group_id ?? '')) ?? '';
 		const teamName = String(subteam.name ?? '').trim();
 		return groupName ? `${groupName}: ${teamName}` : teamName;
@@ -41,7 +39,8 @@
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
 		return (data.rows ?? []).filter((r: any) => {
-			if (q && !((r.full_name ?? '') + ' ' + (r.email ?? '')).toLowerCase().includes(q)) return false;
+			if (q && !((r.full_name ?? '') + ' ' + (r.email ?? '')).toLowerCase().includes(q))
+				return false;
 			if (chip === 'leads' && !r.is_lead) return false;
 			if (chip === 'mentors' && !r.is_mentor) return false;
 			if (chip === 'pending' && (r.pendingCheckoffs ?? 0) === 0) return false;
@@ -69,7 +68,8 @@
 			<p class="eyebrow-label" style="margin-bottom: 4px;">Team</p>
 			<h1 class="gradient-text text-2xl font-semibold tracking-tight">Roster</h1>
 			<p class="text-sm" style="color: var(--app-text-muted);">
-				{data.rows?.length ?? 0} members · {data.rows?.filter((r: any) => r.is_mentor).length ?? 0} mentors · {data.rows?.filter((r: any) => r.is_lead).length ?? 0} leads
+				{data.rows?.length ?? 0} members · {data.rows?.filter((r: any) => r.is_mentor).length ?? 0} mentors
+				· {data.rows?.filter((r: any) => r.is_lead).length ?? 0} leads
 			</p>
 		</div>
 		{#if canManage}
@@ -86,12 +86,16 @@
 		<p
 			class="rounded border p-2 text-sm"
 			style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
-		>{form.error}</p>
+		>
+			{form.error}
+		</p>
 	{:else if form?.ok}
 		<p
 			class="rounded border p-2 text-sm"
 			style="border-color: color-mix(in srgb, var(--app-success) 60%, transparent); background: color-mix(in srgb, var(--app-success) 15%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);"
-		>Saved.</p>
+		>
+			Saved.
+		</p>
 	{/if}
 
 	<!-- Filter bar -->
@@ -135,11 +139,13 @@
 	{#each groups as group (group.label)}
 		<div>
 			{#if groupBySubteam}
-				<div class="mb-2 mt-4 flex items-center gap-3">
+				<div class="mt-4 mb-2 flex items-center gap-3">
 					<p
-						class="text-[11px] font-bold uppercase tracking-[0.18em]"
+						class="text-[11px] font-bold tracking-[0.18em] uppercase"
 						style="color: var(--app-text-muted);"
-					>{group.label}</p>
+					>
+						{group.label}
+					</p>
 					<p class="text-xs" style="color: var(--app-text-muted); opacity: 0.6;">
 						{group.rows.length} member{group.rows.length === 1 ? '' : 's'}
 					</p>
@@ -153,25 +159,25 @@
 					<thead style="background: var(--app-table-header-bg);">
 						<tr>
 							<th
-								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
-								style="color: var(--app-text-muted);"
-							>Member</th>
+								class="p-3 text-left text-xs font-medium tracking-wider uppercase"
+								style="color: var(--app-text-muted);">Member</th
+							>
 							<th
-								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
-								style="color: var(--app-text-muted);"
-							>Roles</th>
+								class="p-3 text-left text-xs font-medium tracking-wider uppercase"
+								style="color: var(--app-text-muted);">Roles</th
+							>
 							<th
-								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
-								style="color: var(--app-text-muted);"
-							>Progress</th>
+								class="p-3 text-left text-xs font-medium tracking-wider uppercase"
+								style="color: var(--app-text-muted);">Progress</th
+							>
 							<th
-								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
-								style="color: var(--app-text-muted);"
-							>Pending</th>
+								class="p-3 text-left text-xs font-medium tracking-wider uppercase"
+								style="color: var(--app-text-muted);">Pending</th
+							>
 							<th
-								class="p-3 text-left text-xs font-medium uppercase tracking-wider"
-								style="color: var(--app-text-muted);"
-							>Hours</th>
+								class="p-3 text-left text-xs font-medium tracking-wider uppercase"
+								style="color: var(--app-text-muted);">Hours</th
+							>
 							<th></th>
 						</tr>
 					</thead>
@@ -185,8 +191,8 @@
 											<a
 												href={`/roster/${row.id}`}
 												class="font-medium"
-												style="color: var(--app-text);"
-											>{row.full_name || row.email}</a>
+												style="color: var(--app-text);">{row.full_name || row.email}</a
+											>
 											<p class="text-xs" style="color: var(--app-text-muted);">{row.email}</p>
 										</div>
 									</div>
@@ -197,19 +203,22 @@
 											<span
 												class="rounded-full px-2 py-0.5 text-[10px]"
 												style="background: color-mix(in srgb, var(--app-danger) 15%, transparent); color: var(--app-danger);"
-											>admin</span>
+												>admin</span
+											>
 										{/if}
 										{#if row.is_mentor}
 											<span
 												class="rounded-full px-2 py-0.5 text-[10px]"
 												style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: var(--app-accent);"
-											>mentor</span>
+												>mentor</span
+											>
 										{/if}
 										{#if row.is_lead}
 											<span
 												class="rounded-full px-2 py-0.5 text-[10px]"
 												style="background: color-mix(in srgb, var(--app-info) 15%, transparent); color: var(--app-info);"
-											>lead</span>
+												>lead</span
+											>
 										{/if}
 									</div>
 								</td>
@@ -224,18 +233,24 @@
 												style="width: {row.progressPercent}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
 											></div>
 										</div>
-										<span class="mono text-xs" style="color: var(--app-text-muted);">{row.progressPercent}%</span>
+										<span class="mono text-xs" style="color: var(--app-text-muted);"
+											>{row.progressPercent}%</span
+										>
 									</div>
 								</td>
 								<td class="p-3">
 									<span
 										data-role="pending-count"
 										class="mono"
-										style="color: {(row.pendingCheckoffs ?? 0) > 0 ? 'var(--app-warning)' : 'var(--app-text-muted)'};"
-									>{row.pendingCheckoffs ?? 0}</span>
+										style="color: {(row.pendingCheckoffs ?? 0) > 0
+											? 'var(--app-warning)'
+											: 'var(--app-text-muted)'};">{row.pendingCheckoffs ?? 0}</span
+									>
 								</td>
 								<td class="p-3">
-									<span class="mono" style="color: var(--app-text-muted);">{row.hoursTotal ?? '—'}</span>
+									<span class="mono" style="color: var(--app-text-muted);"
+										>{row.hoursTotal ?? '—'}</span
+									>
 								</td>
 								<td class="p-3 text-right">
 									<button
@@ -258,7 +273,9 @@
 										<div class="flex gap-6">
 											<!-- Left: Attendance history -->
 											<div class="flex-1">
-												<p class="eyebrow-label" style="margin-bottom: 8px;">Attendance · last 4 sessions</p>
+												<p class="eyebrow-label" style="margin-bottom: 8px;">
+													Attendance · last 4 sessions
+												</p>
 												<div class="flex flex-wrap gap-2">
 													{#each (attendanceByUser.get(row.id) ?? []).slice(0, 4) as s}
 														<span
@@ -268,7 +285,9 @@
 															{s.attendance_day}
 														</span>
 													{:else}
-														<span class="text-xs" style="color: var(--app-text-muted);">No attendance records yet.</span>
+														<span class="text-xs" style="color: var(--app-text-muted);"
+															>No attendance records yet.</span
+														>
 													{/each}
 												</div>
 												<a
@@ -277,7 +296,15 @@
 													style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
 												>
 													Full course history
-													<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+													<svg
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														class="h-3 w-3"><path d="M5 12h14M13 5l7 7-7 7" /></svg
+													>
 												</a>
 											</div>
 
@@ -290,29 +317,35 @@
 													<p
 														class="eyebrow-label"
 														style="margin-bottom: 8px; color: color-mix(in srgb, var(--app-danger) 70%, var(--app-text-muted));"
-													>Admin controls</p>
+													>
+														Admin controls
+													</p>
 													<form method="POST" action="?/updateMemberAccess" class="space-y-3">
 														<input type="hidden" name="user_id" value={row.id} />
 														<div class="grid grid-cols-2 gap-3">
 															<label class="block">
 																<span
-																	class="text-[10px] uppercase tracking-wider"
-																	style="color: var(--app-text-muted);"
-																>Base role</span>
+																	class="text-[10px] tracking-wider uppercase"
+																	style="color: var(--app-text-muted);">Base role</span
+																>
 																<select
 																	name="base_role"
 																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
 																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																>
-																	<option value="member" selected={row.base_role === 'member'}>member</option>
-																	<option value="admin" selected={row.base_role === 'admin'}>admin</option>
+																	<option value="member" selected={row.base_role === 'member'}
+																		>member</option
+																	>
+																	<option value="admin" selected={row.base_role === 'admin'}
+																		>admin</option
+																	>
 																</select>
 															</label>
 															<label class="block">
 																<span
-																	class="text-[10px] uppercase tracking-wider"
-																	style="color: var(--app-text-muted);"
-																>Lead of team</span>
+																	class="text-[10px] tracking-wider uppercase"
+																	style="color: var(--app-text-muted);">Lead of team</span
+																>
 																<select
 																	name="lead_team_group_id"
 																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
@@ -320,15 +353,18 @@
 																>
 																	<option value="">— none —</option>
 																	{#each data.teamGroups as tg (tg.id)}
-																		<option value={tg.id} selected={row.lead_team_group_id === tg.id}>{tg.name}</option>
+																		<option
+																			value={tg.id}
+																			selected={row.lead_team_group_id === tg.id}>{tg.name}</option
+																		>
 																	{/each}
 																</select>
 															</label>
 															<label class="block">
 																<span
-																	class="text-[10px] uppercase tracking-wider"
-																	style="color: var(--app-text-muted);"
-																>Lead of subteam</span>
+																	class="text-[10px] tracking-wider uppercase"
+																	style="color: var(--app-text-muted);">Lead of subteam</span
+																>
 																<select
 																	name="lead_subteam_id"
 																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
@@ -336,21 +372,33 @@
 																>
 																	<option value="">— none —</option>
 																	{#each data.subteams as st (st.id)}
-																		<option value={st.id} selected={row.lead_subteam_id === st.id}>{st.name}</option>
+																		<option value={st.id} selected={row.lead_subteam_id === st.id}
+																			>{st.name}</option
+																		>
 																	{/each}
 																</select>
 															</label>
 															<div>
 																<span
-																	class="text-[10px] uppercase tracking-wider"
-																	style="color: var(--app-text-muted);"
-																>Flags</span>
+																	class="text-[10px] tracking-wider uppercase"
+																	style="color: var(--app-text-muted);">Flags</span
+																>
 																<div class="mt-1 flex gap-2">
-																	<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
-																		<input type="checkbox" name="is_mentor" checked={!!row.is_mentor} />
+																	<label
+																		class="inline-flex items-center gap-1 text-xs"
+																		style="color: var(--app-text-muted);"
+																	>
+																		<input
+																			type="checkbox"
+																			name="is_mentor"
+																			checked={!!row.is_mentor}
+																		/>
 																		Mentor
 																	</label>
-																	<label class="inline-flex items-center gap-1 text-xs" style="color: var(--app-text-muted);">
+																	<label
+																		class="inline-flex items-center gap-1 text-xs"
+																		style="color: var(--app-text-muted);"
+																	>
 																		<input type="checkbox" name="is_lead" checked={!!row.is_lead} />
 																		Lead
 																	</label>
@@ -372,12 +420,14 @@
 														<p
 															class="eyebrow-label"
 															style="margin-bottom: 0; color: color-mix(in srgb, var(--app-danger) 70%, var(--app-text-muted));"
-														>Team assignments</p>
+														>
+															Team assignments
+														</p>
 														<label class="block">
 															<span
-																class="text-[10px] uppercase tracking-wider"
-																style="color: var(--app-text-muted);"
-															>Main team</span>
+																class="text-[10px] tracking-wider uppercase"
+																style="color: var(--app-text-muted);">Main team</span
+															>
 															<select
 																name="primary_team_group_id"
 																required
@@ -386,7 +436,11 @@
 															>
 																<option value="">Select main team</option>
 																{#each data.teamGroups as tg (tg.id)}
-																	<option value={tg.id} selected={String(tg.id) === String(row.currentPrimaryTeamGroupId)}>
+																	<option
+																		value={tg.id}
+																		selected={String(tg.id) ===
+																			String(row.currentPrimaryTeamGroupId)}
+																	>
 																		{tg.name}
 																	</option>
 																{/each}
@@ -394,28 +448,37 @@
 														</label>
 														{#each data.requiredCategories as category (category.slug)}
 															{@const categorySlug = String(category.slug)}
-															{@const currentTeamId = row.currentTeamIdByCategory?.[categorySlug] ?? ''}
+															{@const currentTeamId =
+																row.currentTeamIdByCategory?.[categorySlug] ?? ''}
 															<label class="block">
 																<span
-																	class="text-[10px] uppercase tracking-wider"
+																	class="text-[10px] tracking-wider uppercase"
 																	style="color: var(--app-text-muted);"
-																>{category.name} subteam</span>
+																	>{category.name} subteam</span
+																>
 																<select
 																	name={`team_id_${categorySlug}`}
 																	required
 																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
 																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																>
-																	<option value="">Select {category.name.toLowerCase()} subteam</option>
+																	<option value=""
+																		>Select {category.name.toLowerCase()} subteam</option
+																	>
 																	{#each data.teams.filter((t: any) => String(t.category_slug ?? '') === categorySlug) as subteam (subteam.id)}
-																		<option value={subteam.id} selected={String(currentTeamId) === String(subteam.id)}>
+																		<option
+																			value={subteam.id}
+																			selected={String(currentTeamId) === String(subteam.id)}
+																		>
 																			{teamOptionLabel(subteam)}
 																		</option>
 																	{/each}
 																</select>
 															</label>
 														{/each}
-														<Button variant="secondary" size="sm" type="submit">Save team assignments</Button>
+														<Button variant="secondary" size="sm" type="submit"
+															>Save team assignments</Button
+														>
 													</form>
 												</div>
 											{/if}

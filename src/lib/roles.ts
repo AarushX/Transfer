@@ -20,10 +20,7 @@ export const isParentGuardian = (profile: RoleLike | null | undefined) =>
 
 export const roleBadgeParts = (profile: RoleLike | null | undefined) => {
 	if (!profile) return [];
-	const base =
-		profile.base_role === 'admin'
-			? 'admin'
-			: 'member';
+	const base = profile.base_role === 'admin' ? 'admin' : 'member';
 	const extras: string[] = [];
 	if (isMentor(profile)) extras.push('mentor');
 	if (isLead(profile)) extras.push('lead');

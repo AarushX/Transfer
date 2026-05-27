@@ -36,12 +36,14 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 ## Authentication & Onboarding
 
 ### `/login`
+
 - Email/password sign-in (parents)
 - OAuth (Google etc.) for team-domain accounts
 - Domain restriction enforced for non-parents
 - Friendly error messages for failed attempts (domain mismatch, bad credentials)
 
 ### `/onboarding`
+
 - Required for new students before portal access
 - Select main team group (Build / Programming / Business / etc.)
 - Choose required subteams per category
@@ -49,6 +51,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Triggers `sync_profile_courseloads_for_user` RPC to assign courses
 
 ### `/auth/signout`
+
 - Sign out endpoint (form POST)
 
 ---
@@ -56,6 +59,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 ## Member / Student Features
 
 ### `/dashboard` — Student Hub
+
 - Hero course card with step-by-step progress indicator
 - Stats: modules certified, in progress, completion %
 - Courses grouped by team / team-group
@@ -67,6 +71,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Team-specific course paths with progress bars
 
 ### `/graph` — Skill Tree
+
 - Interactive zoom/pan SVG graph of all course nodes
 - Adaptive zoom speed (trackpad-friendly)
 - Pinch-to-zoom on mobile
@@ -77,6 +82,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Text-selection prevented during drag
 
 ### `/ranked` — Public Leaderboard
+
 - All members ranked by RR (Robotics Ranking points)
 - Personal placement, RR total, segment completions, attendance hours
 - Next rank tier with progress bar
@@ -84,12 +90,14 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Valorant-style rank tiers
 
 ### `/surveys` — Applications Hub
+
 - Browse all available surveys/applications
 - See description, visibility windows, submission caps
 - Track submission status (pending, completed, capped)
 - Filter to prerequisite-met surveys
 
 ### `/surveys/[slug]`
+
 - Submit responses (multiple choice, multi-select, text, matrix, grid types)
 - Prerequisite gating (must complete listed courses first)
 - Edit prior submission (if allowed by mentor)
@@ -98,11 +106,13 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Deadline awareness
 
 ### `/lettering` — Season Tracking (renamed "Season" in nav)
+
 - Active season name + dates
 - Progress per requirement category (outreach hours, competition attendance, shop hours, parent volunteer, etc.)
 - Per-category completion percentage
 
 ### `/outreach` — Community Event Signups
+
 - View outreach events for active season
 - Event details (date, deadline, capacity, description)
 - Sign up / cancel signup
@@ -110,6 +120,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - View own logged hours with verification status
 
 ### `/scan` — QR Scanner
+
 - Camera-based QR scanner
 - Auto-routes scanned tokens to:
   - Checkoff approval (mentor passport scans student)
@@ -120,6 +131,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Mentor-only manual attendance form
 
 ### `/profile`
+
 - Edit full name, bio (500 char max), avatar URL (https only)
 - View profile badges and achievements
 - Overall rank tier and per-track expertise
@@ -131,21 +143,25 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - View linked parent list
 
 ### `/passport`
+
 - Personal QR code containing student identity (for mentor checkoffs, machine scans, attendance)
 - Refresh QR (increments version, invalidates old codes)
 - Module completion count by track
 - Overall rank tier display
 
 ### `/teams`
+
 - Browse all team groups and subteams
 - See color assignments
 - Read-only display
 
 ### `/machines`
+
 - View machine subteam assignments
 - Set primary subteam preference
 
 ### `/learn` / `/courseloads` / `/demo`
+
 - Internal course pages (per-course content rendering with video, quiz, checkoff, reading blocks)
 
 ---
@@ -153,6 +169,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 ## Mentor Features
 
 ### `/mentor` — Checkoff Queue
+
 - Queue of pending checkoffs (students awaiting mentor approval)
 - Filter by own assigned subteams or all
 - Student name, module title, submission details
@@ -165,12 +182,14 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Bottleneck modules indicator (most pending)
 
 ### `/mentor/courses`
+
 - Browse all courses
 - Filter by team, search by title
 - Create new course (title, slug, description) or from template
 - Assign to teams and categories
 
 ### `/mentor/courses/[slug]`
+
 - Edit course metadata (title, description, slug)
 - Manage blocks: video, quiz, checkoff, reading
 - **Video blocks**: URL, start/end timestamps
@@ -183,11 +202,13 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Delete course
 
 ### `/mentor/surveys`
+
 - Browse all surveys
 - Filter by active status
 - Create new survey or from template
 
 ### `/mentor/surveys/[slug]`
+
 - Edit title, description, questions
 - Set visibility windows (visible_from / visible_until)
 - Toggle `show_when_inactive`
@@ -197,6 +218,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Delete survey
 
 ### `/mentor/forms`
+
 - Browse form types
 - Create form type (name, slug, description, Google Drive template link)
 - Edit form metadata, delete
@@ -205,6 +227,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Change status (submitted / approved / rejected / needs_changes)
 
 ### `/mentor/carpool`
+
 - View carpool events
 - Create carpool event with day/role/capacity configuration
 - Signup modes: slot-based or capacity-based
@@ -214,6 +237,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - View signups with attendee counts
 
 ### `/mentor/machines`
+
 - View all machines
 - Generate machine QR codes and access URLs
 - Create machine (name, description, location, required course prerequisites)
@@ -222,11 +246,13 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Audit who used each machine and authorization outcome
 
 ### `/mentor/outreach` — Hours Verification
+
 - Outreach hours queue (pending / verified / rejected)
 - Verify or reject with reason
 - (Parent volunteer hours verification has moved to `/admin/volunteer`)
 
 ### `/roster`
+
 - All team members listed with role / mentor / lead status
 - Course completion progress per member
 - Checkoff bottlenecks view (modules with most pending approvals)
@@ -237,12 +263,14 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 ## Admin Features
 
 ### `/admin/settings`
+
 - Workspace branding: 25+ color properties (background, surface, accent, success, danger, etc.)
 - Organization name
 - Organization icon upload
 - Live theme preview
 
 ### `/admin/settings/teams`
+
 - Create / edit / delete team groups (name, color hex, sort order)
 - Create / edit / delete subteams (assigned to categories)
 - Create / edit / delete subteam categories (mark required for onboarding)
@@ -250,6 +278,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Assign courses to team groups or specific subteams
 
 ### `/admin/content`
+
 - Assign courses to team groups
 - Assign courses to subteams
 - Delete courses (created by mentors)
@@ -257,6 +286,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Delete templates
 
 ### `/admin/parents`
+
 - View all submitted parent applications
 - See parent details (name, email, phone, relationship, application payload)
 - Per-application status: submitted / approved / rejected
@@ -264,6 +294,7 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - View parent-application course completion (quiz score, photo upload, etc.)
 
 ### `/admin/lettering` — Season Rules
+
 - Create lettering seasons (label, start/end dates, active flag)
 - Activate / deactivate season (only one active at a time)
 - Create lettering requirements per category (label, required value, sort order)
@@ -274,19 +305,23 @@ A SvelteKit + Supabase robotics team management portal. Every user-facing capabi
 - Delete competitions
 
 ### `/admin/volunteer` — Volunteer Management
+
 See dedicated [Volunteer Management System](#volunteer-management-system) section below.
 
 ### `/admin/attendance`
+
 - View daily attendance sessions
 - See active attendance displays (student / mentor / guest)
 - Manual session adjustments
 - Override check-in / check-out times
 
 ### `/admin/audit`
+
 - Read-only audit log
 - Track all system actions (who did what, when)
 
 ### `/admin/users`
+
 - All users with role / mentor / lead status
 - Change user role (member / admin)
 - Toggle mentor flag
@@ -295,6 +330,7 @@ See dedicated [Volunteer Management System](#volunteer-management-system) sectio
 - Per-user quiz scores and checkoff dates
 
 ### `/admin/organization`
+
 - Organization-level settings and configuration
 
 ---
@@ -302,6 +338,7 @@ See dedicated [Volunteer Management System](#volunteer-management-system) sectio
 ## Parent Features
 
 ### `/parent` and `/parent/dashboard`
+
 - Submit parent guardian application (full Google Form parity: parent 1 + parent 2 info, rookie year, leadership matrix, skills matrix, mentoring interests, commitment acknowledgements, typed signatures)
 - Link student accounts via 8-character code (15-min TTL, generated by student)
 - View linked students
@@ -309,10 +346,12 @@ See dedicated [Volunteer Management System](#volunteer-management-system) sectio
 - Revoke student links
 
 ### `/parent/course`
+
 - Parent application as a course-style flow with video blocks and quiz checkpoints
 - Save draft or submit for approval
 
 ### `/parent/carpool` (still accessible, hidden from nav)
+
 - Select which student to view carpool for
 - View active carpool events
 - Sign up for driving / chaperone roles
@@ -320,9 +359,11 @@ See dedicated [Volunteer Management System](#volunteer-management-system) sectio
 - View per-role capacity
 
 ### `/parent/volunteer` — Main Parent Portal
+
 Three tabs: **Dashboard**, **Events**, **Log Hours**.
 
 #### Dashboard tab
+
 - Pinned announcements at top
 - Summary cards (pledged categories, categories met, verified hours, pending hours)
 - Pledge form (matrix: yes/no/maybe per category, notes column, min 3 "Yes" required)
@@ -330,6 +371,7 @@ Three tabs: **Dashboard**, **Events**, **Log Hours**.
 - Active signups list with cancel option
 
 #### Events tab (SignupGenius-style)
+
 - Event selector dropdown
 - **Category sub-tabs** appear per category the event needs:
   - **Carpool** — Driver table (driver, seats, vehicle, notes). Sign up form with seats / vehicle / pickup location.
@@ -340,10 +382,12 @@ Three tabs: **Dashboard**, **Events**, **Log Hours**.
   - **Generic** (mentor / outreach / sponsorship / etc.) — Standard slot list.
 
 #### Log Hours tab
+
 - Self-report by category (amount, date, description, optional opportunity link)
 - View own hour log with verification status (pending / verified / rejected with reason)
 
 ### `/parent/hours` (legacy, still accessible)
+
 - Per-student volunteer hour log
 - Hours / date / description
 - Verification status tracking
@@ -355,6 +399,7 @@ Three tabs: **Dashboard**, **Events**, **Log Hours**.
 A complete SignupGenius replacement built into the portal.
 
 ### Data Model
+
 - **Families** — First-class entity linking parents and students. Auto-created when parent links a student.
 - **Family members** — Profile membership with parent / student role.
 - **Volunteer categories** (10 seeded): field_build_hours, travel_planning, chaperone, transport_to_comp, mentor, shop_supervision, outreach, food, sponsorship, equipment_transport. Each has unit (hours / occasions / shifts / trips / count), target value, optional prereq, approval-required flag.
@@ -366,9 +411,11 @@ A complete SignupGenius replacement built into the portal.
 - **Family progress view** — Computed: pledged vs signed-up vs completed vs verified per category, with target-met flag.
 
 ### Admin volunteer page (`/admin/volunteer`)
+
 Six tabs:
 
 #### Events tab
+
 - Create event with checkbox category selection (each checked = auto-created opportunity)
 - Per-category slot input during creation
 - Edit event inline (title, dates, location, description, re-check categories)
@@ -377,11 +424,13 @@ Six tabs:
 - Delete events (cascades to opportunities)
 
 #### Verify tab
+
 - Queue of pending hour logs
 - One-tap verify or reject with reason
 - Family / reporter / activity info displayed
 
 #### Announcements tab
+
 - Create announcement (title, body, audience, pin to top, send email blast)
 - Inline edit (title, body, audience, pinned status)
 - Delete
@@ -390,14 +439,17 @@ Six tabs:
 - Warning banner if email not configured
 
 #### Gaps tab
+
 - Opportunities needing more volunteers
 - Slots needed count, current fill ratio
 
 #### Families tab
+
 - Leaderboard sorted by verified category count
 - All families list with member badges (parent / student roles)
 
 #### Categories tab
+
 - Edit target value per category
 - Toggle active status
 
@@ -406,25 +458,31 @@ Six tabs:
 ## Attendance & Kiosk
 
 ### `/attendance` — Public Kiosk Display
+
 - Big QR code for students to scan with passports
 - Shows current "open / closed" state
 - Activated via admin scan or manual control
 
 ### `/api/attendance/scan` — QR Token Processing
+
 - Routes student passport scans to check-in or check-out
 - Routes admin attendance tokens to activate / deactivate kiosk
 
 ### `/api/attendance/manual` — Mentor Override
+
 - Manually record attendance for a student (excluded from RR)
 
 ### `/api/attendance/admin/manual` — Admin Override
+
 - Force check in / out, activate kiosk, etc.
 
 ### `/api/attendance/public/state` & `/refresh`
+
 - Cache-friendly endpoints for kiosk display polling
 - Returns current QR codes and active state
 
 ### `/api/attendance/public/guest`
+
 - Register guest sign-in with name + reason
 
 ---
@@ -432,6 +490,7 @@ Six tabs:
 ## Machine Shop & QR Scanning
 
 ### Machine access flow
+
 1. Student completes prerequisite courses
 2. Student scans machine QR with their passport
 3. System validates prereqs and authorization
@@ -439,17 +498,21 @@ Six tabs:
 5. Mentor scans student passport to close session
 
 ### `/api/machines/use` — Student authorization
+
 - Validates passport against machine prereqs
 - Returns authorized + machine details, or denial
 
 ### `/api/machines/checkin` / `checkout`
+
 - Open / close machine session
 - Logs to usage history
 
 ### `/api/machines/create` / `update` / `delete`
+
 - Mentor CRUD for machines
 
 ### `/api/shop-availability`
+
 - Real-time shop open/closed state
 
 ---
@@ -457,11 +520,13 @@ Six tabs:
 ## Announcements & Email
 
 ### In-portal announcements
+
 - Pinned to top of parent dashboard (or member dashboard for non-parent audience)
 - Title, body, audience filter
 - Created and managed in `/admin/volunteer` → Announcements tab
 
 ### Google Workspace email blast
+
 - Uses nodemailer with Gmail SMTP
 - Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` env vars
 - Setup: enable 2-Step Verification on the Workspace account, generate an App Password
@@ -486,26 +551,32 @@ Six tabs:
 ## API Endpoints
 
 ### Authentication & profile
+
 - `POST /auth/signout` — Sign out
 
 ### Certifications & courses
+
 - `POST /api/nodes/video-complete` — Mark video block watched
 - `POST /api/nodes/block-complete` — Complete any block (video / quiz / checkoff)
 - `POST /api/quiz/grade` — Submit quiz answers, grade, update cert status
 
 ### Checkoffs
+
 - `POST /api/mentor/checkoff` — Approve / reject / redo / block (with passport QR token handling)
 - `POST /api/mentor/resolve-qr` — Resolve passport QR to student identity
 
 ### Passport
+
 - `POST /api/passport/refresh-qr` — Invalidate old QR, generate new version
 
 ### Machines
+
 - `POST /api/machines/create` / `update` / `delete`
 - `POST /api/machines/use` — Student passport authorization
 - `POST /api/machines/checkin` / `checkout` — Open / close session
 
 ### Attendance
+
 - `POST /api/attendance/scan` — QR token processing
 - `POST /api/attendance/manual` — Mentor manual entry
 - `POST /api/attendance/admin/manual` — Admin override
@@ -514,6 +585,7 @@ Six tabs:
 - `POST /api/attendance/public/guest` — Guest sign-in
 
 ### Shop
+
 - `GET /api/shop-availability` — Open / closed state
 
 ---
@@ -521,6 +593,7 @@ Six tabs:
 ## Cross-Cutting Systems
 
 ### Skill graph & prerequisites
+
 - Course nodes link via prerequisite chains
 - Quiz prerequisites (must complete listed courses to take quiz)
 - Survey prerequisites (must complete listed courses to submit)
@@ -528,6 +601,7 @@ Six tabs:
 - Implicit team gating (assigned subteams determine visible courses)
 
 ### Ranking / gamification (RR)
+
 - 3 RR per course segment completed
 - 2 RR per attendance hour
 - Valorant-style tier ranks
@@ -537,6 +611,7 @@ Six tabs:
 - Special titles for multi-track mastery
 
 ### Parent linking
+
 - Student generates 8-char alphanumeric code (15-min TTL) from dashboard or profile
 - Parent enters code in their portal to link
 - Parent can be linked to multiple students; student can have multiple parent guardians
@@ -544,12 +619,14 @@ Six tabs:
 - Auto-creates Family record on first link
 
 ### Lettering progression
+
 - Active season concept (only one at a time)
 - Multiple requirement categories with thresholds
 - Outreach events, competitions, hours, attendance all roll up
 - Parent volunteer commitment integrated
 
 ### Survey workflow types
+
 - Generic surveys / applications
 - Leadership applications
 - School outreach forms
@@ -558,10 +635,12 @@ Six tabs:
 - Per-survey: visibility window, max submissions, prerequisites, editable submissions, mentor feedback
 
 ### Audit log
+
 - All admin actions tracked
 - Read-only `/admin/audit` viewer
 
 ### Background RPCs / triggers
+
 - `sync_profile_courseloads_for_user` — Assign courses on team selection
 - `auto_create_family` — Create family record on parent-student link
 - `transition_certification` — Move cert status through pipeline
@@ -569,15 +648,18 @@ Six tabs:
 - Backfill scripts in migrations populate families for existing parent-student links
 
 ### Service vs anon client
+
 - Anon Supabase client (`locals.supabase`) — User-scoped, subject to RLS
 - Service client (`createSupabaseServiceClient`) — Bypasses RLS for admin operations and parent portal queries that can't be expressed cleanly in RLS
 
 ### Roles helper functions
+
 - `isAdmin(profile)` — base_role admin OR role admin
 - `isMentor(profile)` — is_mentor flag OR role mentor
 - `isParentGuardian(profile)` — is_parent_guardian flag
 
 ### Route guards (in `hooks.server.ts`)
+
 - Domain restriction for non-parents
 - Parent-only route prefix list (only `/parent/*` accessible)
 - Admin-only `/admin/*`
@@ -585,11 +667,13 @@ Six tabs:
 - Onboarding gate for incomplete student profiles
 
 ### PWA / installable
+
 - Service worker via `vite-plugin-pwa`
 - Install prompt on mobile
 - Offline-capable for cached pages
 
 ### Telemetry
+
 - Vercel Speed Insights injected
 
 ---

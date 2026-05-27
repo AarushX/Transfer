@@ -14,18 +14,17 @@ export async function loadStudentCoursesDashboard(
 ): Promise<CoursesDashboardModel> {
 	await supabase.rpc('sync_profile_courseloads_for_user', { p_user_id: userId });
 
-	const [{ data: ptRows }, { data: pcRows }, { data: statuses }] =
-		await Promise.all([
-			supabase
-				.from('profile_teams')
-				.select('teams(slug,name), team_groups(slug,name)')
-				.eq('user_id', userId),
-			supabase
-				.from('profile_courseloads')
-				.select('courseload_id, courseloads(id,slug,title,description,sort_order)')
-				.eq('user_id', userId),
-			supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', userId)
-		]);
+	const [{ data: ptRows }, { data: pcRows }, { data: statuses }] = await Promise.all([
+		supabase
+			.from('profile_teams')
+			.select('teams(slug,name), team_groups(slug,name)')
+			.eq('user_id', userId),
+		supabase
+			.from('profile_courseloads')
+			.select('courseload_id, courseloads(id,slug,title,description,sort_order)')
+			.eq('user_id', userId),
+		supabase.from('v_user_node_status').select('node_id,computed_status').eq('user_id', userId)
+	]);
 
 	const statusByNode = new Map(
 		(statuses ?? []).map((r: any) => [String(r.node_id), String(r.computed_status)])

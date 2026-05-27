@@ -14,7 +14,14 @@ const colorOr = (value: string, fallback: string) =>
 const numberFrom = (value: FormDataEntryValue | null) => Number(value ?? 0) || 0;
 
 const uniqueFormStrings = (form: FormData, key: string) =>
-	Array.from(new Set(form.getAll(key).map((value) => String(value)).filter(Boolean)));
+	Array.from(
+		new Set(
+			form
+				.getAll(key)
+				.map((value) => String(value))
+				.filter(Boolean)
+		)
+	);
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { profile } = await locals.safeGetSession();
@@ -28,22 +35,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		{ data: groupTargets },
 		{ data: subteamTargets },
 		{ data: subteamLinks }
-	] =
-		await Promise.all([
-			locals.supabase
-				.from('team_groups')
-				.select('id,name,slug,designator,color_hex,sort_order')
-				.order('sort_order'),
-			locals.supabase
-				.from('teams')
-				.select('id,name,slug,color_hex,category_slug,team_group_id,sort_order')
-				.order('sort_order'),
-			locals.supabase.from('subteam_categories').select('slug,name,sort_order,is_required_onboarding').order('sort_order'),
-			locals.supabase.from('nodes').select('id,title,slug').order('title'),
-			locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
-			locals.supabase.from('node_team_targets').select('node_id,team_id'),
-			locals.supabase.from('team_group_subteam_links').select('team_group_id,team_id')
-		]);
+	] = await Promise.all([
+		locals.supabase
+			.from('team_groups')
+			.select('id,name,slug,designator,color_hex,sort_order')
+			.order('sort_order'),
+		locals.supabase
+			.from('teams')
+			.select('id,name,slug,color_hex,category_slug,team_group_id,sort_order')
+			.order('sort_order'),
+		locals.supabase
+			.from('subteam_categories')
+			.select('slug,name,sort_order,is_required_onboarding')
+			.order('sort_order'),
+		locals.supabase.from('nodes').select('id,title,slug').order('title'),
+		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
+		locals.supabase.from('node_team_targets').select('node_id,team_id'),
+		locals.supabase.from('team_group_subteam_links').select('team_group_id,team_id')
+	]);
 
 	return {
 		teamGroups: teamGroups ?? [],
@@ -90,7 +99,8 @@ export const actions: Actions = {
 		const slug = slugify(slugInput || name);
 		const colorHex = String(form.get('subteam_color_hex') ?? '#334155').trim();
 		const categorySlug = String(form.get('subteam_category_slug') ?? '').trim();
-		if (!teamGroupId || !name || !slug) return fail(400, { error: 'Team and subteam name are required.' });
+		if (!teamGroupId || !name || !slug)
+			return fail(400, { error: 'Team and subteam name are required.' });
 		const { data: created, error } = await locals.supabase
 			.from('teams')
 			.insert({
@@ -109,7 +119,9 @@ export const actions: Actions = {
 			team_id: created.id
 		}));
 		if (linkRows.length > 0) {
-			const { error: linkError } = await locals.supabase.from('team_group_subteam_links').insert(linkRows);
+			const { error: linkError } = await locals.supabase
+				.from('team_group_subteam_links')
+				.insert(linkRows);
 			if (linkError) return fail(400, { error: linkError.message });
 		}
 		return {
@@ -186,9 +198,9 @@ export const actions: Actions = {
 		if (error) return fail(400, { error: error.message });
 		await locals.supabase.from('team_group_subteam_links').delete().eq('team_id', subteamId);
 		if (allLinks.length > 0) {
-			const { error: linkError } = await locals.supabase.from('team_group_subteam_links').insert(
-				allLinks.map((groupId) => ({ team_group_id: groupId, team_id: subteamId }))
-			);
+			const { error: linkError } = await locals.supabase
+				.from('team_group_subteam_links')
+				.insert(allLinks.map((groupId) => ({ team_group_id: groupId, team_id: subteamId })));
 			if (linkError) return fail(400, { error: linkError.message });
 		}
 		return {
@@ -303,8 +315,7 @@ export const actions: Actions = {
 		const existingIds = (existingRows ?? []).map((row: any) => String(row.node_id));
 		if (nodeIds.length > 0) {
 			const { error } = await locals.supabase.from('node_team_group_targets').upsert(
-				nodeIds.map((nodeId) => ({ team_group_id: teamGroupId, node_id: nodeId }))
-				,
+				nodeIds.map((nodeId) => ({ team_group_id: teamGroupId, node_id: nodeId })),
 				{ onConflict: 'node_id,team_group_id' }
 			);
 			if (error) return fail(400, { error: error.message });
@@ -338,8 +349,7 @@ export const actions: Actions = {
 		const existingIds = (existingRows ?? []).map((row: any) => String(row.node_id));
 		if (nodeIds.length > 0) {
 			const { error } = await locals.supabase.from('node_team_targets').upsert(
-				nodeIds.map((nodeId) => ({ team_id: subteamId, node_id: nodeId }))
-				,
+				nodeIds.map((nodeId) => ({ team_id: subteamId, node_id: nodeId })),
 				{ onConflict: 'node_id,team_id' }
 			);
 			if (error) return fail(400, { error: error.message });

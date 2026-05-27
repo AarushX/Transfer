@@ -12,7 +12,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const body = await request.json().catch(() => null);
 	const action = String(body?.action ?? '').trim() as ManualAction;
 	const attendeeUserId = String(body?.attendeeUserId ?? '').trim() || null;
-	const note = String(body?.note ?? '').trim().slice(0, 300);
+	const note = String(body?.note ?? '')
+		.trim()
+		.slice(0, 300);
 	const attendanceDay = attendanceDayKey();
 	const nowIso = new Date().toISOString();
 
@@ -27,10 +29,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY)
 			.limit(1);
 		if (!sessions || sessions.length === 0) {
-			const { error: createErr } = await locals.supabase.from('attendance_display_sessions').insert({
-				attendee_user_id: null,
-				access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
-			});
+			const { error: createErr } = await locals.supabase
+				.from('attendance_display_sessions')
+				.insert({
+					attendee_user_id: null,
+					access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
+				});
 			if (createErr) return json({ error: createErr.message }, { status: 400 });
 		}
 

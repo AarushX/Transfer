@@ -69,18 +69,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.eq('is_required_onboarding', true),
 		locals.supabase.from('team_groups').select('id,name,color_hex'),
 		locals.supabase.from('teams').select('id,name,color_hex,category_slug,team_group_id'),
-		locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle()
+		locals.supabase
+			.from('profile_primary_teams')
+			.select('team_group_id')
+			.eq('user_id', user.id)
+			.maybeSingle()
 	]);
 
 	let parentApplicationStatus: string | null = null;
-	let linkedStudents: Array<{ id: string; full_name: string; email: string; checkedIn: boolean; checkedInSince: string | null; lettering: any; completedNodes: number }> = [];
+	let linkedStudents: Array<{
+		id: string;
+		full_name: string;
+		email: string;
+		checkedIn: boolean;
+		checkedInSince: string | null;
+		lettering: any;
+		completedNodes: number;
+	}> = [];
 	let parentFamily: any = null;
 	let parentCommitments: any[] = [];
 	let parentCategories: any[] = [];
 	let parentSignups: any[] = [];
 	let parentOpportunities: any[] = [];
-	let parentAnnouncements: any[] = [];
-
 	if (profile?.is_parent_guardian) {
 		const [{ data: appRow }, { data: links }, { data: activeSeason }] = await Promise.all([
 			locals.supabase
@@ -90,7 +100,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.maybeSingle(),
 			locals.supabase
 				.from('parent_student_links')
-				.select('student_user_id,status,profiles!parent_student_links_student_user_id_fkey(id,full_name,email)')
+				.select(
+					'student_user_id,status,profiles!parent_student_links_student_user_id_fkey(id,full_name,email)'
+				)
 				.eq('parent_user_id', user.id)
 				.eq('status', 'active'),
 			locals.supabase
@@ -122,69 +134,86 @@ export const load: PageServerLoad = async ({ locals }) => {
 					{ data: categories },
 					{ data: commitments },
 					{ data: signups },
-					{ data: opportunities },
-					{ data: anns }
+					{ data: opportunities }
 				] = await Promise.all([
-					locals.supabase.from('volunteer_categories').select('*').eq('is_active', true).order('sort_order'),
-					locals.supabase.from('volunteer_commitments').select('*').eq('family_id', parentFamily.id).eq('season_id', activeSeason.id),
-					locals.supabase.from('volunteer_signups').select('*,opportunity:volunteer_opportunities(*)').eq('family_id', parentFamily.id).neq('status', 'cancelled'),
-					locals.supabase.from('volunteer_opportunities').select('*,category:volunteer_categories(*)').eq('season_id', activeSeason.id).eq('is_active', true),
-					locals.supabase.from('announcements').select('*,author:profiles!announcements_created_by_fkey(full_name)').eq('season_id', activeSeason.id).or('audience.eq.all,audience.eq.parents').order('is_pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5)
+					locals.supabase
+						.from('volunteer_categories')
+						.select('*')
+						.eq('is_active', true)
+						.order('sort_order'),
+					locals.supabase
+						.from('volunteer_commitments')
+						.select('*')
+						.eq('family_id', parentFamily.id)
+						.eq('season_id', activeSeason.id),
+					locals.supabase
+						.from('volunteer_signups')
+						.select('*,opportunity:volunteer_opportunities(*)')
+						.eq('family_id', parentFamily.id)
+						.neq('status', 'cancelled'),
+					locals.supabase
+						.from('volunteer_opportunities')
+						.select('*,category:volunteer_categories(*)')
+						.eq('season_id', activeSeason.id)
+						.eq('is_active', true)
 				]);
 
 				parentCategories = categories ?? [];
 				parentCommitments = commitments ?? [];
 				parentSignups = signups ?? [];
 				parentOpportunities = opportunities ?? [];
-				parentAnnouncements = anns ?? [];
 			}
 		}
 
 		// Compile rich child info
 		const studentLinks = links ?? [];
 		if (studentLinks.length > 0) {
-			linkedStudents = await Promise.all(studentLinks.map(async (row: any) => {
-				const student = Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null;
-				if (!student) {
+			linkedStudents = await Promise.all(
+				studentLinks.map(async (row: any) => {
+					const student = Array.isArray(row.profiles)
+						? (row.profiles[0] ?? null)
+						: (row.profiles ?? null);
+					if (!student) {
+						return {
+							id: String(row.student_user_id),
+							full_name: 'Student',
+							email: '',
+							checkedIn: false,
+							checkedInSince: null,
+							lettering: { pct: 0, completedCount: 0, totalRequired: 0, overflow: false },
+							completedNodes: 0
+						};
+					}
+
+					// Fetch child's active check-in
+					const { data: openSession } = await locals.supabase
+						.from('attendance_daily_sessions')
+						.select('check_in_at')
+						.eq('attendee_user_id', student.id)
+						.is('check_out_at', null)
+						.maybeSingle();
+
+					// Fetch child's lettering progress
+					const lettering = await computeLetteringProgress(locals.supabase, student.id);
+
+					// Fetch child's training progress (completed nodes count)
+					const { count: completedNodes } = await locals.supabase
+						.from('v_user_node_status')
+						.select('node_id', { count: 'exact', head: true })
+						.eq('user_id', student.id)
+						.eq('computed_status', 'completed');
+
 					return {
-						id: String(row.student_user_id),
-						full_name: 'Student',
-						email: '',
-						checkedIn: false,
-						checkedInSince: null,
-						lettering: { pct: 0, completedCount: 0, totalRequired: 0, overflow: false },
-						completedNodes: 0
+						id: String(student.id),
+						full_name: String(student.full_name ?? ''),
+						email: String(student.email ?? ''),
+						checkedIn: !!openSession,
+						checkedInSince: openSession?.check_in_at ?? null,
+						lettering,
+						completedNodes: completedNodes ?? 0
 					};
-				}
-
-				// Fetch child's active check-in
-				const { data: openSession } = await locals.supabase
-					.from('attendance_daily_sessions')
-					.select('check_in_at')
-					.eq('attendee_user_id', student.id)
-					.is('check_out_at', null)
-					.maybeSingle();
-
-				// Fetch child's lettering progress
-				const lettering = await computeLetteringProgress(locals.supabase, student.id);
-
-				// Fetch child's training progress (completed nodes count)
-				const { count: completedNodes } = await locals.supabase
-					.from('v_user_node_status')
-					.select('node_id', { count: 'exact', head: true })
-					.eq('user_id', student.id)
-					.eq('computed_status', 'completed');
-
-				return {
-					id: String(student.id),
-					full_name: String(student.full_name ?? ''),
-					email: String(student.email ?? ''),
-					checkedIn: !!openSession,
-					checkedInSince: openSession?.check_in_at ?? null,
-					lettering,
-					completedNodes: completedNodes ?? 0
-				};
-			}));
+				})
+			);
 		}
 	}
 
@@ -193,47 +222,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 	let hoursSeason = 0;
 	let checkedInSince: string | null = null;
 	let letteringProgress = { pct: 0, completedCount: 0, totalRequired: 0, overflow: false };
-	let announcements: Array<{
-		team_group_id: string;
-		subteam_category_slug: string;
-		body: string;
-		scope: 'team' | 'subteam';
-		scope_name: string;
-		updated_at: string;
-	}> = [];
 	let passportQrDataUrl: string | null = null;
 
 	if (!isParent) {
-		const [
-			{ data: openSession },
-			completedSessionsResp,
-			computedLettering,
-			{ data: notesRows },
-			{ data: qrProfile }
-		] = await Promise.all([
-			locals.supabase
-				.from('attendance_daily_sessions')
-				.select('check_in_at,attendance_day')
-				.eq('attendee_user_id', user.id)
-				.is('check_out_at', null)
-				.maybeSingle(),
-			locals.supabase
-				.from('attendance_daily_sessions')
-				.select('check_in_at,check_out_at')
-				.eq('attendee_user_id', user.id)
-				.not('check_out_at', 'is', null),
-			computeLetteringProgress(locals.supabase, user.id),
-			locals.supabase
-				.from('team_notes')
-				.select('team_group_id,subteam_category_slug,body,updated_at')
-				.order('updated_at', { ascending: false })
-				.limit(8),
-			locals.supabase
-				.from('profiles')
-				.select('passport_qr_version')
-				.eq('id', user.id)
-				.single()
-		]);
+		const [{ data: openSession }, completedSessionsResp, computedLettering, { data: qrProfile }] =
+			await Promise.all([
+				locals.supabase
+					.from('attendance_daily_sessions')
+					.select('check_in_at,attendance_day')
+					.eq('attendee_user_id', user.id)
+					.is('check_out_at', null)
+					.maybeSingle(),
+				locals.supabase
+					.from('attendance_daily_sessions')
+					.select('check_in_at,check_out_at')
+					.eq('attendee_user_id', user.id)
+					.not('check_out_at', 'is', null),
+				computeLetteringProgress(locals.supabase, user.id),
+				locals.supabase.from('profiles').select('passport_qr_version').eq('id', user.id).single()
+			]);
 
 		// Hours tally from completed sessions
 		const completedSessions = completedSessionsResp.data ?? [];
@@ -248,24 +255,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		checkedInSince = openSession?.check_in_at ?? null;
 		letteringProgress = computedLettering;
-
-		// Build team group name map from the already-loaded teamGroupsResp
-		const teamGroupNameMap = new Map<string, string>(
-			(teamGroupsResp.data ?? []).map((tg: { id: string; name: string }) => [tg.id, tg.name])
-		);
-
-		announcements = (notesRows ?? [])
-			.filter((n: { body: string }) => (n.body ?? '').trim().length > 0)
-			.map((n: { team_group_id: string; subteam_category_slug: string; body: string; updated_at: string }) => ({
-				team_group_id: n.team_group_id,
-				subteam_category_slug: n.subteam_category_slug,
-				body: n.body ?? '',
-				scope: (n.subteam_category_slug ? 'subteam' : 'team') as 'team' | 'subteam',
-				scope_name: n.subteam_category_slug
-					? n.subteam_category_slug
-					: (teamGroupNameMap.get(n.team_group_id) ?? 'Team'),
-				updated_at: n.updated_at ?? new Date().toISOString()
-			}));
 
 		const qrVersion = Number(qrProfile?.passport_qr_version ?? 0);
 		passportQrDataUrl = await buildPassportQrDataUrl(user.id, qrVersion);
@@ -299,12 +288,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		parentCategories,
 		parentSignups,
 		parentOpportunities,
-		parentAnnouncements,
 		hoursSeason,
 		hoursTarget: 90,
 		checkedInSince,
 		letteringProgress,
-		announcements,
 		passportQrDataUrl
 	};
 };

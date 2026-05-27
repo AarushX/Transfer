@@ -76,7 +76,7 @@
 		</div>
 		<div class="flex shrink-0 items-center gap-2 pt-1">
 			<a
-				href="/courses/map"
+				href="/dashboard"
 				class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
 				style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
 				>Open full graph</a

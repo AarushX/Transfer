@@ -139,9 +139,14 @@
 	});
 </script>
 
-<section class="flex min-h-dvh flex-col overflow-y-auto px-6 py-0" style="background: var(--app-surface);">
+<section
+	class="flex min-h-dvh flex-col overflow-y-auto px-6 py-0"
+	style="background: var(--app-surface);"
+>
 	<div class="pt-5">
-		<div class="mx-auto max-w-4xl text-center [&_header]:justify-center [&_h1]:text-center [&_p]:text-center">
+		<div
+			class="mx-auto max-w-4xl text-center [&_h1]:text-center [&_header]:justify-center [&_p]:text-center"
+		>
 			<PageHeader title="Attendance Kiosk" />
 		</div>
 	</div>
@@ -169,9 +174,13 @@
 						class="grid gap-8 md:grid-cols-2"
 					>
 						<div class="text-center">
-							<p class="mb-3 text-3xl font-black uppercase tracking-[0.2em] text-sky-100">Student</p>
+							<p class="mb-3 text-3xl font-black tracking-[0.2em] text-sky-100 uppercase">
+								Student
+							</p>
 							{#if studentQrDataUrl}
-								<div class="mx-auto aspect-square w-[min(52vw,24rem)] rounded-3xl border-2 border-sky-500 bg-white p-4 shadow-[0_0_30px_rgba(14,165,233,0.26)]">
+								<div
+									class="mx-auto aspect-square w-[min(52vw,24rem)] rounded-3xl border-2 border-sky-500 bg-white p-4 shadow-[0_0_30px_rgba(14,165,233,0.26)]"
+								>
 									<img
 										src={studentQrDataUrl}
 										alt="Student attendance QR code"
@@ -181,9 +190,11 @@
 							{/if}
 						</div>
 						<div class="text-center">
-							<p class="mb-3 text-2xl font-black uppercase tracking-[0.2em] text-sky-100">Mentor</p>
+							<p class="mb-3 text-2xl font-black tracking-[0.2em] text-sky-100 uppercase">Mentor</p>
 							{#if mentorQrDataUrl}
-								<div class="mx-auto aspect-square w-[min(52vw,24rem)] rounded-3xl border-2 border-sky-500 bg-white p-4 shadow-[0_0_30px_rgba(14,165,233,0.26)]">
+								<div
+									class="mx-auto aspect-square w-[min(52vw,24rem)] rounded-3xl border-2 border-sky-500 bg-white p-4 shadow-[0_0_30px_rgba(14,165,233,0.26)]"
+								>
 									<img
 										src={mentorQrDataUrl}
 										alt="Mentor attendance QR code"
@@ -198,7 +209,10 @@
 		</div>
 	</div>
 	<div class="mt-auto">
-		<div class="mx-auto mt-2 max-w-4xl rounded-lg border px-4 py-3 text-center text-sm" style="border-color: color-mix(in srgb, var(--app-info) 40%, transparent); background: color-mix(in srgb, var(--app-info) 12%, transparent); color: color-mix(in srgb, var(--app-info) 80%, white);">
+		<div
+			class="mx-auto mt-2 max-w-4xl rounded-lg border px-4 py-3 text-center text-sm"
+			style="border-color: color-mix(in srgb, var(--app-info) 40%, transparent); background: color-mix(in srgb, var(--app-info) 12%, transparent); color: color-mix(in srgb, var(--app-info) 80%, white);"
+		>
 			Scan the top attendance QR codes using the Transfer app at
 			<span class="font-semibold">transfer.circuitrunners.com/scan</span>.
 		</div>
@@ -207,27 +221,45 @@
 				<p class="mt-3 text-sm text-red-300">{error}</p>
 			</div>
 		{/if}
-		<div class="mx-auto mb-3 mt-2 w-full max-w-6xl">
-			<div class="rounded-xl border p-3" style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent);">
+		<div class="mx-auto mt-2 mb-3 w-full max-w-6xl">
+			<div
+				class="rounded-xl border p-3"
+				style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent);"
+			>
 				<div class="flex flex-wrap items-center justify-center gap-4 text-center">
 					{#if data.installPwaQrDataUrl}
 						<div class="mx-auto flex flex-col items-center gap-2">
 							<button
-								class="rounded px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-wide"
+								class="rounded px-2.5 py-1 text-center text-[11px] font-semibold tracking-wide uppercase"
 								style="background: var(--app-info); color: var(--app-accent-text);"
 								onclick={openPwaHelpDialog}
 							>
 								Install App Help
 							</button>
 							<div class="rounded-lg bg-white p-2">
-							<img src={data.installPwaQrDataUrl} alt="QR code for Transfer scan app" class="h-28 w-28 object-contain" />
+								<img
+									src={data.installPwaQrDataUrl}
+									alt="QR code for Transfer scan app"
+									class="h-28 w-28 object-contain"
+								/>
 							</div>
 						</div>
 					{/if}
 					<div class="mx-auto w-full max-w-2xl">
-						<div class="mt-3 rounded-lg border p-3" style="border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); background: var(--app-surface-alt);">
-							<p class="text-xs font-semibold uppercase tracking-wide" style="color: color-mix(in srgb, var(--app-warning) 80%, white);">Sign In As Guest</p>
-							<p class="mt-1 text-[11px]" style="color: color-mix(in srgb, var(--app-warning) 70%, white);">
+						<div
+							class="mt-3 rounded-lg border p-3"
+							style="border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); background: var(--app-surface-alt);"
+						>
+							<p
+								class="text-xs font-semibold tracking-wide uppercase"
+								style="color: color-mix(in srgb, var(--app-warning) 80%, white);"
+							>
+								Sign In As Guest
+							</p>
+							<p
+								class="mt-1 text-[11px]"
+								style="color: color-mix(in srgb, var(--app-warning) 70%, white);"
+							>
 								Students, only use this in emergencies where you can&apos;t access the app.
 							</p>
 							<div class="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
@@ -263,16 +295,40 @@
 		</div>
 	</div>
 	{#if showPwaHelpDialog}
-		<div class="fixed inset-0 z-40 flex items-center justify-center p-4" style="background: var(--app-overlay-scrim);" onclick={closePwaHelpDialog}>
-			<div class="w-full max-w-lg rounded-xl border p-4 text-left backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);" onclick={(event) => event.stopPropagation()}>
+		<div
+			class="fixed inset-0 z-40 flex items-center justify-center p-4"
+			style="background: var(--app-overlay-scrim);"
+			onclick={closePwaHelpDialog}
+		>
+			<div
+				class="w-full max-w-lg rounded-xl border p-4 text-left backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+				onclick={(event) => event.stopPropagation()}
+			>
 				<div class="flex items-start justify-between gap-3">
-					<p class="text-sm font-semibold" style="color: var(--app-text);">Add Transfer App to Home Screen</p>
-					<button class="rounded border px-2 py-1 text-xs" style="border-color: var(--app-glass-border); color: var(--app-text-muted);" onclick={closePwaHelpDialog}>Close</button>
+					<p class="text-sm font-semibold" style="color: var(--app-text);">
+						Add Transfer App to Home Screen
+					</p>
+					<button
+						class="rounded border px-2 py-1 text-xs"
+						style="border-color: var(--app-glass-border); color: var(--app-text-muted);"
+						onclick={closePwaHelpDialog}>Close</button
+					>
 				</div>
-				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">This help box closes automatically after 1 minute.</p>
+				<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+					This help box closes automatically after 1 minute.
+				</p>
 				<div class="mt-3 grid gap-3 md:grid-cols-2">
-					<div class="rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
-						<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">iPhone / iPad</p>
+					<div
+						class="rounded border p-3"
+						style="background: var(--app-surface-alt); border-color: var(--app-glass-border);"
+					>
+						<p
+							class="text-xs font-semibold tracking-wide uppercase"
+							style="color: var(--app-text-muted);"
+						>
+							iPhone / iPad
+						</p>
 						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs" style="color: var(--app-text);">
 							<li>Open the link in Safari.</li>
 							<li>Tap the Share button.</li>
@@ -280,8 +336,16 @@
 							<li>Tap Add.</li>
 						</ol>
 					</div>
-					<div class="rounded border p-3" style="background: var(--app-surface-alt); border-color: var(--app-glass-border);">
-						<p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--app-text-muted);">Android</p>
+					<div
+						class="rounded border p-3"
+						style="background: var(--app-surface-alt); border-color: var(--app-glass-border);"
+					>
+						<p
+							class="text-xs font-semibold tracking-wide uppercase"
+							style="color: var(--app-text-muted);"
+						>
+							Android
+						</p>
 						<ol class="mt-2 list-decimal space-y-1 pl-4 text-xs" style="color: var(--app-text);">
 							<li>Open the link in Chrome.</li>
 							<li>Tap the menu (three dots).</li>

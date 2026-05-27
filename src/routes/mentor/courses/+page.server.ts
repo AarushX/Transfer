@@ -29,22 +29,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	if (q) query = query.ilike('title', `%${q}%`);
 
-	const [
-		{ data: nodes },
-		{ data: nodeTargets },
-		{ data: nodeGroupTargets },
-		{ data: teamGroups },
-		{ data: templates }
-	] = await Promise.all([
-		query,
-		locals.supabase.from('node_team_targets').select('node_id,team_id'),
-		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
-		locals.supabase.from('team_groups').select('id,name,slug'),
-		locals.supabase
-			.from('course_templates')
-			.select('id,name,title,description,team_ids,category_ids,prereq_ids,blocks_json')
-			.order('created_at', { ascending: false })
-	]);
+	const [nodesResp, nodeTargetsResp, nodeGroupTargetsResp, teamGroupsResp, templatesResp] =
+		await Promise.all([
+			query,
+			locals.supabase.from('node_team_targets').select('node_id,team_id'),
+			locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
+			locals.supabase.from('team_groups').select('id,name,slug'),
+			locals.supabase
+				.from('course_templates')
+				.select('id,name,title,description,team_ids,category_ids,prereq_ids,blocks_json')
+				.order('created_at', { ascending: false })
+		]);
+
+	if (nodesResp.error) console.error('[mentor/courses] nodes select failed:', nodesResp.error);
+	if (nodeTargetsResp.error)
+		console.error('[mentor/courses] node_team_targets select failed:', nodeTargetsResp.error);
+	if (nodeGroupTargetsResp.error)
+		console.error(
+			'[mentor/courses] node_team_group_targets select failed:',
+			nodeGroupTargetsResp.error
+		);
+	if (teamGroupsResp.error)
+		console.error('[mentor/courses] team_groups select failed:', teamGroupsResp.error);
+	if (templatesResp.error)
+		console.error('[mentor/courses] course_templates select failed:', templatesResp.error);
+
+	const nodes = nodesResp.data;
+	const nodeTargets = nodeTargetsResp.data;
+	const nodeGroupTargets = nodeGroupTargetsResp.data;
+	const teamGroups = teamGroupsResp.data;
+	const templates = templatesResp.data;
 
 	const teamIdsByNode = new Map<string, Set<string>>();
 	for (const row of nodeTargets ?? []) {

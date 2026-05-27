@@ -23,7 +23,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		locals.supabase.from('nodes').select('id,title').order('title'),
 		locals.supabase
 			.from('survey_templates')
-			.select('id,name,title,workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids')
+			.select(
+				'id,name,title,workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids'
+			)
 			.order('created_at', { ascending: false })
 	]);
 
@@ -50,7 +52,9 @@ export const actions: Actions = {
 
 		const { data: template } = await locals.supabase
 			.from('survey_templates')
-			.select('workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids')
+			.select(
+				'workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids'
+			)
 			.eq('id', templateId)
 			.maybeSingle();
 		if (!template) return fail(404, { error: 'Template not found.' });
@@ -78,7 +82,8 @@ export const actions: Actions = {
 			})
 			.select('id,slug')
 			.single();
-		if (createErr || !created) return fail(400, { error: createErr?.message ?? 'Could not create survey from template.' });
+		if (createErr || !created)
+			return fail(400, { error: createErr?.message ?? 'Could not create survey from template.' });
 
 		const prereqIds = Array.isArray((template as any).prereq_node_ids)
 			? (template as any).prereq_node_ids.map((v: any) => String(v)).filter(Boolean)

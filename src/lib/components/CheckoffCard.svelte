@@ -83,7 +83,10 @@
 		busy = 'approve';
 		cardError = '';
 		try {
-			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
+			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({
+				item,
+				passed
+			}));
 			const result = await onApprove(item, notes.trim(), checklist_results);
 			if (typeof result === 'string' && result) cardError = result;
 			else clearCache();
@@ -97,7 +100,10 @@
 		busy = 'review';
 		cardError = '';
 		try {
-			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({ item, passed }));
+			const checklist_results = Object.entries(checklistStates).map(([item, passed]) => ({
+				item,
+				passed
+			}));
 			const result = await onReview(item, notes.trim(), checklist_results);
 			if (typeof result === 'string' && result) cardError = result;
 			else clearCache();
@@ -124,7 +130,7 @@
 </script>
 
 <div
-	class="checkoff-card relative overflow-hidden space-y-3 rounded-2xl border p-4 backdrop-blur-xl transition duration-200"
+	class="checkoff-card relative space-y-3 overflow-hidden rounded-2xl border p-4 backdrop-blur-xl transition duration-200"
 	style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 	role="button"
 	tabindex="0"
@@ -136,15 +142,21 @@
 		}
 	}}
 >
-	<div class="pointer-events-none absolute inset-0 rounded-2xl" style="background: var(--app-glass-shine);"></div>
+	<div
+		class="pointer-events-none absolute inset-0 rounded-2xl"
+		style="background: var(--app-glass-shine);"
+	></div>
 	<div class="relative space-y-3">
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0">
-				<p class="text-[15px] font-semibold" style="color: var(--app-text);">{item.profile?.full_name || item.profile?.email}</p>
+				<p class="text-[15px] font-semibold" style="color: var(--app-text);">
+					{item.profile?.full_name || item.profile?.email}
+				</p>
 				<p class="text-xs" style="color: var(--app-text-dim);">{item.profile?.email}</p>
 			</div>
-			<StatusChip label={statusLabel} tone={
-				item.derivedCheckoffStatus === 'approved'
+			<StatusChip
+				label={statusLabel}
+				tone={item.derivedCheckoffStatus === 'approved'
 					? 'success'
 					: item.derivedCheckoffStatus === 'needs_review'
 						? 'warning'
@@ -152,20 +164,24 @@
 							? 'danger'
 							: item.derivedCheckoffStatus === 'submitted'
 								? 'info'
-								: 'neutral'
-			} />
+								: 'neutral'}
+			/>
 		</div>
 
 		<div class="space-y-3">
 			<div>
 				<p class="text-sm font-semibold" style="color: var(--app-text);">{item.node?.title}</p>
 				<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
-					Student team: {item.profile?.subteam?.name ?? 'Unassigned'} · Course team: {item.node?.subteam?.name ?? 'Unassigned'}
+					Student team: {item.profile?.subteam?.name ?? 'Unassigned'} · Course team: {item.node
+						?.subteam?.name ?? 'Unassigned'}
 				</p>
 			</div>
 
 			{#if item.requirement?.title || item.requirement?.directions}
-				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+				<div
+					class="rounded-xl border p-3"
+					style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);"
+				>
 					<p class="eyebrow-label" style="margin-bottom: 6px;">
 						{item.requirement?.title || 'Physical checkoff'}
 					</p>
@@ -176,11 +192,16 @@
 			{/if}
 
 			{#if (item.requirement?.mentor_checklist ?? []).length}
-				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+				<div
+					class="rounded-xl border p-3"
+					style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);"
+				>
 					<p class="eyebrow-label" style="margin-bottom: 8px;">Mentor checklist</p>
 					<div class="space-y-1">
 						{#each item.requirement.mentor_checklist as c}
-							<label class="checklist-row flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition duration-150">
+							<label
+								class="checklist-row flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition duration-150"
+							>
 								<input
 									type="checkbox"
 									class="checklist-check mt-0.5"
@@ -196,19 +217,29 @@
 			{/if}
 
 			{#if item.submission}
-				<div class="rounded-xl border p-3" style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);">
+				<div
+					class="rounded-xl border p-3"
+					style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);"
+				>
 					<p class="eyebrow-label" style="margin-bottom: 6px;">Student submission</p>
-					<p class="whitespace-pre-wrap text-xs" style="color: var(--app-text-muted);">
+					<p class="text-xs whitespace-pre-wrap" style="color: var(--app-text-muted);">
 						{item.submission.notes || 'No notes submitted.'}
 					</p>
 					{#if photosFor(item.submission).length}
 						<div class="mt-2">
-							<EvidenceGallery images={photosFor(item.submission)} maxPreview={6} onOpen={onImageOpen} />
+							<EvidenceGallery
+								images={photosFor(item.submission)}
+								maxPreview={6}
+								onOpen={onImageOpen}
+							/>
 						</div>
 					{/if}
 				</div>
 			{:else if item.requirement?.evidence_mode === 'photo_required'}
-				<div class="rounded-xl border p-3 text-xs" style="background: color-mix(in srgb, var(--app-warning) 10%, transparent); border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); color: color-mix(in srgb, var(--app-warning) 60%, white);">
+				<div
+					class="rounded-xl border p-3 text-xs"
+					style="background: color-mix(in srgb, var(--app-warning) 10%, transparent); border-color: color-mix(in srgb, var(--app-warning) 30%, transparent); color: color-mix(in srgb, var(--app-warning) 60%, white);"
+				>
 					Photo evidence is required but student has not submitted one yet.
 				</div>
 			{/if}

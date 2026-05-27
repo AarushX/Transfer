@@ -24,29 +24,32 @@
 
 ### Routes after the merge
 
-| Route                | Before                                                | After                                                                                                                         |
-| -------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/roster`            | Mentor people-directory with attendance expand        | Unified directory. Admin-only role/lead editor appears inside per-row expansion when the viewer is admin.                     |
-| `/admin/users`       | Admin-only lead-assignment page                       | **Removed.** Sidebar link disappears. URL 302 → `/roster`. The lead-of-team-group / lead-of-subteam selects move into expand. |
-| `/teams`             | User's primary-team picker + mentor-queue team picker | **Removed.** Both forms move to `/profile` as a "Team membership" + "Mentor checkoff teams" card. URL 302 → `/profile`.       |
-| `/dashboard`         | Student / mentor only                                 | Universal. Parents land here too; the page renders role-adaptive sections.                                                    |
-| `/parent/dashboard`  | Parent-only dashboard                                 | Kept as a redirect to `/dashboard` for one release, then removed.                                                             |
-| `/courses/map`       | did not exist                                         | **New.** Full-page SkillTree for students + mentors. Scope query param supports filtering to a team / subteam.                |
+| Route               | Before                                                | After                                                                                                                         |
+| ------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `/roster`           | Mentor people-directory with attendance expand        | Unified directory. Admin-only role/lead editor appears inside per-row expansion when the viewer is admin.                     |
+| `/admin/users`      | Admin-only lead-assignment page                       | **Removed.** Sidebar link disappears. URL 302 → `/roster`. The lead-of-team-group / lead-of-subteam selects move into expand. |
+| `/teams`            | User's primary-team picker + mentor-queue team picker | **Removed.** Both forms move to `/profile` as a "Team membership" + "Mentor checkoff teams" card. URL 302 → `/profile`.       |
+| `/dashboard`        | Student / mentor only                                 | Universal. Parents land here too; the page renders role-adaptive sections.                                                    |
+| `/parent/dashboard` | Parent-only dashboard                                 | Kept as a redirect to `/dashboard` for one release, then removed.                                                             |
+| `/courses/map`      | did not exist                                         | **New.** Full-page SkillTree for students + mentors. Scope query param supports filtering to a team / subteam.                |
 
 ### Sidebar item list after the merge
 
 Order matches the new sidebar mockup (style A, section divider 1).
 
 **Primary** (everyone)
+
 - Dashboard
 - ClickUp
 - Scan
 
 **Team** (section labeled with primary-team name, e.g. "Robotics 2056")
+
 - Team Page
 - _… subteam links indented underneath_
 
 **Mentor** (visible when `is_mentor`)
+
 - Checkoffs _(numeric badge with queue count)_
 - Courses
 - Machines
@@ -54,6 +57,7 @@ Order matches the new sidebar mockup (style A, section divider 1).
 - Volunteer verification
 
 **Admin** (visible when `is_admin`)
+
 - Settings
 - Teams _(this is the admin teams CRUD at `/admin/settings/teams`, not the old user-facing `/teams`)_
 - Content
@@ -84,24 +88,24 @@ Parents see only **Primary** + a parent-specific "Volunteering" item (replacing 
 
 Single icon system, stroke-only Lucide-style 14 px:
 
-| Item                  | Icon hint                          |
-| --------------------- | ---------------------------------- |
-| Dashboard             | 4-square grid                      |
-| ClickUp               | check-clipboard                    |
-| Scan                  | qr-grid                            |
-| Team Page             | users                              |
-| Checkoffs             | checklist                          |
-| Courses               | play-circle                        |
-| Machines              | settings-gear                      |
-| Roster                | user-circle                        |
-| Volunteer verification| shield-check                       |
-| Settings              | sliders                            |
-| Teams (admin CRUD)    | building                           |
-| Content               | file                               |
-| Audit log             | list                               |
-| Attendance            | calendar-check                     |
-| Volunteering          | heart-handshake                    |
-| Lettering rules       | award                              |
+| Item                   | Icon hint       |
+| ---------------------- | --------------- |
+| Dashboard              | 4-square grid   |
+| ClickUp                | check-clipboard |
+| Scan                   | qr-grid         |
+| Team Page              | users           |
+| Checkoffs              | checklist       |
+| Courses                | play-circle     |
+| Machines               | settings-gear   |
+| Roster                 | user-circle     |
+| Volunteer verification | shield-check    |
+| Settings               | sliders         |
+| Teams (admin CRUD)     | building        |
+| Content                | file            |
+| Audit log              | list            |
+| Attendance             | calendar-check  |
+| Volunteering           | heart-handshake |
+| Lettering rules        | award           |
 
 Icons live as inline SVG in the layout file (consistent with existing inline-SVG pattern) — no icon library dependency.
 
@@ -173,7 +177,7 @@ Icons live as inline SVG in the layout file (consistent with existing inline-SVG
   - **Parent linking card** (existing from `/dashboard/+page.svelte` parent branch — keep it).
   - **Volunteer hours card** — total hours per linked student + "Log hours" CTA (already implemented under `/parent/volunteer`; link to it).
   - **Linked students roster** — same data as `data.linkedStudents` today.
-  - The right column collapses: no QR (parents don't have one), no lettering. Keep Hours card showing the *volunteer* hours instead of attendance hours.
+  - The right column collapses: no QR (parents don't have one), no lettering. Keep Hours card showing the _volunteer_ hours instead of attendance hours.
 
 - **Mentor (`is_mentor`)** — the greeting strip's "Mentor queue: N" pill appears when N > 0. The dashboard otherwise looks identical to a student's. (Mentors still have their own learning track.)
 
@@ -183,7 +187,7 @@ Icons live as inline SVG in the layout file (consistent with existing inline-SVG
 
 All counts and lists are loaded server-side in `+page.server.ts` so the page renders without JS spinners. Existing queries cover everything; the new pieces are:
 
-- `attendance_sessions` — fetch the *open* session for the user (no `check_out_at`) and the sum of completed-session durations this season.
+- `attendance_sessions` — fetch the _open_ session for the user (no `check_out_at`) and the sum of completed-session durations this season.
 - `team_notes` — limited to user's primary team-group + subteams, ordered by `updated_at desc`, limit 4.
 - Lettering progress — `letteringProgress(userId)` helper that takes the rules from `lettering_rules` (or whatever the existing source is at `/admin/lettering`) and returns `{ pct, completedCount, totalRequired, overflow }`.
 
@@ -326,7 +330,7 @@ Above the panels:
 
 - Reuses `SkillTree.svelte` with a scope filter.
 - Shows the courses targeted at this team-group (on `/team`) or at this team (on `/team/[subteam]`).
-- Node colors derived from *the viewing user's* status, not the team's. Caption underneath: "Your view".
+- Node colors derived from _the viewing user's_ status, not the team's. Caption underneath: "Your view".
 - Click a node → opens that course (`/learn/{slug}`).
 - Collapses to a horizontal strip below the headline on narrow screens.
 
@@ -358,14 +362,14 @@ No new tokens. All work fits inside the existing CSS custom-properties already i
 
 Status colors used uniformly:
 
-| Status              | Variable                            |
-| ------------------- | ----------------------------------- |
-| Completed           | `--app-success`                     |
-| In progress         | `--app-info`                        |
-| Awaiting mentor     | `--app-warning`                     |
-| Blocked / needs-review | `--app-danger`                   |
-| Available           | `--app-accent`                      |
-| Locked              | `var(--app-text-dim)` / desaturated |
+| Status                 | Variable                            |
+| ---------------------- | ----------------------------------- |
+| Completed              | `--app-success`                     |
+| In progress            | `--app-info`                        |
+| Awaiting mentor        | `--app-warning`                     |
+| Blocked / needs-review | `--app-danger`                      |
+| Available              | `--app-accent`                      |
+| Locked                 | `var(--app-text-dim)` / desaturated |
 
 ---
 

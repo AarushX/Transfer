@@ -26,9 +26,7 @@
 	}: Props = $props();
 
 	const visibleSelectedCount = $derived(nodes.filter((n) => selectedNodeIds.has(n.id)).length);
-	const allVisibleSelected = $derived(
-		nodes.length > 0 && visibleSelectedCount === nodes.length
-	);
+	const allVisibleSelected = $derived(nodes.length > 0 && visibleSelectedCount === nodes.length);
 </script>
 
 <div
@@ -47,7 +45,8 @@
 					class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
 					style="border-color: color-mix(in srgb, var(--app-info) 35%, transparent); background: color-mix(in srgb, var(--app-info) 14%, transparent); color: var(--app-info);"
 				>
-					<span class="h-1.5 w-1.5 animate-pulse rounded-full" style="background: var(--app-info);"></span>
+					<span class="h-1.5 w-1.5 animate-pulse rounded-full" style="background: var(--app-info);"
+					></span>
 					Saving
 				</span>
 			{:else}
@@ -70,14 +69,14 @@
 			stroke-width="2"
 			stroke-linecap="round"
 			stroke-linejoin="round"
-			class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+			class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 			style="color: var(--app-text-dim);"
 		>
 			<circle cx="11" cy="11" r="7" />
 			<path d="m21 21-4.3-4.3" />
 		</svg>
 		<input
-			class="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm transition focus:outline-none"
+			class="w-full rounded-xl border py-2.5 pr-3 pl-9 text-sm transition focus:outline-none"
 			style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border); color: var(--app-input-text);"
 			placeholder="Search courses..."
 			value={search}
@@ -86,12 +85,19 @@
 		{#if search}
 			<button
 				type="button"
-				class="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md"
+				class="absolute top-1/2 right-2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md"
 				style="background: transparent; border: none; color: var(--app-text-dim); cursor: pointer;"
 				aria-label="Clear search"
 				onclick={() => onSearchChange('')}
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3.5 w-3.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					class="h-3.5 w-3.5"><path d="M18 6L6 18M6 6l12 12" /></svg
+				>
 			</button>
 		{/if}
 	</label>
@@ -145,7 +151,15 @@
 						? 'background: var(--app-accent); border-color: var(--app-accent); color: white;'
 						: 'background: transparent; border-color: var(--app-glass-border); color: transparent;'}
 				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5"><path d="M20 6L9 17l-5-5"/></svg>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-2.5 w-2.5"><path d="M20 6L9 17l-5-5" /></svg
+					>
 				</span>
 				<span class="truncate">{node.title}</span>
 			</button>

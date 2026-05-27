@@ -13,7 +13,8 @@
 	} = $props();
 </script>
 
-<div class="flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center backdrop-blur-xl"
+<div
+	class="flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center backdrop-blur-xl"
 	style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 >
 	{#if icon}

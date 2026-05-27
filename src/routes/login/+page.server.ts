@@ -8,12 +8,10 @@ const errorMessages: Record<string, string> = {
 
 function friendlyError(raw: string): string {
 	if (errorMessages[raw]) return errorMessages[raw];
-	if (raw.toLowerCase().includes('invalid login credentials'))
-		return 'Invalid email or password.';
+	if (raw.toLowerCase().includes('invalid login credentials')) return 'Invalid email or password.';
 	if (raw.toLowerCase().includes('user already registered'))
 		return 'An account with this email already exists. Try logging in instead.';
-	if (raw.toLowerCase().includes('is invalid'))
-		return 'Please enter a valid email address.';
+	if (raw.toLowerCase().includes('is invalid')) return 'Please enter a valid email address.';
 	if (raw.toLowerCase().includes('password') && raw.toLowerCase().includes('characters'))
 		return 'Password must be at least 6 characters.';
 	return raw;

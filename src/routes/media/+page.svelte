@@ -61,9 +61,12 @@
 						<div class="cover-fade pointer-events-none absolute inset-0"></div>
 					</div>
 					<div class="relative px-4 py-3">
-						<p class="truncate text-sm font-semibold" style="color: var(--app-text);">{event.name}</p>
+						<p class="truncate text-sm font-semibold" style="color: var(--app-text);">
+							{event.name}
+						</p>
 						<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
-							{event.photoCount}{event.photoCountIsApprox ? '+' : ''} {event.photoCount === 1 ? 'photo' : 'photos'}
+							{event.photoCount}{event.photoCountIsApprox ? '+' : ''}
+							{event.photoCount === 1 ? 'photo' : 'photos'}
 						</p>
 					</div>
 				</a>
@@ -74,7 +77,10 @@
 
 <style>
 	.event-card {
-		transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+		transition:
+			transform 0.25s ease,
+			border-color 0.25s ease,
+			background 0.25s ease;
 	}
 	.event-card:hover {
 		background: var(--app-glass-bg-hover);
@@ -82,6 +88,10 @@
 		transform: translateY(-2px);
 	}
 	.cover-fade {
-		background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--app-bg) 70%, transparent) 100%);
+		background: linear-gradient(
+			180deg,
+			transparent 55%,
+			color-mix(in srgb, var(--app-bg) 70%, transparent) 100%
+		);
 	}
 </style>

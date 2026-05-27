@@ -58,15 +58,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		}
 
-		const { error: progressError } = await locals.supabase.from('user_node_segment_progress').upsert(
-			{
-				user_id: user.id,
-				node_id: nodeId,
-				segment_id: segmentId,
-				watched_at: new Date().toISOString()
-			},
-			{ onConflict: 'user_id,segment_id' }
-		);
+		const { error: progressError } = await locals.supabase
+			.from('user_node_segment_progress')
+			.upsert(
+				{
+					user_id: user.id,
+					node_id: nodeId,
+					segment_id: segmentId,
+					watched_at: new Date().toISOString()
+				},
+				{ onConflict: 'user_id,segment_id' }
+			);
 		if (progressError) return json({ error: progressError.message }, { status: 400 });
 
 		const { error: transitionError } = await locals.supabase.rpc('transition_certification', {
@@ -90,10 +92,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const hasQuiz = Array.isArray(assessment?.questions) && assessment.questions.length > 0;
 	const hasMeaningfulCheckoff = Boolean(
 		(requirement?.directions ?? '').trim() ||
-			(Array.isArray(requirement?.mentor_checklist) && requirement.mentor_checklist.length > 0) ||
-			(Array.isArray(requirement?.resource_links) && requirement.resource_links.length > 0) ||
-			requirement?.evidence_mode === 'photo_optional' ||
-			requirement?.evidence_mode === 'photo_required'
+		(Array.isArray(requirement?.mentor_checklist) && requirement.mentor_checklist.length > 0) ||
+		(Array.isArray(requirement?.resource_links) && requirement.resource_links.length > 0) ||
+		requirement?.evidence_mode === 'photo_optional' ||
+		requirement?.evidence_mode === 'photo_required'
 	);
 	const nextStatus = !hasQuiz && !hasMeaningfulCheckoff ? 'completed' : 'quiz_pending';
 

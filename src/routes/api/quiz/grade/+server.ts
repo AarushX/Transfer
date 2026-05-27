@@ -413,7 +413,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				? question.columns.map((v: unknown) => String(v).trim()).filter(Boolean)
 				: [];
 			if (rows.length === 0 || columns.length === 0) {
-				return json({ error: 'Matrix multi-select question is not configured correctly.' }, { status: 400 });
+				return json(
+					{ error: 'Matrix multi-select question is not configured correctly.' },
+					{ status: 400 }
+				);
 			}
 			const colSet = new Set(columns);
 			for (const row of rows) {
@@ -520,12 +523,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'Invalid true/false answer submitted.' }, { status: 400 });
 		}
 		if (questionType === 'short') {
-			const isRequired =
-				question.short_required == null ? true : Boolean(question.short_required);
+			const isRequired = question.short_required == null ? true : Boolean(question.short_required);
 			const trimmedAnswer = rawAnswer.trim();
 			if (!trimmedAnswer) {
 				if (isRequired) {
-					return json({ error: 'Please answer all required short-answer questions.' }, { status: 400 });
+					return json(
+						{ error: 'Please answer all required short-answer questions.' },
+						{ status: 400 }
+					);
 				}
 				correct += 1;
 				continue;

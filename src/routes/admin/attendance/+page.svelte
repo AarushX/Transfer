@@ -13,8 +13,9 @@
 	type AttendanceRow = (typeof data.sessions)[number];
 	type EventRow = (typeof data.events)[number];
 
-	const gi = "rounded-lg border px-3 py-2 backdrop-blur-sm";
-	const gs = "border-color: var(--app-glass-border); background: var(--app-glass-bg); color: var(--app-input-text);";
+	const gi = 'rounded-lg border px-3 py-2 backdrop-blur-sm';
+	const gs =
+		'border-color: var(--app-glass-border); background: var(--app-glass-bg); color: var(--app-input-text);';
 
 	const formatDateTime = (value: string | null | undefined) => {
 		if (!value) return '—';
@@ -131,43 +132,68 @@
 	</header>
 
 	<div class="fade-up grid gap-3 md:grid-cols-4" style="animation-delay: 0.05s;">
-		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+		<div
+			class="rounded-2xl border p-4 backdrop-blur-xl"
+			style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+		>
 			<p class="eyebrow-label">Sessions</p>
 			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-text);">{summary.sessions}</p>
 		</div>
-		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+		<div
+			class="rounded-2xl border p-4 backdrop-blur-xl"
+			style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+		>
 			<p class="eyebrow-label">Checked in</p>
-			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-success);">{summary.checkedIn}</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-success);">
+				{summary.checkedIn}
+			</p>
 		</div>
-		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+		<div
+			class="rounded-2xl border p-4 backdrop-blur-xl"
+			style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+		>
 			<p class="eyebrow-label">Checked out</p>
-			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-info);">{summary.checkedOut}</p>
+			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-info);">
+				{summary.checkedOut}
+			</p>
 		</div>
-		<div class="rounded-2xl border p-4 backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+		<div
+			class="rounded-2xl border p-4 backdrop-blur-xl"
+			style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+		>
 			<p class="eyebrow-label">Still open</p>
 			<p class="mono mt-1 text-2xl font-bold" style="color: var(--app-warning);">{summary.open}</p>
 		</div>
 	</div>
 
-	<div class="fade-up rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.1s;">
+	<div
+		class="fade-up rounded-2xl border p-3 backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.1s;"
+	>
 		<div class="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-			<input
-				class={gi}
-				style={gs}
-				placeholder="Search attendee/scanner..."
-				bind:value={query}
-			/>
+			<input class={gi} style={gs} placeholder="Search attendee/scanner..." bind:value={query} />
 			<input class={gi} style={gs} type="date" bind:value={dayFilter} />
 			{#if query || dayFilter}
-				<Button variant="secondary" onclick={() => { query = ''; dayFilter = ''; }}>Clear</Button>
+				<Button
+					variant="secondary"
+					onclick={() => {
+						query = '';
+						dayFilter = '';
+					}}>Clear</Button
+				>
 			{/if}
 		</div>
 	</div>
 
 	<div class="fade-up grid gap-4 lg:grid-cols-2" style="animation-delay: 0.15s;">
-		<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
+		<div
+			class="rounded-2xl border p-5 backdrop-blur-xl"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+		>
 			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Manual Kiosk Toggle</h2>
-			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Directly activate or deactivate the attendance display.</p>
+			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+				Directly activate or deactivate the attendance display.
+			</p>
 			<div class="mt-3 grid gap-2 md:grid-cols-2">
 				<button
 					class="rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
@@ -188,9 +214,16 @@
 			</div>
 		</div>
 
-		<div class="rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
-			<h2 class="text-lg font-semibold" style="color: var(--app-text);">Manual Member Attendance</h2>
-			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">Forced check-in/check-out actions for a selected member.</p>
+		<div
+			class="rounded-2xl border p-5 backdrop-blur-xl"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+		>
+			<h2 class="text-lg font-semibold" style="color: var(--app-text);">
+				Manual Member Attendance
+			</h2>
+			<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+				Forced check-in/check-out actions for a selected member.
+			</p>
 			<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr]">
 				<select class={gi} style={gs} bind:value={adminAttendeeUserId}>
 					<option value="">Select member for check-in/out...</option>
@@ -207,44 +240,95 @@
 				/>
 			</div>
 			<div class="mt-2 grid gap-2 md:grid-cols-2">
-				<Button variant="secondary" disabled={adminActionPending || !adminAttendeeUserId} onclick={() => runAdminAction('check_in')}>Manual Check In</Button>
-				<Button variant="secondary" disabled={adminActionPending || !adminAttendeeUserId} onclick={() => runAdminAction('check_out')}>Manual Check Out</Button>
+				<Button
+					variant="secondary"
+					disabled={adminActionPending || !adminAttendeeUserId}
+					onclick={() => runAdminAction('check_in')}>Manual Check In</Button
+				>
+				<Button
+					variant="secondary"
+					disabled={adminActionPending || !adminAttendeeUserId}
+					onclick={() => runAdminAction('check_out')}>Manual Check Out</Button
+				>
 			</div>
 		</div>
 	</div>
-	{#if adminActionMessage}<p class="mt-2 text-xs" style="color: var(--app-success);">{adminActionMessage}</p>{/if}
-	{#if adminActionError}<p class="mt-2 text-xs" style="color: var(--app-danger);">{adminActionError}</p>{/if}
+	{#if adminActionMessage}<p class="mt-2 text-xs" style="color: var(--app-success);">
+			{adminActionMessage}
+		</p>{/if}
+	{#if adminActionError}<p class="mt-2 text-xs" style="color: var(--app-danger);">
+			{adminActionError}
+		</p>{/if}
 
 	<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
 		<p class="eyebrow-label">Member sessions</p>
 		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Member Sessions</h2>
 		{#each filteredSessions as row (row.id)}
-			<div class="rounded-xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
+			<div
+				class="rounded-xl border p-3 backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+			>
 				<div class="flex flex-wrap items-center gap-2">
-					<p class="font-semibold" style="color: var(--app-text);">{personLabel(row.attendee, row.attendee_user_id)}</p>
-					<span class="rounded-lg px-2 py-0.5 text-xs" style="background: var(--app-surface-alt); color: var(--app-text);">{row.attendance_day}</span>
-					<span class="rounded-lg px-2 py-0.5 text-xs" style={row.check_out_at
-						? `background: color-mix(in srgb, var(--app-info) 15%, transparent); color: color-mix(in srgb, var(--app-info) 80%, white);`
-						: `background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);`}>
+					<p class="font-semibold" style="color: var(--app-text);">
+						{personLabel(row.attendee, row.attendee_user_id)}
+					</p>
+					<span
+						class="rounded-lg px-2 py-0.5 text-xs"
+						style="background: var(--app-surface-alt); color: var(--app-text);"
+						>{row.attendance_day}</span
+					>
+					<span
+						class="rounded-lg px-2 py-0.5 text-xs"
+						style={row.check_out_at
+							? `background: color-mix(in srgb, var(--app-info) 15%, transparent); color: color-mix(in srgb, var(--app-info) 80%, white);`
+							: `background: color-mix(in srgb, var(--app-warning) 15%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);`}
+					>
 						{row.check_out_at ? 'Checked out' : 'Checked in'}
 					</span>
 					{#if row.counts_for_rank === false}
-						<span class="rounded-lg px-2 py-0.5 text-xs" style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: color-mix(in srgb, var(--app-accent) 80%, white);">No RR points</span>
+						<span
+							class="rounded-lg px-2 py-0.5 text-xs"
+							style="background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: color-mix(in srgb, var(--app-accent) 80%, white);"
+							>No RR points</span
+						>
 					{/if}
 				</div>
 				<div class="mt-2 grid gap-2 text-sm md:grid-cols-3">
-					<p><span style="color: var(--app-text-muted);">Check in:</span> <span style="color: var(--app-text);">{formatDateTime(row.check_in_at)}</span></p>
-					<p><span style="color: var(--app-text-muted);">Check out:</span> <span style="color: var(--app-text);">{formatDateTime(row.check_out_at)}</span></p>
-					<p><span style="color: var(--app-text-muted);">Last scanner:</span> <span style="color: var(--app-text);">{personLabel(row.lastScanner, row.last_scanned_by)}</span></p>
+					<p>
+						<span style="color: var(--app-text-muted);">Check in:</span>
+						<span style="color: var(--app-text);">{formatDateTime(row.check_in_at)}</span>
+					</p>
+					<p>
+						<span style="color: var(--app-text-muted);">Check out:</span>
+						<span style="color: var(--app-text);">{formatDateTime(row.check_out_at)}</span>
+					</p>
+					<p>
+						<span style="color: var(--app-text-muted);">Last scanner:</span>
+						<span style="color: var(--app-text);"
+							>{personLabel(row.lastScanner, row.last_scanned_by)}</span
+						>
+					</p>
 				</div>
 				{#if timelineFor(row).length > 0}
-					<div class="mt-2 rounded-lg border p-2" style="border-color: var(--app-glass-border); background: var(--app-surface-alt);">
-						<p class="mb-1 text-xs font-semibold" style="color: var(--app-text-muted);">Scan Timeline</p>
+					<div
+						class="mt-2 rounded-lg border p-2"
+						style="border-color: var(--app-glass-border); background: var(--app-surface-alt);"
+					>
+						<p class="mb-1 text-xs font-semibold" style="color: var(--app-text-muted);">
+							Scan Timeline
+						</p>
 						<ul class="space-y-1 text-xs">
 							{#each timelineFor(row) as event (event.id)}
 								<li class="flex items-center justify-between gap-3">
-									<span style="color: var(--app-text);">{eventActionLabel(event.action)} by {personLabel(event.scannedBy, event.scanned_by_user_id)}</span>
-									<span style="color: var(--app-text-muted);">{formatDateTime(event.created_at)}</span>
+									<span style="color: var(--app-text);"
+										>{eventActionLabel(event.action)} by {personLabel(
+											event.scannedBy,
+											event.scanned_by_user_id
+										)}</span
+									>
+									<span style="color: var(--app-text-muted);"
+										>{formatDateTime(event.created_at)}</span
+									>
 								</li>
 							{/each}
 						</ul>
@@ -259,8 +343,16 @@
 	<div class="grid gap-4 lg:grid-cols-2">
 		<GlassTable>
 			<thead>
-				<tr><th class="p-2" colspan="3" style="font-size: 0.875rem; font-weight: 600;">Display Activations</th></tr>
-				<tr><th class="p-2">Created</th><th class="p-2">Activated at</th><th class="p-2">Activated by</th></tr>
+				<tr
+					><th class="p-2" colspan="3" style="font-size: 0.875rem; font-weight: 600;"
+						>Display Activations</th
+					></tr
+				>
+				<tr
+					><th class="p-2">Created</th><th class="p-2">Activated at</th><th class="p-2"
+						>Activated by</th
+					></tr
+				>
 			</thead>
 			<tbody>
 				{#each data.displays as row}
@@ -270,14 +362,22 @@
 						<td class="p-2">{personLabel(row.activatedBy, row.activated_by)}</td>
 					</tr>
 				{:else}
-					<tr><td colspan="3" class="p-3" style="color: var(--app-text-muted);">No display activations yet.</td></tr>
+					<tr
+						><td colspan="3" class="p-3" style="color: var(--app-text-muted);"
+							>No display activations yet.</td
+						></tr
+					>
 				{/each}
 			</tbody>
 		</GlassTable>
 
 		<GlassTable>
 			<thead>
-				<tr><th class="p-2" colspan="3" style="font-size: 0.875rem; font-weight: 600;">Recent Admin Kiosk Actions</th></tr>
+				<tr
+					><th class="p-2" colspan="3" style="font-size: 0.875rem; font-weight: 600;"
+						>Recent Admin Kiosk Actions</th
+					></tr
+				>
 				<tr><th class="p-2">Action</th><th class="p-2">By</th><th class="p-2">Time</th></tr>
 			</thead>
 			<tbody>
@@ -288,7 +388,11 @@
 						<td class="p-2">{formatDateTime(event.created_at)}</td>
 					</tr>
 				{:else}
-					<tr><td colspan="3" class="p-3" style="color: var(--app-text-muted);">No kiosk toggle actions yet.</td></tr>
+					<tr
+						><td colspan="3" class="p-3" style="color: var(--app-text-muted);"
+							>No kiosk toggle actions yet.</td
+						></tr
+					>
 				{/each}
 			</tbody>
 		</GlassTable>
@@ -296,7 +400,11 @@
 
 	<GlassTable>
 		<thead>
-			<tr><th class="p-2" colspan="5" style="font-size: 0.875rem; font-weight: 600;">Guest Sign-Ins (Separate Admin View)</th></tr>
+			<tr
+				><th class="p-2" colspan="5" style="font-size: 0.875rem; font-weight: 600;"
+					>Guest Sign-Ins (Separate Admin View)</th
+				></tr
+			>
 			<tr>
 				<th class="p-2">Day</th>
 				<th class="p-2">Guest</th>
@@ -316,7 +424,9 @@
 				</tr>
 			{:else}
 				<tr>
-					<td colspan="5" class="p-3" style="color: var(--app-text-muted);">No guest sign-ins yet.</td>
+					<td colspan="5" class="p-3" style="color: var(--app-text-muted);"
+						>No guest sign-ins yet.</td
+					>
 				</tr>
 			{/each}
 		</tbody>

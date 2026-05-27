@@ -50,12 +50,6 @@
 					icon: 'courses',
 					match: (p: string) => p.startsWith('/coursework')
 				},
-				{
-					href: '/clickup',
-					label: 'ClickUp',
-					icon: 'clickup',
-					match: (p: string) => p.startsWith('/clickup')
-				},
 				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') },
 				{
 					href: '/media',
@@ -65,9 +59,7 @@
 				}
 			];
 
-	const teamSection: NavItem[] = [
-		{ href: '/team', label: 'Team Page', icon: 'team', match: (p) => p === '/team' }
-	];
+	const teamSection: NavItem[] = [];
 
 	const subteamLinks: NavItem[] = (data.userSubteams ?? []).map(
 		(s: { slug: string; name: string }) => ({

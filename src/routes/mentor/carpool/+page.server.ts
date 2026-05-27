@@ -29,7 +29,8 @@ const createEventWithDays = async (
 		})
 		.select('id')
 		.single();
-	if (eventErr || !event) return { error: eventErr?.message ?? 'Could not create event.', eventId: null };
+	if (eventErr || !event)
+		return { error: eventErr?.message ?? 'Could not create event.', eventId: null };
 
 	for (let i = 0; i < input.days.length; i += 1) {
 		const day = input.days[i];
@@ -131,9 +132,16 @@ const parseDays = (raw: string): DayInput[] => {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user || !profile || !isMentor(profile)) return { events: [], days: [], roles: [], signups: [], templates: [] };
+	if (!user || !profile || !isMentor(profile))
+		return { events: [], days: [], roles: [], signups: [], templates: [] };
 
-	const [{ data: events }, { data: days }, { data: roles }, { data: signups }, { data: templates }] = await Promise.all([
+	const [
+		{ data: events },
+		{ data: days },
+		{ data: roles },
+		{ data: signups },
+		{ data: templates }
+	] = await Promise.all([
 		locals.supabase.from('carpool_events').select('*').order('created_at', { ascending: false }),
 		locals.supabase.from('carpool_event_days').select('*').order('day_date').order('sort_order'),
 		locals.supabase.from('carpool_day_roles').select('*').order('sort_order'),
@@ -179,7 +187,8 @@ export const actions: Actions = {
 			.maybeSingle();
 		if (!template) return fail(404, { error: 'Template not found.' });
 		const days = parseDays(JSON.stringify((template as any).days_json ?? []));
-		if (days.length === 0) return fail(400, { error: 'Template has no valid day/role configuration.' });
+		if (days.length === 0)
+			return fail(400, { error: 'Template has no valid day/role configuration.' });
 
 		const createResult = await createEventWithDays(locals.supabase, {
 			title,
@@ -204,7 +213,8 @@ export const actions: Actions = {
 		const saveAsTemplate = String(form.get('save_as_template') ?? '') === 'on';
 		const templateName = String(form.get('template_name') ?? '').trim();
 		if (!title) return fail(400, { error: 'Event title is required.' });
-		if (days.length === 0) return fail(400, { error: 'Add at least one day with at least one role slot.' });
+		if (days.length === 0)
+			return fail(400, { error: 'Add at least one day with at least one role slot.' });
 
 		const createResult = await createEventWithDays(locals.supabase, {
 			title,
@@ -216,7 +226,8 @@ export const actions: Actions = {
 		if (createResult.error) return fail(400, { error: createResult.error });
 
 		if (saveAsTemplate) {
-			if (!templateName) return fail(400, { error: 'Template name is required when saving a template.' });
+			if (!templateName)
+				return fail(400, { error: 'Template name is required when saving a template.' });
 			const { error: templateErr } = await locals.supabase.from('carpool_event_templates').insert({
 				name: templateName,
 				title,
@@ -272,7 +283,8 @@ export const actions: Actions = {
 			.maybeSingle();
 		if (!event) return fail(404, { error: 'Event not found.' });
 		const days = await loadEventDaysPayload(locals.supabase, eventId);
-		if (days.length === 0) return fail(400, { error: 'Event has no valid day/role configuration to template.' });
+		if (days.length === 0)
+			return fail(400, { error: 'Event has no valid day/role configuration to template.' });
 		const { error: templateErr } = await locals.supabase.from('carpool_event_templates').insert({
 			name: templateName,
 			title: String((event as any).title ?? ''),

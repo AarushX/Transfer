@@ -6,32 +6,20 @@
 	import ProficiencyBadge from '$lib/components/ProficiencyBadge.svelte';
 	let { data, form } = $props();
 
-	let editingNotes = $state(false);
-	let notesDraft = $state(data.notes ?? '');
-	let entryDraft = $state('');
-	let editingEntryId = $state<string | null>(null);
-	let entryEditDraft = $state('');
-
-	$effect(() => {
-		notesDraft = data.notes ?? '';
-	});
-
-	const formatRelative = (iso: string) => {
-		const ms = Date.now() - new Date(iso).getTime();
-		if (ms < 60_000) return 'just now';
-		if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
-		if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
-		const days = Math.floor(ms / 86_400_000);
-		if (days < 7) return `${days}d ago`;
-		return new Date(iso).toLocaleDateString();
+	type Resource = {
+		id: string;
+		team_id: string;
+		title: string;
+		url: string;
+		description: string;
+		image_url: string | null;
+		position: number;
 	};
-	const initialsFor = (name?: string | null, email?: string | null) => {
-		const source = (name ?? email ?? '?').trim();
-		const parts = source.split(/\s+/);
-		const a = parts[0]?.[0] ?? '?';
-		const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : '';
-		return (a + (b ?? '')).toUpperCase();
-	};
+	const resources = $derived((data.resources ?? []) as Resource[]);
+	const teamAccent = $derived(String((data as any).teamGroup?.color_hex ?? '#475569'));
+
+	let showAddResource = $state(false);
+	let editingResourceId = $state<string | null>(null);
 
 	const statusLabel = (s: string) =>
 		s === 'completed'
@@ -96,7 +84,7 @@
 			{/if}
 		</div>
 		<a
-			href={`/courses/map?scope=team:${data.subteam?.id ?? ''}`}
+			href="/dashboard"
 			class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
 			style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
 			>Open full graph →</a
@@ -270,183 +258,213 @@
 		{/if}
 	</div>
 
-	<!-- ═══════════ NOTES ═══════════ -->
+	<!-- ═══════════ PINBOARD ═══════════ -->
 	<div class="fade-up" style="animation-delay: 0.15s;">
-		<div class="flex items-end justify-between">
+		<div class="flex items-end justify-between gap-3">
 			<div>
 				<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-					Subteam Notes
+					Resources
 				</p>
 				<p class="text-xs" style="color: var(--app-text-dim);">
-					{data.canEditNotes ? 'Editable by subteam leads' : 'Posted by subteam leads'}
+					{data.canManageResources
+						? 'Pin links the subteam needs — CAD files, strategy docs, trackers.'
+						: 'Links curated by subteam leads.'}
 				</p>
 			</div>
-			{#if data.canEditNotes && !editingNotes}
-				<Button
-					variant="ghost"
-					size="sm"
-					onclick={() => {
-						editingNotes = true;
-						notesDraft = data.notes ?? '';
-					}}>Edit</Button
-				>
+			{#if data.canManageResources && data.userTeamId}
+				<Button variant="primary" size="sm" onclick={() => (showAddResource = !showAddResource)}>
+					{showAddResource ? 'Cancel' : '+ Add resource'}
+				</Button>
 			{/if}
 		</div>
-		<div
-			class="mt-2 rounded-2xl border p-4"
-			style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
-		>
-			{#if editingNotes}
-				<form method="POST" action="?/saveNotes" class="space-y-2">
-					<input type="hidden" name="team_group_id" value={data.teamGroup?.id} />
-					<textarea
-						name="body"
-						bind:value={notesDraft}
-						rows="8"
-						placeholder="Notes for this subteam — links, meeting times, tooling, anything subteam members should see."
-						class="w-full rounded-lg border bg-transparent px-3 py-2 text-sm"
-						style="border-color: var(--app-glass-border); color: var(--app-input-text);"
-					></textarea>
-					<div class="flex items-center gap-2">
-						<Button variant="primary" size="sm" type="submit">Save</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() => {
-								editingNotes = false;
-								notesDraft = data.notes ?? '';
-							}}>Cancel</Button
-						>
-					</div>
-				</form>
-			{:else if data.notes}
-				<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text);">{data.notes}</p>
-			{:else}
-				<p class="text-sm italic" style="color: var(--app-text-dim);">No notes yet.</p>
-			{/if}
-		</div>
-	</div>
 
-	<!-- ═══════════ NOTES TIMELINE ═══════════ -->
-	<div class="fade-up" style="animation-delay: 0.18s;">
-		<div>
-			<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-				Timeline
-			</p>
-			<p class="text-xs" style="color: var(--app-text-dim);">
-				A chronological record of subteam updates.
-			</p>
-		</div>
-
-		{#if data.canPostNotesEntry}
+		{#if showAddResource && data.canManageResources && data.userTeamId}
 			<form
 				method="POST"
-				action="?/postNotesEntry"
-				class="mt-2 rounded-2xl border p-3"
+				action="?/createResource"
+				class="mt-3 grid gap-3 rounded-2xl border p-4 sm:grid-cols-2"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 			>
-				<input type="hidden" name="team_group_id" value={data.teamGroup?.id} />
-				<textarea
-					name="body"
-					bind:value={entryDraft}
-					rows="2"
-					placeholder="Post an update — what happened today, decisions, blockers, links."
-					class="w-full rounded-lg border bg-transparent px-3 py-2 text-sm"
-					style="border-color: var(--app-glass-border); color: var(--app-input-text);"
-				></textarea>
-				<div class="mt-2 flex items-center justify-end gap-2">
-					<Button variant="primary" size="sm" type="submit" disabled={!entryDraft.trim()}
-						>Post</Button
+				<input type="hidden" name="team_id" value={data.userTeamId} />
+				<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
+					<span class="eyebrow-label">Title</span>
+					<input
+						class="rounded-xl border px-3 py-2 text-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+						name="title"
+						required
+						placeholder="Robot V1 OnShape"
+					/>
+				</label>
+				<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
+					<span class="eyebrow-label">URL</span>
+					<input
+						class="mono rounded-xl border px-3 py-2 text-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+						name="url"
+						type="url"
+						required
+						placeholder="https://…"
+					/>
+				</label>
+				<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+					<span class="eyebrow-label"
+						>Description <span class="text-xs" style="color: var(--app-text-dim);">(optional)</span
+						></span
 					>
+					<textarea
+						class="rounded-xl border px-3 py-2 text-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+						name="description"
+						rows="2"
+						placeholder="What this is for."
+					></textarea>
+				</label>
+				<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+					<span class="eyebrow-label"
+						>Image URL <span class="text-xs" style="color: var(--app-text-dim);">(optional)</span
+						></span
+					>
+					<input
+						class="mono rounded-xl border px-3 py-2 text-sm"
+						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+						name="image_url"
+						type="url"
+						placeholder="https://…"
+					/>
+				</label>
+				<div class="flex justify-end sm:col-span-2">
+					<Button variant="primary" type="submit" size="sm">Pin to board</Button>
 				</div>
 			</form>
 		{/if}
 
-		<ul class="mt-3 space-y-3">
-			{#each data.notesEntries ?? [] as entry (entry.id)}
-				<li
-					class="rounded-2xl border p-3"
-					style="background: color-mix(in srgb, var(--app-glass-bg) 70%, transparent); border-color: var(--app-glass-border);"
-				>
-					<div class="flex items-start gap-3">
-						<div
-							class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-semibold"
-							style="background: color-mix(in srgb, var(--app-accent) 22%, transparent); color: var(--app-text);"
-							aria-hidden="true"
+		{#if resources.length === 0}
+			<GlassCard>
+				<p class="text-sm" style="color: var(--app-text-muted);">
+					Nothing pinned here yet.{data.canManageResources
+						? ' Use “Add resource” to drop a link in.'
+						: ''}
+				</p>
+			</GlassCard>
+		{:else}
+			<div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				{#each resources as r (r.id)}
+					{#if editingResourceId === r.id}
+						<form
+							method="POST"
+							action="?/updateResource"
+							class="space-y-2 rounded-2xl border p-3 sm:col-span-2 lg:col-span-3"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 						>
-							{initialsFor(entry.author?.full_name, entry.author?.email)}
-						</div>
-						<div class="min-w-0 flex-1">
-							<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-								<span class="text-sm font-medium" style="color: var(--app-text);">
-									{entry.author?.full_name || entry.author?.email || 'Unknown'}
-								</span>
-								<span class="text-[11px]" style="color: var(--app-text-dim);">
-									{formatRelative(entry.created_at)}{entry.edited_at ? ' · edited' : ''}
-								</span>
+							<input type="hidden" name="id" value={r.id} />
+							<div class="grid gap-2 sm:grid-cols-2">
+								<input
+									class="rounded-xl border px-3 py-2 text-sm"
+									style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+									name="title"
+									value={r.title}
+									required
+								/>
+								<input
+									class="mono rounded-xl border px-3 py-2 text-sm"
+									style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+									name="url"
+									type="url"
+									value={r.url}
+									required
+								/>
 							</div>
-							{#if editingEntryId === entry.id}
-								<form method="POST" action="?/editNotesEntry" class="mt-2 space-y-2">
-									<input type="hidden" name="entry_id" value={entry.id} />
-									<textarea
-										name="body"
-										bind:value={entryEditDraft}
-										rows="3"
-										class="w-full rounded-lg border bg-transparent px-3 py-2 text-sm"
-										style="border-color: var(--app-glass-border); color: var(--app-input-text);"
-									></textarea>
-									<div class="flex items-center gap-2">
-										<Button variant="primary" size="sm" type="submit">Save</Button>
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => {
-												editingEntryId = null;
-												entryEditDraft = '';
-											}}
-										>
-											Cancel
-										</Button>
-									</div>
-								</form>
-							{:else}
-								<p class="mt-1 text-sm whitespace-pre-wrap" style="color: var(--app-text);">
-									{entry.body}
-								</p>
-								{#if entry.can_edit}
-									<div class="mt-1.5 flex items-center gap-3 text-[11px]">
-										<button
-											type="button"
-											class="underline"
-											style="color: var(--app-text-muted);"
-											onclick={() => {
-												editingEntryId = entry.id;
-												entryEditDraft = entry.body;
-											}}
-										>
-											Edit
+							<textarea
+								class="w-full rounded-xl border px-3 py-2 text-sm"
+								style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+								name="description"
+								rows="2">{r.description}</textarea
+							>
+							<input
+								class="mono w-full rounded-xl border px-3 py-2 text-sm"
+								style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+								name="image_url"
+								type="url"
+								value={r.image_url ?? ''}
+								placeholder="Image URL (optional)"
+							/>
+							<div class="flex justify-end gap-2">
+								<Button variant="ghost" size="sm" onclick={() => (editingResourceId = null)}
+									>Cancel</Button
+								>
+								<Button variant="primary" type="submit" size="sm">Save</Button>
+							</div>
+						</form>
+					{:else}
+						<div
+							class="group relative flex flex-col overflow-hidden rounded-2xl border transition duration-150 hover:-translate-y-0.5"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+						>
+							<a href={r.url} target="_blank" rel="noopener noreferrer" class="block">
+								<div
+									class="aspect-[16/9] w-full"
+									style={r.image_url
+										? `background-image: url(${r.image_url}); background-size: cover; background-position: center;`
+										: `background: linear-gradient(135deg, color-mix(in srgb, ${teamAccent} 40%, transparent), color-mix(in srgb, ${teamAccent} 12%, transparent));`}
+								>
+									{#if !r.image_url}
+										<div class="flex h-full items-center justify-center px-4 text-center">
+											<span
+												class="text-sm font-bold tracking-tight"
+												style="color: color-mix(in srgb, {teamAccent} 70%, white); text-shadow: 0 2px 12px color-mix(in srgb, {teamAccent} 35%, transparent);"
+											>
+												{r.title}
+											</span>
+										</div>
+									{/if}
+								</div>
+								<div class="p-3">
+									<p class="text-sm font-semibold" style="color: var(--app-text);">
+										{r.title}
+									</p>
+									{#if r.description}
+										<p class="mt-1 line-clamp-2 text-xs" style="color: var(--app-text-muted);">
+											{r.description}
+										</p>
+									{/if}
+									<p class="mono mt-1.5 truncate text-[10px]" style="color: var(--app-text-dim);">
+										{r.url.replace(/^https?:\/\//, '')}
+									</p>
+								</div>
+							</a>
+							{#if data.canManageResources}
+								<div
+									class="flex items-center justify-end gap-1.5 border-t px-3 py-1.5"
+									style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent);"
+								>
+									<button
+										type="button"
+										class="text-[11px]"
+										style="color: var(--app-text-muted);"
+										onclick={() => (editingResourceId = r.id)}
+									>
+										Edit
+									</button>
+									<form
+										method="POST"
+										action="?/deleteResource"
+										onsubmit={(e) => {
+											if (!confirm('Remove this resource?')) e.preventDefault();
+										}}
+									>
+										<input type="hidden" name="id" value={r.id} />
+										<button type="submit" class="text-[11px]" style="color: var(--app-danger);">
+											Remove
 										</button>
-										<form method="POST" action="?/deleteNotesEntry">
-											<input type="hidden" name="entry_id" value={entry.id} />
-											<button type="submit" class="underline" style="color: var(--app-danger);">
-												Delete
-											</button>
-										</form>
-									</div>
-								{/if}
+									</form>
+								</div>
 							{/if}
 						</div>
-					</div>
-				</li>
-			{:else}
-				<li
-					class="rounded-2xl border p-3 text-sm italic"
-					style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-dim);"
-				>
-					No timeline posts yet.
-				</li>
-			{/each}
-		</ul>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	{#if form?.error}

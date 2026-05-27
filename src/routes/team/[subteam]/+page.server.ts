@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const primaryTeamGroupId =
 		primaryRow?.team_group_id ?? (profileTeams ?? [])[0]?.team_group_id ?? null;
 
-	if (!primaryTeamGroupId) throw redirect(303, '/team');
+	if (!primaryTeamGroupId) throw redirect(303, '/dashboard');
 
 	const [
 		{ data: teamGroup },
@@ -32,9 +32,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		{ data: nodes },
 		{ data: nodeStatuses },
 		{ data: nodeTeamTargets },
-		{ data: nodeTeamGroupTargets },
-		{ data: notesRow },
-		notesEntriesResp
+		{ data: nodeTeamGroupTargets }
 	] = await Promise.all([
 		locals.supabase
 			.from('team_groups')
@@ -53,27 +51,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.select('node_id,computed_status')
 			.eq('user_id', user.id),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
-		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
-		locals.supabase
-			.from('team_notes')
-			.select('body')
-			.eq('team_group_id', primaryTeamGroupId)
-			.eq('subteam_category_slug', subteamSlug)
-			.maybeSingle(),
-		// Tolerate the migration not being applied yet — the page should still
-		// render with an empty timeline rather than 500.
-		locals.supabase
-			.from('team_notes_entries')
-			.select('id,body,author_user_id,created_at,edited_at,deleted_at')
-			.eq('team_group_id', primaryTeamGroupId)
-			.eq('subteam_category_slug', subteamSlug)
-			.is('deleted_at', null)
-			.order('created_at', { ascending: false })
-			.limit(50)
-			.then(
-				(r) => r,
-				() => ({ data: [] as any[] })
-			)
+		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id')
 	]);
 
 	if (!subteamCategory) throw error(404, 'Subteam not found');
@@ -82,12 +60,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		(r: any) => r.team_group_id === primaryTeamGroupId && r.category_slug === subteamSlug
 	);
 
-	// Find the team_id for this (team_group, category) combo
 	const userTeamId = (profileTeams ?? []).find(
 		(r: any) => r.team_group_id === primaryTeamGroupId && r.category_slug === subteamSlug
 	)?.team_id;
 
-	// Courses: those targeting this specific team_id, OR the team_group AND matching the subteam_id
 	const statusByNode = new Map(
 		(nodeStatuses ?? []).map((r: any) => [String(r.node_id), String(r.computed_status)])
 	);
@@ -97,10 +73,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		set.add(row.team_id);
 		teamTargetsByNode.set(row.node_id, set);
 	}
+	const groupTargetsByNode = new Map<string, Set<string>>();
+	for (const row of nodeTeamGroupTargets ?? []) {
+		const set = groupTargetsByNode.get(row.node_id) ?? new Set<string>();
+		set.add(row.team_group_id);
+		groupTargetsByNode.set(row.node_id, set);
+	}
 
+	// Required courses: anything targeted at this subteam (via node_team_targets),
+	// at the whole team_group (via node_team_group_targets), OR the legacy
+	// nodes.subteam_id pointing at this subteam. De-duped by node id.
 	const courses = (nodes ?? [])
 		.filter((n: any) => {
 			if (userTeamId && (teamTargetsByNode.get(n.id) ?? new Set()).has(userTeamId)) return true;
+			if (primaryTeamGroupId && (groupTargetsByNode.get(n.id) ?? new Set()).has(primaryTeamGroupId))
+				return true;
 			if (subteam?.id && n.subteam_id === subteam.id) return true;
 			return false;
 		})
@@ -113,7 +100,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			status: statusByNode.get(String(n.id)) ?? 'not_started'
 		}));
 
-	// Permission: subteam lead matching this subteam, or team lead of the team_group, or admin
 	let isLeadOfSubteam = false;
 	let isLeadOfTeam = false;
 	try {
@@ -127,8 +113,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	} catch {
 		// migration not applied
 	}
-	const canEditNotes = isLeadOfSubteam || isLeadOfTeam || isAdmin(profile);
-	const canViewRoster = canEditNotes;
+	const canManageResources = isLeadOfSubteam || isLeadOfTeam || isAdmin(profile);
+	const canViewRoster = canManageResources;
 
 	let roster: any[] = [];
 	if (canViewRoster) {
@@ -146,9 +132,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				.in('id', ids);
 			roster = profiles ?? [];
 
-			// Derive each member's proficiency level within this subteam: the
-			// highest level for which they have completed >= 1 course tied to
-			// the subteam. Done as a single per-subteam pass; no extra column.
 			const subteamNodeIds = courses.map((c) => String(c.id));
 			if (subteamNodeIds.length > 0) {
 				const { data: completionRows } = await service
@@ -177,7 +160,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
-	// ── Status counts ────────────────────────────────────────────
 	const counts = { done: 0, current: 0, awaiting: 0, blocked: 0, locked: 0 };
 	for (const c of courses) {
 		const s = c.status;
@@ -188,7 +170,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		else counts.locked++;
 	}
 
-	// ── Recent completions (last 7 days) — uses approved_at (no granted_at column) ──
 	const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 	const courseIds = courses.map((c) => c.id);
 	let recentCompletions = 0;
@@ -202,7 +183,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		recentCompletions = count ?? 0;
 	}
 
-	// ── Graph nodes + prereqs (for MiniSkillTree) ────────────────
 	const [{ data: graphNodes }, { data: graphPrereqs }] = await Promise.all([
 		locals.supabase.from('nodes').select('id,title,slug'),
 		locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id')
@@ -211,45 +191,25 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const scopeNodeIds = courses.map((c) => String(c.id));
 	const userStatuses = courses.map((c) => ({ node_id: String(c.id), computed_status: c.status }));
 
-	// Enrich entries with author profile so the UI can show name + avatar
-	// initials. One extra query, scoped to the (small) set of authors only.
-	const rawEntries: any[] = (notesEntriesResp as any)?.data ?? [];
-	const authorIds = Array.from(
-		new Set(rawEntries.map((e: any) => e.author_user_id).filter(Boolean))
-	);
-	let authorById = new Map<
-		string,
-		{ id: string; full_name: string | null; email: string | null }
-	>();
-	if (authorIds.length > 0) {
-		const { data: authors } = await locals.supabase
-			.from('profiles')
-			.select('id,full_name,email')
-			.in('id', authorIds);
-		authorById = new Map((authors ?? []).map((a: any) => [a.id, a]));
+	// Pinboard resources for this specific subteam (matched by team_id).
+	let resources: any[] = [];
+	if (userTeamId) {
+		const { data: resourceRows } = await locals.supabase
+			.from('subteam_resources')
+			.select('id,team_id,title,url,description,image_url,position,created_at')
+			.eq('team_id', userTeamId)
+			.order('position', { ascending: true });
+		resources = resourceRows ?? [];
 	}
-	const notesEntries = rawEntries.map((e: any) => ({
-		id: String(e.id),
-		body: String(e.body ?? ''),
-		author: e.author_user_id ? (authorById.get(e.author_user_id) ?? null) : null,
-		author_user_id: e.author_user_id ?? null,
-		created_at: e.created_at,
-		edited_at: e.edited_at,
-		// 15-minute edit window (matches the RLS policy).
-		can_edit:
-			user.id === e.author_user_id && new Date(e.created_at).getTime() > Date.now() - 15 * 60 * 1000
-	}));
 
 	return {
 		teamGroup,
 		subteamCategory,
 		subteam,
+		userTeamId: userTeamId ?? null,
 		userIsOnSubteam,
 		courses,
-		notes: (notesRow as any)?.body ?? '',
-		notesEntries,
-		canEditNotes,
-		canPostNotesEntry: canEditNotes,
+		canManageResources,
 		canViewRoster,
 		roster,
 		statusCounts: counts,
@@ -264,137 +224,74 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			prerequisite_node_id: String(r.prerequisite_node_id)
 		})),
 		scopeNodeIds,
-		userStatuses
+		userStatuses,
+		resources
 	};
 };
 
 export const actions: Actions = {
-	saveNotes: async ({ locals, request, params }) => {
+	createResource: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile) return fail(401, { error: 'Unauthorized' });
+		if (!user || !profile) return fail(401, { error: 'Unauthorized', section: 'resource' });
 		const form = await request.formData();
-		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
-		const body = String(form.get('body') ?? '');
-		const subteamSlug = params.subteam;
+		const teamId = String(form.get('team_id') ?? '').trim();
+		const title = String(form.get('title') ?? '').trim();
+		const url = String(form.get('url') ?? '').trim();
+		const description = String(form.get('description') ?? '').trim();
+		const imageUrl = String(form.get('image_url') ?? '').trim();
+		if (!teamId || !title || !url)
+			return fail(400, { error: 'Title and URL are required.', section: 'resource' });
 
-		const service = createSupabaseServiceClient();
-		const { data: subteam } = await service
-			.from('subteams')
-			.select('id')
-			.eq('slug', subteamSlug)
+		const { data: maxRow } = await locals.supabase
+			.from('subteam_resources')
+			.select('position')
+			.eq('team_id', teamId)
+			.order('position', { ascending: false })
+			.limit(1)
 			.maybeSingle();
-		const { data: leadFields } = await service
-			.from('profiles')
-			.select('lead_team_group_id,lead_subteam_id')
-			.eq('id', user.id)
-			.maybeSingle();
-		const lf = leadFields as any;
-		const allowed =
-			lf?.lead_team_group_id === teamGroupId ||
-			(subteam?.id && lf?.lead_subteam_id === subteam.id) ||
-			isAdmin(profile);
-		if (!allowed) return fail(403, { error: 'Only leads can edit notes.' });
+		const nextPosition = (maxRow?.position ?? 0) + 10;
 
-		try {
-			const { error: err } = await service.from('team_notes').upsert(
-				{
-					team_group_id: teamGroupId,
-					subteam_category_slug: subteamSlug,
-					body,
-					updated_by: user.id,
-					updated_at: new Date().toISOString()
-				},
-				{ onConflict: 'team_group_id,subteam_category_slug' }
-			);
-			if (err)
-				return fail(400, {
-					error: err.message.includes('schema cache')
-						? 'Notes require a pending database migration — apply 202605140005 in Supabase.'
-						: err.message
-				});
-		} catch {
-			return fail(503, { error: 'Notes require a pending database migration.' });
-		}
-		return { ok: true };
+		const { error: err } = await locals.supabase.from('subteam_resources').insert({
+			team_id: teamId,
+			title,
+			url,
+			description,
+			image_url: imageUrl || null,
+			position: nextPosition,
+			created_by: user.id
+		});
+		if (err) return fail(400, { error: err.message, section: 'resource' });
+		return { ok: true, section: 'resource' };
 	},
-	postNotesEntry: async ({ locals, request, params }) => {
+
+	updateResource: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile) return fail(401, { error: 'Unauthorized' });
+		if (!user || !profile) return fail(401, { error: 'Unauthorized', section: 'resource' });
 		const form = await request.formData();
-		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
-		const body = String(form.get('body') ?? '').trim();
-		const subteamSlug = params.subteam;
-		if (!body) return fail(400, { error: 'Note cannot be empty.', section: 'entry' });
-		if (body.length > 4000)
-			return fail(400, { error: 'Note is too long (max 4000 chars).', section: 'entry' });
-
-		const service = createSupabaseServiceClient();
-		const { data: subteam } = await service
-			.from('subteams')
-			.select('id')
-			.eq('slug', subteamSlug)
-			.maybeSingle();
-		const { data: leadFields } = await service
-			.from('profiles')
-			.select('lead_team_group_id,lead_subteam_id')
-			.eq('id', user.id)
-			.maybeSingle();
-		const lf = leadFields as any;
-		const allowed =
-			lf?.lead_team_group_id === teamGroupId ||
-			(subteam?.id && lf?.lead_subteam_id === subteam.id) ||
-			isAdmin(profile);
-		if (!allowed) return fail(403, { error: 'Only leads can post notes.', section: 'entry' });
-
-		try {
-			const { error: err } = await service.from('team_notes_entries').insert({
-				team_group_id: teamGroupId,
-				subteam_category_slug: subteamSlug,
-				author_user_id: user.id,
-				body
-			});
-			if (err) return fail(400, { error: err.message, section: 'entry' });
-		} catch {
-			return fail(503, {
-				error: 'Notes timeline requires a pending database migration.',
-				section: 'entry'
-			});
-		}
-		return { ok: true, section: 'entry' };
-	},
-	editNotesEntry: async ({ locals, request }) => {
-		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { error: 'Unauthorized', section: 'entry' });
-		const form = await request.formData();
-		const entryId = String(form.get('entry_id') ?? '').trim();
-		const body = String(form.get('body') ?? '').trim();
-		if (!entryId || !body) return fail(400, { error: 'Missing entry or body.', section: 'entry' });
-
-		// RLS enforces the 15-minute author-only window; we just attempt the
-		// update and surface any policy denial as a generic error.
+		const id = String(form.get('id') ?? '').trim();
+		if (!id) return fail(400, { error: 'Missing resource id.', section: 'resource' });
+		const update: Record<string, any> = {
+			title: String(form.get('title') ?? '').trim(),
+			url: String(form.get('url') ?? '').trim(),
+			description: String(form.get('description') ?? '').trim(),
+			image_url: String(form.get('image_url') ?? '').trim() || null,
+			updated_at: new Date().toISOString()
+		};
 		const { error: err } = await locals.supabase
-			.from('team_notes_entries')
-			.update({ body, edited_at: new Date().toISOString() })
-			.eq('id', entryId)
-			.eq('author_user_id', user.id);
-		if (err) return fail(400, { error: err.message, section: 'entry' });
-		return { ok: true, section: 'entry' };
+			.from('subteam_resources')
+			.update(update)
+			.eq('id', id);
+		if (err) return fail(400, { error: err.message, section: 'resource' });
+		return { ok: true, section: 'resource' };
 	},
-	deleteNotesEntry: async ({ locals, request }) => {
-		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile) return fail(401, { error: 'Unauthorized', section: 'entry' });
-		const form = await request.formData();
-		const entryId = String(form.get('entry_id') ?? '').trim();
-		if (!entryId) return fail(400, { error: 'Missing entry id.', section: 'entry' });
 
-		// Author can soft-delete within window via locals.supabase (RLS).
-		// Admins can soft-delete anything via service client.
-		const client = isAdmin(profile) ? createSupabaseServiceClient() : locals.supabase;
-		const { error: err } = await client
-			.from('team_notes_entries')
-			.update({ deleted_at: new Date().toISOString() })
-			.eq('id', entryId);
-		if (err) return fail(400, { error: err.message, section: 'entry' });
-		return { ok: true, section: 'entry' };
+	deleteResource: async ({ locals, request }) => {
+		const { user, profile } = await locals.safeGetSession();
+		if (!user || !profile) return fail(401, { error: 'Unauthorized', section: 'resource' });
+		const id = String((await request.formData()).get('id') ?? '').trim();
+		if (!id) return fail(400, { error: 'Missing resource id.', section: 'resource' });
+		const { error: err } = await locals.supabase.from('subteam_resources').delete().eq('id', id);
+		if (err) return fail(400, { error: err.message, section: 'resource' });
+		return { ok: true, section: 'resource' };
 	}
 };

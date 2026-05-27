@@ -21,20 +21,27 @@
 	});
 </script>
 
-<section class="space-y-5 fade-up">
+<section class="fade-up space-y-5">
 	<div>
-		<a href="/mentor/courses" class="eyebrow-label inline-flex items-center gap-1 no-underline" style="color: var(--app-text-dim); text-decoration: none;">
+		<a
+			href="/mentor/courses"
+			class="eyebrow-label inline-flex items-center gap-1 no-underline"
+			style="color: var(--app-text-dim); text-decoration: none;"
+		>
 			<span style="font-size: 14px;">&#8592;</span> All courses
 		</a>
 		<h1 class="gradient-text mt-1 text-2xl font-bold tracking-tight">New course</h1>
 		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
-			Create the module shell. You'll add video, quiz, reading, and skills check blocks in the builder after
-			saving.
+			Create the module shell. You'll add video, quiz, reading, and skills check blocks in the
+			builder after saving.
 		</p>
 	</div>
 
 	{#if form?.error}
-		<div class="rounded-2xl border p-3 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">
+		<div
+			class="rounded-2xl border p-3 text-sm"
+			style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+		>
 			{form.error}
 		</div>
 	{/if}
@@ -65,9 +72,7 @@
 			</label>
 			<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
 				<span class="eyebrow-label">Description</span>
-				<textarea class="glass-input" name="description" rows="3"
-					>{v('description')}</textarea
-				>
+				<textarea class="glass-input" name="description" rows="3">{v('description')}</textarea>
 			</label>
 			<div class="flex justify-end gap-2 md:col-span-2">
 				<Button variant="ghost" href="/mentor/courses">Cancel</Button>
@@ -98,7 +103,9 @@
 		color: var(--app-input-text);
 		padding: 0.5rem 0.75rem;
 		backdrop-filter: blur(8px);
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 	.glass-input:hover:not(:focus) {
 		border-color: var(--app-glass-border-hover);

@@ -42,7 +42,8 @@ export const toDriveDownloadUrl = (rawUrl: string): string => {
 			const idFromSheet = extractId(parsed.pathname, '/spreadsheets/d/');
 			const idFromSlide = extractId(parsed.pathname, '/presentation/d/');
 			if (idFromDoc) return `https://docs.google.com/document/d/${idFromDoc}/export?format=pdf`;
-			if (idFromSheet) return `https://docs.google.com/spreadsheets/d/${idFromSheet}/export?format=pdf`;
+			if (idFromSheet)
+				return `https://docs.google.com/spreadsheets/d/${idFromSheet}/export?format=pdf`;
 			if (idFromSlide) return `https://docs.google.com/presentation/d/${idFromSlide}/export/pdf`;
 		}
 	} catch {

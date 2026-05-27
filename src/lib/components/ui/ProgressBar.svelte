@@ -22,13 +22,12 @@
 {#if label || showPercent}
 	<div class="mb-1.5 flex items-baseline justify-between text-xs">
 		{#if label}<span style="color: var(--app-text-muted);">{label}</span>{/if}
-		{#if showPercent}<span class="mono font-medium" style="color: var(--app-text);">{Math.round(pct)}%</span>{/if}
+		{#if showPercent}<span class="mono font-medium" style="color: var(--app-text);"
+				>{Math.round(pct)}%</span
+			>{/if}
 	</div>
 {/if}
-<div
-	class="aurora-progress"
-	style="height: {barHeight};"
->
+<div class="aurora-progress" style="height: {barHeight};">
 	<div
 		class="aurora-progress-fill"
 		style="width: {pct}%;{color ? ` background: ${color};` : ''}"

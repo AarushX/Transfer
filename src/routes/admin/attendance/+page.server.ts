@@ -5,29 +5,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { profile } = await locals.safeGetSession();
 	if (!profile || profile.role !== 'admin') throw redirect(303, '/dashboard');
 
-	const [{ data: sessions }, { data: displays }, { data: events }, { data: guestSignins }] = await Promise.all([
-		locals.supabase
-			.from('attendance_daily_sessions')
-			.select('id,attendee_user_id,attendance_day,check_in_at,check_out_at,last_scanned_by,counts_for_rank,created_at')
-			.order('attendance_day', { ascending: false })
-			.order('check_in_at', { ascending: false })
-			.limit(500),
-		locals.supabase
-			.from('attendance_display_sessions')
-			.select('id,attendee_user_id,activated_at,activated_by,created_at')
-			.order('created_at', { ascending: false })
-			.limit(200),
-		locals.supabase
-			.from('attendance_scan_events')
-			.select('id,attendee_user_id,scanned_by_user_id,attendance_day,action,created_at,metadata')
-			.order('created_at', { ascending: false })
-			.limit(1000),
-		locals.supabase
-			.from('attendance_guest_signins')
-			.select('id,guest_name,reason,attendance_day,created_by_user_id,created_at')
-			.order('created_at', { ascending: false })
-			.limit(500)
-	]);
+	const [{ data: sessions }, { data: displays }, { data: events }, { data: guestSignins }] =
+		await Promise.all([
+			locals.supabase
+				.from('attendance_daily_sessions')
+				.select(
+					'id,attendee_user_id,attendance_day,check_in_at,check_out_at,last_scanned_by,counts_for_rank,created_at'
+				)
+				.order('attendance_day', { ascending: false })
+				.order('check_in_at', { ascending: false })
+				.limit(500),
+			locals.supabase
+				.from('attendance_display_sessions')
+				.select('id,attendee_user_id,activated_at,activated_by,created_at')
+				.order('created_at', { ascending: false })
+				.limit(200),
+			locals.supabase
+				.from('attendance_scan_events')
+				.select('id,attendee_user_id,scanned_by_user_id,attendance_day,action,created_at,metadata')
+				.order('created_at', { ascending: false })
+				.limit(1000),
+			locals.supabase
+				.from('attendance_guest_signins')
+				.select('id,guest_name,reason,attendance_day,created_by_user_id,created_at')
+				.order('created_at', { ascending: false })
+				.limit(500)
+		]);
 
 	const profileIds = Array.from(
 		new Set(

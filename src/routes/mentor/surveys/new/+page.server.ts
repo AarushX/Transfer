@@ -32,7 +32,14 @@ const normalizeQuestions = (input: unknown) => {
 				const correct = String(q.correct ?? '').trim();
 				if (!correct || !options.includes(correct))
 					return { error: `Question ${i + 1} must select one correct option.` };
-				normalized.push({ id, prompt, type, options, correct, randomize_options: Boolean(q.randomize_options) });
+				normalized.push({
+					id,
+					prompt,
+					type,
+					options,
+					correct,
+					randomize_options: Boolean(q.randomize_options)
+				});
 			} else {
 				const correct = Array.isArray(q.correct)
 					? q.correct.map((v) => String(v ?? '').trim()).filter((v) => options.includes(v))
@@ -60,7 +67,12 @@ const normalizeQuestions = (input: unknown) => {
 			continue;
 		}
 		if (type === 'tf') {
-			normalized.push({ id, prompt, type, correct: String(q.correct ?? '').toLowerCase() === 'false' ? 'false' : 'true' });
+			normalized.push({
+				id,
+				prompt,
+				type,
+				correct: String(q.correct ?? '').toLowerCase() === 'false' ? 'false' : 'true'
+			});
 			continue;
 		}
 		normalized.push({
@@ -90,7 +102,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		locals.supabase.from('nodes').select('id,title').order('title'),
 		locals.supabase
 			.from('survey_templates')
-			.select('id,name,title,workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids')
+			.select(
+				'id,name,title,workflow_kind,description,questions,is_active,show_when_inactive,visible_from,visible_until,prereq_node_ids'
+			)
 			.order('created_at', { ascending: false })
 	]);
 	return { nodes: nodes ?? [], templates: templates ?? [] };
@@ -120,8 +134,11 @@ export const actions: Actions = {
 		const visibleUntilRaw = String(form.get('visible_until') ?? '').trim();
 		const maxSubmissionsRaw = Number(form.get('max_submissions') ?? '1');
 		const maxSubmissions =
-			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1 ? Math.trunc(maxSubmissionsRaw) : 1;
-		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+			Number.isFinite(maxSubmissionsRaw) && maxSubmissionsRaw >= 1
+				? Math.trunc(maxSubmissionsRaw)
+				: 1;
+		const allowStudentViewSubmissions =
+			String(form.get('allow_student_view_submissions') ?? '') === 'on';
 		const allowStudentEdits = String(form.get('allow_student_edits') ?? '') === 'on';
 		const studentEditDeadlineRaw = String(form.get('student_edit_deadline') ?? '').trim();
 		const prereqIds = form
@@ -146,7 +163,8 @@ export const actions: Actions = {
 		const visibleUntil = toIsoOrNull(visibleUntilRaw);
 		const studentEditDeadline = toIsoOrNull(studentEditDeadlineRaw);
 		if (visibleFromRaw && !visibleFrom) return fail(400, { error: 'Invalid visible-from date.' });
-		if (visibleUntilRaw && !visibleUntil) return fail(400, { error: 'Invalid visible-until date.' });
+		if (visibleUntilRaw && !visibleUntil)
+			return fail(400, { error: 'Invalid visible-until date.' });
 		if (studentEditDeadlineRaw && !studentEditDeadline)
 			return fail(400, { error: 'Invalid student edit deadline.' });
 		if (visibleFrom && visibleUntil && visibleFrom > visibleUntil) {
@@ -174,7 +192,8 @@ export const actions: Actions = {
 			})
 			.select('id,slug')
 			.single();
-		if (createErr || !created) return fail(400, { error: createErr?.message ?? 'Could not create survey.' });
+		if (createErr || !created)
+			return fail(400, { error: createErr?.message ?? 'Could not create survey.' });
 
 		if (prereqIds.length > 0) {
 			const rows = prereqIds.map((nodeId) => ({ survey_id: created.id, node_id: nodeId }));
@@ -183,7 +202,8 @@ export const actions: Actions = {
 		}
 
 		if (saveAsTemplate) {
-			if (!templateName) return fail(400, { error: 'Template name is required when saving a template.' });
+			if (!templateName)
+				return fail(400, { error: 'Template name is required when saving a template.' });
 			const { error: templateErr } = await locals.supabase.from('survey_templates').insert({
 				name: templateName,
 				title,

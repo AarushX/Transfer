@@ -25,10 +25,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			.order('created_at', { ascending: false })
 			.limit(50);
 		if (!sessions || sessions.length === 0) {
-			const { error: createErr } = await locals.supabase.from('attendance_display_sessions').insert({
-				attendee_user_id: null,
-				access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
-			});
+			const { error: createErr } = await locals.supabase
+				.from('attendance_display_sessions')
+				.insert({
+					attendee_user_id: null,
+					access_token: ATTENDANCE_PUBLIC_DISPLAY_KEY
+				});
 			if (createErr) return json({ error: createErr.message }, { status: 400 });
 		}
 		const currentActive = (sessions ?? []).some((row: any) => Boolean(row.activated_at));
@@ -41,13 +43,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			})
 			.eq('access_token', ATTENDANCE_PUBLIC_DISPLAY_KEY);
 		if (toggleErr) return json({ error: toggleErr.message }, { status: 400 });
-			await locals.supabase.from('attendance_scan_events').insert({
-				attendee_user_id: null,
-				scanned_by_user_id: user.id,
-				attendance_day: attendanceDayKey(),
-				action: nextActive ? 'display_activate' : 'display_deactivate',
-				metadata: { source: 'activation_qr' }
-			});
+		await locals.supabase.from('attendance_scan_events').insert({
+			attendee_user_id: null,
+			scanned_by_user_id: user.id,
+			attendance_day: attendanceDayKey(),
+			action: nextActive ? 'display_activate' : 'display_deactivate',
+			metadata: { source: 'activation_qr' }
+		});
 		return json({ ok: true, action: nextActive ? 'activate' : 'deactivate' });
 	}
 

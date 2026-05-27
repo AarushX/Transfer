@@ -46,6 +46,7 @@ Use the helpers from `src/lib/roles.ts` (`isAdmin`, `isMentor`, `isLead`, `isPar
 Schema, RLS policies, triggers, and RPCs live entirely in `supabase/migrations/*.sql` (75+ files, named `202604170NNN_*.sql`). When changing data shape, add a new migration — do not edit prior ones. Seed data is in `supabase/seed.sql`.
 
 Important RPCs/triggers that route code depends on (do not rename without updating callers):
+
 - `sync_profile_courseloads_for_user` — assigns courses when a user picks their team during onboarding.
 - `auto_create_family` — creates a `families` row when a parent links a student.
 - `transition_certification`, `try_auto_complete_node` — pipeline that moves a student's certification through video → quiz → checkoff states.
@@ -69,4 +70,4 @@ The portal supports 25+ runtime-configurable color variables exposed as CSS cust
 
 - Prettier config + Tailwind plugin enforce formatting; ESLint config in `eslint.config.js`. Run `npm run lint` before considering a change done.
 - Vitest config in `vite.config.ts` requires assertions in every test (`expect.requireAssertions: true`) — empty/assertionless tests will fail.
-- The e2e webServer command is `npm run build && npm run preview`, so e2e tests run against the *production build*, not dev.
+- The e2e webServer command is `npm run build && npm run preview`, so e2e tests run against the _production build_, not dev.

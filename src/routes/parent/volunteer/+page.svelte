@@ -214,7 +214,12 @@
 				style="flex-shrink:0; color: var(--app-danger);"
 			>
 				<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-				<path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+				<path
+					d="M8 5v3.5M8 11v.5"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+				/>
 			</svg>
 			{form.error}
 		</div>
@@ -231,7 +236,13 @@
 				style="flex-shrink:0; color: var(--app-success);"
 			>
 				<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-				<path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+				<path
+					d="M5 8l2 2 4-4"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
 			</svg>
 			{#if form.section === 'pledge'}Pledge saved successfully.
 			{:else if form.section === 'signup'}You're signed up!
@@ -357,14 +368,22 @@
 									class="flex w-12 shrink-0 flex-col items-center rounded-xl py-2 text-center"
 									style="background: color-mix(in srgb, var(--app-accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);"
 								>
-									<span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--app-accent);">{fmtMonth(evt.start_date)}</span>
-									<span class="text-xl font-bold leading-tight" style="color: var(--app-text);">{fmtDateNum(evt.start_date)}</span>
-									<span class="text-[9px] uppercase tracking-wide" style="color: var(--app-text-dim);">{fmtDateDay(evt.start_date)}</span>
+									<span
+										class="text-[10px] font-bold tracking-widest uppercase"
+										style="color: var(--app-accent);">{fmtMonth(evt.start_date)}</span
+									>
+									<span class="text-xl leading-tight font-bold" style="color: var(--app-text);"
+										>{fmtDateNum(evt.start_date)}</span
+									>
+									<span
+										class="text-[9px] tracking-wide uppercase"
+										style="color: var(--app-text-dim);">{fmtDateDay(evt.start_date)}</span
+									>
 								</div>
 
 								<!-- Title & meta -->
 								<div class="min-w-0 flex-1">
-									<h2 class="text-base font-bold leading-tight" style="color: var(--app-text);">
+									<h2 class="text-base leading-tight font-bold" style="color: var(--app-text);">
 										{evt.title}
 									</h2>
 									<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
@@ -376,7 +395,9 @@
 										{/if}
 									</p>
 									{#if evt.description}
-										<p class="mt-1 text-xs" style="color: var(--app-text-dim);">{evt.description}</p>
+										<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
+											{evt.description}
+										</p>
 									{/if}
 								</div>
 
@@ -409,7 +430,10 @@
 										></div>
 									</div>
 									<p class="mt-1 text-[10px]" style="color: var(--app-text-dim);">
-										{pct(filledSlots, totalSlots)}% filled across {evtOpps.length} opportunity{evtOpps.length !== 1 ? 'ies' : 'y'}
+										{pct(filledSlots, totalSlots)}% filled across {evtOpps.length} opportunity{evtOpps.length !==
+										1
+											? 'ies'
+											: 'y'}
 									</p>
 								</div>
 							{/if}
@@ -439,7 +463,7 @@
 											style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent); background: color-mix(in srgb, var(--app-surface) 30%, transparent);"
 										>
 											<span
-												class="text-[11px] font-bold uppercase tracking-widest"
+												class="text-[11px] font-bold tracking-widest uppercase"
 												style="color: var(--app-text-muted);">{cat.name}</span
 											>
 											<div
@@ -484,10 +508,7 @@
 													<!-- Info -->
 													<div class="min-w-0 flex-1">
 														<div class="flex items-baseline gap-2">
-															<p
-																class="text-sm font-semibold"
-																style="color: var(--app-text);"
-															>
+															<p class="text-sm font-semibold" style="color: var(--app-text);">
 																{opp.title}
 															</p>
 															{#if opp.myFamily}
@@ -523,10 +544,7 @@
 															{/if}
 														</div>
 														{#if opp.description}
-															<p
-																class="mt-0.5 text-[11px]"
-																style="color: var(--app-text-dim);"
-															>
+															<p class="mt-0.5 text-[11px]" style="color: var(--app-text-dim);">
 																{opp.description}
 															</p>
 														{/if}
@@ -544,7 +562,10 @@
 																style="height: 5px; background: color-mix(in srgb, var(--app-text) 8%, transparent);"
 															>
 																<div
-																	style="height: 100%; border-radius: inherit; width: {pct(filled, total)}%; background: {isFull
+																	style="height: 100%; border-radius: inherit; width: {pct(
+																		filled,
+																		total
+																	)}%; background: {isFull
 																		? 'var(--app-danger)'
 																		: 'var(--app-success)'}; transition: width 0.6s cubic-bezier(0.2,0.7,0.2,1); box-shadow: 0 0 8px -1px {isFull
 																		? 'var(--app-danger)'
@@ -552,8 +573,10 @@
 																></div>
 															</div>
 															<span
-																class="text-[11px] font-mono font-medium"
-																style="color: {isFull ? 'var(--app-danger)' : 'var(--app-text-muted)'}; min-width: 30px; text-align: right;"
+																class="font-mono text-[11px] font-medium"
+																style="color: {isFull
+																	? 'var(--app-danger)'
+																	: 'var(--app-text-muted)'}; min-width: 30px; text-align: right;"
 															>
 																{filled}/{total}
 															</span>
@@ -567,7 +590,10 @@
 																	{@const hue = avatarHue(name)}
 																	<div
 																		class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[9px] font-bold"
-																		style="background: hsl({hue}, 55%, 28%); border-color: hsl({hue}, 45%, 45%); color: hsl({hue}, 80%, 85%); margin-left: {si > 0 ? '-8px' : '0'}; z-index: {10 - si}; position: relative;"
+																		style="background: hsl({hue}, 55%, 28%); border-color: hsl({hue}, 45%, 45%); color: hsl({hue}, 80%, 85%); margin-left: {si >
+																		0
+																			? '-8px'
+																			: '0'}; z-index: {10 - si}; position: relative;"
 																		title={name}
 																	>
 																		{initials(name)}
@@ -590,8 +616,7 @@
 														{#if opp.myFamily}
 															<!-- Find their signup for cancel -->
 															{@const mySignup = (data.mySignups ?? []).find(
-																(s: any) =>
-																	s.opportunity_id === opp.id && s.status !== 'cancelled'
+																(s: any) => s.opportunity_id === opp.id && s.status !== 'cancelled'
 															)}
 															{#if mySignup}
 																<form method="POST" action="?/cancelSignup">
@@ -599,9 +624,8 @@
 																	<Button variant="ghost" size="sm" type="submit">Cancel</Button>
 																</form>
 															{:else}
-																<span
-																	class="text-xs font-medium"
-																	style="color: var(--app-success);">Signed up</span
+																<span class="text-xs font-medium" style="color: var(--app-success);"
+																	>Signed up</span
 																>
 															{/if}
 														{:else if isFull}
@@ -642,23 +666,24 @@
 																name="signup_payload"
 																value={JSON.stringify({})}
 															/>
-															
-															{#if opp.slots > 1 && (opp.slots - filled) > 1}
+
+															{#if opp.slots > 1 && opp.slots - filled > 1}
 																{@const maxSlots = opp.slots - filled}
 																<div class="w-32 shrink-0">
-																	<div class="flex items-center justify-between mb-1">
+																	<div class="mb-1 flex items-center justify-between">
 																		<label
 																			for={`signup-slots-${opp.id}`}
-																			class="block text-[10px] font-semibold uppercase tracking-wider"
-																			style="color: var(--app-text-muted);"
-																			>Slots to claim</label
+																			class="block text-[10px] font-semibold tracking-wider uppercase"
+																			style="color: var(--app-text-muted);">Slots to claim</label
 																		>
 																		{#if customSlots[opp.id]}
 																			<button
 																				type="button"
 																				class="text-[9px] font-semibold hover:underline"
 																				style="color: var(--app-accent);"
-																				onclick={() => { customSlots[opp.id] = false; }}
+																				onclick={() => {
+																					customSlots[opp.id] = false;
+																				}}
 																			>
 																				Preset
 																			</button>
@@ -672,14 +697,14 @@
 																			value="6"
 																			min="1"
 																			max={maxSlots}
-																			class="w-full rounded-lg border px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500/50"
+																			class="w-full rounded-lg border px-3 py-1.5 text-xs focus:border-cyan-500/50 focus:outline-none"
 																			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																		/>
 																	{:else}
 																		<select
 																			id={`signup-slots-${opp.id}`}
 																			name="slots_claimed"
-																			class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
+																			class="w-full rounded-lg border px-3 py-2 text-xs focus:border-cyan-500/50 focus:outline-none"
 																			style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																			onchange={(e) => {
 																				if (e.currentTarget.value === 'custom') {
@@ -688,10 +713,18 @@
 																			}}
 																		>
 																			{#each Array.from({ length: Math.min(5, maxSlots) }, (_, i) => i + 1) as num}
-																				<option value={num} style="background: var(--app-surface); color: var(--app-text);">{num} slot{num > 1 ? 's' : ''}</option>
+																				<option
+																					value={num}
+																					style="background: var(--app-surface); color: var(--app-text);"
+																					>{num} slot{num > 1 ? 's' : ''}</option
+																				>
 																			{/each}
 																			{#if maxSlots > 5}
-																				<option value="custom" style="background: var(--app-surface); color: var(--app-text);">Custom...</option>
+																				<option
+																					value="custom"
+																					style="background: var(--app-surface); color: var(--app-text);"
+																					>Custom...</option
+																				>
 																			{/if}
 																		</select>
 																	{/if}
@@ -701,9 +734,8 @@
 															<div class="flex-1" style="min-width: 180px;">
 																<label
 																	for={`signup-notes-${opp.id}`}
-																	class="mb-1 block text-[10px] font-semibold uppercase tracking-wider"
-																	style="color: var(--app-text-muted);"
-																	>Notes (optional)</label
+																	class="mb-1 block text-[10px] font-semibold tracking-wider uppercase"
+																	style="color: var(--app-text-muted);">Notes (optional)</label
 																>
 																<input
 																	id={`signup-notes-${opp.id}`}
@@ -711,21 +743,20 @@
 																	name="notes"
 																	bind:value={signupNotes[opp.id]}
 																	placeholder="Any notes for the coordinator..."
-																	class="w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:border-cyan-500/50"
+																	class="w-full rounded-lg border px-3 py-2 text-xs focus:border-cyan-500/50 focus:outline-none"
 																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
 																/>
 															</div>
-															<Button variant="primary" size="sm" type="submit">Confirm Sign Up</Button>
+															<Button variant="primary" size="sm" type="submit"
+																>Confirm Sign Up</Button
+															>
 														</form>
 													</div>
 												{/if}
 
 												<!-- ── Who's signed up (expanded list) ── -->
 												{#if signups.length > 0 && !isExpanded}
-													<div
-														class="px-4 pb-2"
-														style="margin-top: -4px;"
-													>
+													<div class="px-4 pb-2" style="margin-top: -4px;">
 														<div class="flex flex-wrap gap-1.5">
 															{#each signups as s}
 																{@const name = s.signer?.full_name ?? s.family?.name ?? '—'}
@@ -735,7 +766,9 @@
 																>
 																	{name}
 																	{#if s.slots_claimed > 1}
-																		<span class="font-semibold" style="color: var(--app-info);">({s.slots_claimed} slots)</span>
+																		<span class="font-semibold" style="color: var(--app-info);"
+																			>({s.slots_claimed} slots)</span
+																		>
 																	{/if}
 																	{#if s.notes}
 																		<span style="color: var(--app-text-dim);">· {s.notes}</span>
@@ -755,62 +788,14 @@
 				</div>
 			{/if}
 
-		<!-- ╔══════════════════════════════════════════╗ -->
-		<!-- ║             DASHBOARD VIEW               ║ -->
-		<!-- ╚══════════════════════════════════════════╝ -->
+			<!-- ╔══════════════════════════════════════════╗ -->
+			<!-- ║             DASHBOARD VIEW               ║ -->
+			<!-- ╚══════════════════════════════════════════╝ -->
 		{:else if mainTab === 'dashboard'}
-
-			<!-- Announcements -->
-			{#if (data.announcements ?? []).length > 0}
-				<div class="space-y-2">
-					{#each data.announcements.slice(0, 5) as ann (ann.id)}
-						<div
-							class="fade-up flex gap-3 rounded-xl border p-3.5"
-							style="border-color: {ann.is_pinned
-								? 'color-mix(in srgb, var(--app-warning) 35%, transparent)'
-								: 'var(--app-glass-border)'}; background: {ann.is_pinned
-								? 'color-mix(in srgb, var(--app-warning) 5%, var(--app-glass-bg))'
-								: 'var(--app-glass-bg)'};"
-						>
-							{#if ann.is_pinned}
-								<div class="mt-0.5 shrink-0">
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 14 14"
-										fill="none"
-										style="color: var(--app-warning);"
-									>
-										<path
-											d="M7 1L8.5 5H13L9.5 7.5 11 11.5 7 9 3 11.5 4.5 7.5 1 5H5.5L7 1Z"
-											fill="currentColor"
-										/>
-									</svg>
-								</div>
-							{/if}
-							<div class="min-w-0 flex-1">
-								<p class="text-sm font-semibold" style="color: var(--app-text);">{ann.title}</p>
-								<p
-									class="mt-0.5 text-xs whitespace-pre-wrap"
-									style="color: var(--app-text-muted);"
-								>
-									{ann.body}
-								</p>
-								<p class="mt-1.5 text-[10px]" style="color: var(--app-text-dim);">
-									{ann.author?.full_name ?? ''}
-									{ann.author?.full_name ? '·' : ''}
-									{new Date(ann.created_at).toLocaleDateString()}
-								</p>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-
 			<!-- Summary stats -->
 			<div class="fade-up grid gap-3 sm:grid-cols-3" style="animation-delay: 0.04s;">
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">
+					<p class="text-xs tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Pledged Categories
 					</p>
 					<p class="mt-1 text-2xl font-bold" style="color: var(--app-text);">
@@ -820,9 +805,7 @@
 						>
 					</p>
 					{#if yesCount >= 3}
-						<p class="mt-0.5 text-[10px]" style="color: var(--app-success);">
-							✓ Minimum met
-						</p>
+						<p class="mt-0.5 text-[10px]" style="color: var(--app-success);">✓ Minimum met</p>
 					{:else}
 						<p class="mt-0.5 text-[10px]" style="color: var(--app-warning);">
 							Need {3 - yesCount} more
@@ -830,7 +813,7 @@
 					{/if}
 				</GlassCard>
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">
+					<p class="text-xs tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Active Signups
 					</p>
 					<p class="mt-1 text-2xl font-bold" style="color: var(--app-accent);">
@@ -839,13 +822,10 @@
 					<p class="mt-0.5 text-[10px]" style="color: var(--app-text-dim);">events volunteered</p>
 				</GlassCard>
 				<GlassCard compact>
-					<p class="text-xs uppercase tracking-wide" style="color: var(--app-text-muted);">
+					<p class="text-xs tracking-wide uppercase" style="color: var(--app-text-muted);">
 						Season
 					</p>
-					<p
-						class="mt-1 text-sm font-semibold truncate"
-						style="color: var(--app-text);"
-					>
+					<p class="mt-1 truncate text-sm font-semibold" style="color: var(--app-text);">
 						{data.season?.label ?? '—'}
 					</p>
 					<p class="mt-0.5 text-[10px]" style="color: var(--app-text-dim);">
@@ -885,10 +865,17 @@
 									{@const ex = commitmentMap.get(cat.id)}
 									<div
 										class="rounded-xl border p-3 transition-all"
-										style="background: color-mix(in srgb, var(--app-surface) 40%, transparent); border-color: {ex?.response === 'yes' ? 'color-mix(in srgb, var(--app-success) 30%, transparent)' : ex?.response === 'maybe' ? 'color-mix(in srgb, var(--app-warning) 25%, transparent)' : 'var(--app-glass-border)'};"
+										style="background: color-mix(in srgb, var(--app-surface) 40%, transparent); border-color: {ex?.response ===
+										'yes'
+											? 'color-mix(in srgb, var(--app-success) 30%, transparent)'
+											: ex?.response === 'maybe'
+												? 'color-mix(in srgb, var(--app-warning) 25%, transparent)'
+												: 'var(--app-glass-border)'};"
 									>
 										<div class="mb-2">
-											<p class="text-xs font-semibold" style="color: var(--app-text);">{cat.name}</p>
+											<p class="text-xs font-semibold" style="color: var(--app-text);">
+												{cat.name}
+											</p>
 											<p class="text-[10px]" style="color: var(--app-text-dim);">
 												Target: {cat.target_value}
 												{cat.unit}{cat.requires_prereq ? ` · ${cat.requires_prereq}` : ''}
@@ -907,8 +894,7 @@
 														type="radio"
 														name={`pledge_${cat.slug}`}
 														value={opt.val}
-														checked={ex?.response === opt.val ||
-															(!ex && opt.val === 'no')}
+														checked={ex?.response === opt.val || (!ex && opt.val === 'no')}
 														class="sr-only"
 													/>
 													{opt.label}
@@ -927,7 +913,10 @@
 									</div>
 								{/each}
 							</div>
-							<div class="flex items-center gap-3 border-t pt-3" style="border-color: var(--app-glass-border);">
+							<div
+								class="flex items-center gap-3 border-t pt-3"
+								style="border-color: var(--app-glass-border);"
+							>
 								<Button variant="primary" type="submit"
 									>{hasPledge ? 'Update Pledge' : 'Submit Pledge'}</Button
 								>
@@ -949,48 +938,61 @@
 					<!-- Pledge summary: elevated categories progress grid -->
 					<div class="grid gap-3 sm:grid-cols-2">
 						{#each categoryProgress as cp (cp.id)}
-							{@const ratio = cp.target > 0 ? Math.min(100, Math.round((cp.verified / cp.target) * 100)) : 0}
-							
-							<div class="rounded-xl border p-4 space-y-3 transition-all duration-300 backdrop-blur-xl"
+							{@const ratio =
+								cp.target > 0 ? Math.min(100, Math.round((cp.verified / cp.target) * 100)) : 0}
+
+							<div
+								class="space-y-3 rounded-xl border p-4 backdrop-blur-xl transition-all duration-300"
 								style="background: var(--app-glass-bg); 
-									border-color: {cp.status === 'met' 
-										? 'color-mix(in srgb, var(--app-success) 30%, transparent)' 
-										: cp.status === 'in_progress' 
-										? 'color-mix(in srgb, var(--app-accent) 30%, transparent)' 
-										: cp.status === 'unfulfilled' 
-										? 'color-mix(in srgb, var(--app-warning) 25%, transparent)' 
-										: 'var(--app-glass-border)'};
-									opacity: {cp.response === 'no' ? '0.5' : '1'};">
-								
+									border-color: {cp.status === 'met'
+									? 'color-mix(in srgb, var(--app-success) 30%, transparent)'
+									: cp.status === 'in_progress'
+										? 'color-mix(in srgb, var(--app-accent) 30%, transparent)'
+										: cp.status === 'unfulfilled'
+											? 'color-mix(in srgb, var(--app-warning) 25%, transparent)'
+											: 'var(--app-glass-border)'};
+									opacity: {cp.response === 'no' ? '0.5' : '1'};"
+							>
 								<!-- Header -->
 								<div class="flex items-start justify-between gap-2">
 									<div class="min-w-0 flex-1">
-										<p class="text-sm font-bold tracking-tight" style="color: var(--app-text);">{cp.name}</p>
+										<p class="text-sm font-bold tracking-tight" style="color: var(--app-text);">
+											{cp.name}
+										</p>
 										<p class="text-[10px] font-medium" style="color: var(--app-text-dim);">
-											Target: {cp.target} {cp.unit}
+											Target: {cp.target}
+											{cp.unit}
 										</p>
 									</div>
 
 									<!-- Badges -->
 									<div>
 										{#if cp.status === 'met'}
-											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-												style="background: color-mix(in srgb, var(--app-success) 12%, transparent); color: var(--app-success); border: 1px solid color-mix(in srgb, var(--app-success) 22%, transparent);">
+											<span
+												class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
+												style="background: color-mix(in srgb, var(--app-success) 12%, transparent); color: var(--app-success); border: 1px solid color-mix(in srgb, var(--app-success) 22%, transparent);"
+											>
 												Target Met
 											</span>
 										{:else if cp.status === 'in_progress'}
-											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-												style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);">
+											<span
+												class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
+												style="background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);"
+											>
 												In Progress
 											</span>
 										{:else if cp.status === 'unfulfilled'}
-											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-												style="background: color-mix(in srgb, var(--app-warning) 12%, transparent); color: var(--app-warning); border: 1px solid color-mix(in srgb, var(--app-warning) 22%, transparent);">
+											<span
+												class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
+												style="background: color-mix(in srgb, var(--app-warning) 12%, transparent); color: var(--app-warning); border: 1px solid color-mix(in srgb, var(--app-warning) 22%, transparent);"
+											>
 												Pledged - Unfulfilled
 											</span>
 										{:else}
-											<span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-												style="background: color-mix(in srgb, var(--app-text-dim) 8%, transparent); color: var(--app-text-dim); border: 1px solid var(--app-glass-border);">
+											<span
+												class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
+												style="background: color-mix(in srgb, var(--app-text-dim) 8%, transparent); color: var(--app-text-dim); border: 1px solid var(--app-glass-border);"
+											>
 												Not Pledged
 											</span>
 										{/if}
@@ -1007,29 +1009,48 @@
 								<!-- Dynamic breakdown details -->
 								{#if cp.response === 'yes'}
 									<div class="space-y-1.5 pt-1">
-										<div class="flex items-center justify-between text-[10px]" style="color: var(--app-text-muted);">
-											<span>Verified: <strong style="color: var(--app-text);">{cp.verified} / {cp.target} {cp.unit}</strong></span>
+										<div
+											class="flex items-center justify-between text-[10px]"
+											style="color: var(--app-text-muted);"
+										>
+											<span
+												>Verified: <strong style="color: var(--app-text);"
+													>{cp.verified} / {cp.target} {cp.unit}</strong
+												></span
+											>
 											<span class="font-mono">{ratio}%</span>
 										</div>
 
 										<!-- Progress Bar -->
-										<div class="relative overflow-hidden rounded-full" style="height: 5px; background: color-mix(in srgb, var(--app-text) 6%, transparent);">
-											<div class="h-full rounded-full transition-all duration-500"
-												style="width: {ratio}%; background: {cp.status === 'met' ? 'var(--app-success)' : 'var(--app-accent)'};">
-											</div>
+										<div
+											class="relative overflow-hidden rounded-full"
+											style="height: 5px; background: color-mix(in srgb, var(--app-text) 6%, transparent);"
+										>
+											<div
+												class="h-full rounded-full transition-all duration-500"
+												style="width: {ratio}%; background: {cp.status === 'met'
+													? 'var(--app-success)'
+													: 'var(--app-accent)'};"
+											></div>
 										</div>
 
 										<!-- Future/Pending labels -->
 										{#if cp.confirmed > 0 || cp.pending > 0}
 											<div class="flex flex-wrap gap-2 pt-1 text-[9px]">
 												{#if cp.confirmed > 0}
-													<span class="inline-flex items-center gap-1 font-medium" style="color: var(--app-accent);">
+													<span
+														class="inline-flex items-center gap-1 font-medium"
+														style="color: var(--app-accent);"
+													>
 														<span class="h-1 w-1 rounded-full bg-cyan-400"></span>
 														{cp.confirmed} upcoming
 													</span>
 												{/if}
 												{#if cp.pending > 0}
-													<span class="inline-flex items-center gap-1 font-medium" style="color: var(--app-warning);">
+													<span
+														class="inline-flex items-center gap-1 font-medium"
+														style="color: var(--app-warning);"
+													>
 														<span class="h-1 w-1 rounded-full bg-amber-400"></span>
 														{cp.pending} pending approval
 													</span>
@@ -1051,7 +1072,7 @@
 					<div class="relative space-y-2 pl-6">
 						<!-- Vertical timeline line -->
 						<div
-							class="pointer-events-none absolute bottom-0 left-2 top-0 w-px"
+							class="pointer-events-none absolute top-0 bottom-0 left-2 w-px"
 							style="background: linear-gradient(to bottom, var(--app-accent), color-mix(in srgb, var(--app-accent) 0%, transparent));"
 						></div>
 
@@ -1059,7 +1080,9 @@
 							{@const opp = (data.opportunities ?? []).find(
 								(o: any) => o.id === signup.opportunity_id
 							)}
-							{@const evt = opp ? (data.events ?? []).find((e: any) => e.id === opp.event_id) : null}
+							{@const evt = opp
+								? (data.events ?? []).find((e: any) => e.id === opp.event_id)
+								: null}
 
 							<!-- Timeline dot -->
 							<div
@@ -1089,9 +1112,13 @@
 											{#if opp?.start_time}<span>{fmtTime(opp.start_time)}</span>{/if}
 											{#if opp?.location}<span>{opp.location}</span>{/if}
 											{#if signup.slots_claimed > 1}
-												<span class="font-semibold" style="color: var(--app-accent);">{signup.slots_claimed} slots claimed</span>
+												<span class="font-semibold" style="color: var(--app-accent);"
+													>{signup.slots_claimed} slots claimed</span
+												>
 											{/if}
-											{#if signup.notes}<span style="color: var(--app-text-muted);">{signup.notes}</span>{/if}
+											{#if signup.notes}<span style="color: var(--app-text-muted);"
+													>{signup.notes}</span
+												>{/if}
 										</div>
 									</div>
 									<div class="flex shrink-0 items-center gap-2">
@@ -1120,9 +1147,7 @@
 			{:else if hasPledge}
 				<GlassCard>
 					<div class="py-6 text-center">
-						<p class="text-sm" style="color: var(--app-text-muted);">
-							No active signups yet.
-						</p>
+						<p class="text-sm" style="color: var(--app-text-muted);">No active signups yet.</p>
 						<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
 							Head to the
 							<button

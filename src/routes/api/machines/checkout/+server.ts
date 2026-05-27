@@ -11,7 +11,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const { machineId, qrToken, notes } = await request.json();
-	if (!machineId || !qrToken) return json({ error: 'machineId and qrToken are required' }, { status: 400 });
+	if (!machineId || !qrToken)
+		return json({ error: 'machineId and qrToken are required' }, { status: 400 });
 
 	let studentId = '';
 	try {
@@ -23,7 +24,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	} catch {
 		return json({ error: 'Invalid or expired passport QR token.' }, { status: 400 });
 	}
-	if (!studentId) return json({ error: 'Could not resolve student from QR token.' }, { status: 400 });
+	if (!studentId)
+		return json({ error: 'Could not resolve student from QR token.' }, { status: 400 });
 
 	const { data: machine } = await locals.supabase
 		.from('machines')
@@ -59,7 +61,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		.eq('student_id', studentId)
 		.is('ended_at', null)
 		.maybeSingle();
-	if (existingOpen) return json({ error: 'This student already has this machine checked out.' }, { status: 409 });
+	if (existingOpen)
+		return json({ error: 'This student already has this machine checked out.' }, { status: 409 });
 
 	const { data: session, error } = await locals.supabase
 		.from('machine_checkout_sessions')

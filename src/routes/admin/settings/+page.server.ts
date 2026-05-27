@@ -69,42 +69,46 @@ export const actions: Actions = {
 		const colorTableRowHover = String(form.get('color_table_row_hover') ?? '#182136').trim();
 		const colorOverlayScrim = String(form.get('color_overlay_scrim') ?? '#020617').trim();
 		const colorFocusRing = String(form.get('color_focus_ring') ?? '#a78bfa').trim();
-		const colorButtonSecondaryBg = String(form.get('color_button_secondary_bg') ?? '#1a2438').trim();
-		const colorButtonSecondaryText = String(form.get('color_button_secondary_text') ?? '#d6e2f5').trim();
-		const colorButtonSecondaryBorder = String(form.get('color_button_secondary_border') ?? '#334766').trim();
-		const { error } = await locals.supabase
-			.from('org_settings')
-			.upsert(
-				{
-					id: 1,
-					name,
-					color_background: colorBackground,
-					color_surface: colorSurface,
-					color_surface_alt: colorSurfaceAlt,
-					color_border: colorBorder,
-					color_text: colorText,
-					color_text_muted: colorTextMuted,
-					color_accent: colorAccent,
-					color_accent_text: colorAccentText,
-					icon_data_url: clearIcon ? '' : iconDataUrl,
-					color_success: colorSuccess,
-					color_warning: colorWarning,
-					color_danger: colorDanger,
-					color_info: colorInfo,
-					color_link: colorLink,
-					color_link_hover: colorLinkHover,
-					color_input_bg: colorInputBg,
-					color_input_text: colorInputText,
-					color_table_header_bg: colorTableHeaderBg,
-					color_table_row_hover: colorTableRowHover,
-					color_overlay_scrim: colorOverlayScrim,
-					color_focus_ring: colorFocusRing,
-					color_button_secondary_bg: colorButtonSecondaryBg,
-					color_button_secondary_text: colorButtonSecondaryText,
-					color_button_secondary_border: colorButtonSecondaryBorder
-				},
-				{ onConflict: 'id' }
-			);
+		const colorButtonSecondaryBg = String(
+			form.get('color_button_secondary_bg') ?? '#1a2438'
+		).trim();
+		const colorButtonSecondaryText = String(
+			form.get('color_button_secondary_text') ?? '#d6e2f5'
+		).trim();
+		const colorButtonSecondaryBorder = String(
+			form.get('color_button_secondary_border') ?? '#334766'
+		).trim();
+		const { error } = await locals.supabase.from('org_settings').upsert(
+			{
+				id: 1,
+				name,
+				color_background: colorBackground,
+				color_surface: colorSurface,
+				color_surface_alt: colorSurfaceAlt,
+				color_border: colorBorder,
+				color_text: colorText,
+				color_text_muted: colorTextMuted,
+				color_accent: colorAccent,
+				color_accent_text: colorAccentText,
+				icon_data_url: clearIcon ? '' : iconDataUrl,
+				color_success: colorSuccess,
+				color_warning: colorWarning,
+				color_danger: colorDanger,
+				color_info: colorInfo,
+				color_link: colorLink,
+				color_link_hover: colorLinkHover,
+				color_input_bg: colorInputBg,
+				color_input_text: colorInputText,
+				color_table_header_bg: colorTableHeaderBg,
+				color_table_row_hover: colorTableRowHover,
+				color_overlay_scrim: colorOverlayScrim,
+				color_focus_ring: colorFocusRing,
+				color_button_secondary_bg: colorButtonSecondaryBg,
+				color_button_secondary_text: colorButtonSecondaryText,
+				color_button_secondary_border: colorButtonSecondaryBorder
+			},
+			{ onConflict: 'id' }
+		);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true };
 	}

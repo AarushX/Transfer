@@ -21,9 +21,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	] = await Promise.all([
 		locals.supabase
 			.from('profile_teams')
-			.select('team_id,category_slug,teams!inner(id,name,slug,team_group_id,team_groups(id,name,slug,designator))')
+			.select(
+				'team_id,category_slug,teams!inner(id,name,slug,team_group_id,team_groups(id,name,slug,designator))'
+			)
 			.eq('user_id', user.id),
-		locals.supabase.from('profile_primary_teams').select('team_group_id').eq('user_id', user.id).maybeSingle(),
+		locals.supabase
+			.from('profile_primary_teams')
+			.select('team_group_id')
+			.eq('user_id', user.id)
+			.maybeSingle(),
 		isMentor(profile)
 			? locals.supabase
 					.from('mentor_subteam_preferences')
@@ -33,7 +39,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		computeUserRanks(locals.supabase, [user.id]),
 		locals.supabase
 			.from('parent_student_links')
-			.select('id,parent_user_id,status,profiles!parent_student_links_parent_user_id_fkey(id,full_name,email)')
+			.select(
+				'id,parent_user_id,status,profiles!parent_student_links_parent_user_id_fkey(id,full_name,email)'
+			)
 			.eq('student_user_id', user.id)
 			.eq('status', 'active'),
 		locals.supabase
@@ -53,8 +61,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			: Promise.resolve({ data: [] as { subteam_id: string }[] })
 	]);
 
-	const mentorTeamIds = (mentorPrefsResult.data ?? []).map((row: { subteam_id: string }) => row.subteam_id);
-	const mentorSubteamIds = (mentorSubteamPrefsResult.data ?? []).map((row: { subteam_id: string }) => row.subteam_id);
+	const mentorTeamIds = (mentorPrefsResult.data ?? []).map(
+		(row: { subteam_id: string }) => row.subteam_id
+	);
+	const mentorSubteamIds = (mentorSubteamPrefsResult.data ?? []).map(
+		(row: { subteam_id: string }) => row.subteam_id
+	);
 	const normalizedMemberships = (memberships ?? []).map((row: any) => ({
 		teamId: String(row.team_id),
 		categorySlug: String(row.category_slug ?? ''),
@@ -140,7 +152,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		parentLinks: (parentLinks ?? []).map((row: any) => ({
 			id: String(row.id),
 			status: String(row.status ?? ''),
-			parent: Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null
+			parent: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : (row.profiles ?? null)
 		})),
 		activeParentLinkCode: parentCodes?.[0] ?? null
 	};
@@ -153,8 +165,12 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const fullName = String(form.get('full_name') ?? '').trim();
-		const bio = String(form.get('bio') ?? '').trim().slice(0, 500);
-		let avatarUrl = String(form.get('avatar_url') ?? '').trim().slice(0, 2048);
+		const bio = String(form.get('bio') ?? '')
+			.trim()
+			.slice(0, 500);
+		let avatarUrl = String(form.get('avatar_url') ?? '')
+			.trim()
+			.slice(0, 2048);
 
 		if (!fullName) return fail(400, { error: 'Display name is required.' });
 		if (avatarUrl && !/^https?:\/\//i.test(avatarUrl)) {
@@ -211,7 +227,8 @@ export const actions: Actions = {
 	generateParentLinkCode: async ({ locals }) => {
 		const { user, profile } = await locals.safeGetSession();
 		if (!user || !profile) return fail(401, { error: 'Unauthorized' });
-		if (profile.is_parent_guardian) return fail(403, { error: 'Parent accounts cannot generate student link codes.' });
+		if (profile.is_parent_guardian)
+			return fail(403, { error: 'Parent accounts cannot generate student link codes.' });
 		const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 		let code = '';
 		for (let i = 0; i < 8; i += 1) code += alphabet[Math.floor(Math.random() * alphabet.length)];

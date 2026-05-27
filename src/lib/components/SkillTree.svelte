@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { filterByScope } from './skill-tree-scope';
+	import { goto } from '$app/navigation';
 
 	let {
 		nodes = [],
@@ -7,7 +8,10 @@
 		prerequisites = [],
 		scope = undefined,
 		selectedNodeId = undefined,
-		onSelect = undefined
+		onSelect = undefined,
+		subteamByNode = undefined,
+		teamColors = undefined,
+		clickHrefBase = '/learn/'
 	}: {
 		nodes: Array<{ id: string; title: string; slug: string }>;
 		statuses: Array<{ node_id: string; computed_status: string }>;
@@ -15,15 +19,18 @@
 		scope?: Set<string> | string[] | undefined;
 		selectedNodeId?: string | null;
 		onSelect?: ((nodeId: string | null) => void) | undefined;
+		subteamByNode?: Record<string, string> | undefined;
+		teamColors?: Record<string, string> | undefined;
+		clickHrefBase?: string;
 	} = $props();
 
-	const scopeSet = $derived(
-		scope instanceof Set ? scope : scope ? new Set(scope) : undefined
-	);
+	const scopeSet = $derived(scope instanceof Set ? scope : scope ? new Set(scope) : undefined);
 
 	const filtered = $derived.by(() => filterByScope(nodes, prerequisites, scopeSet));
 
-	const hasGraphData = $derived((filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0);
+	const hasGraphData = $derived(
+		(filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0
+	);
 
 	let legendMinimized = $state(true);
 
@@ -41,9 +48,26 @@
 		locked: '#475569'
 	};
 
-	const statusMap = $derived(
-		new Map(statuses.map((s) => [s.node_id, s.computed_status]))
-	);
+	// When a subteam color is supplied for a node, prefer that over the
+	// generic STATE_COLOR for the available/in-progress family. Completed,
+	// locked, and mentor-checkoff states keep their semantic colors so the
+	// graph stays scannable.
+	function colorFor(node: { id: string; state: string }): string {
+		const teamId = subteamByNode?.[node.id];
+		const teamColor = teamId ? teamColors?.[teamId] : undefined;
+		if (
+			teamColor &&
+			(node.state === 'available' ||
+				node.state === 'in_progress' ||
+				node.state === 'video_pending' ||
+				node.state === 'quiz_pending')
+		) {
+			return teamColor;
+		}
+		return STATE_COLOR[node.state] ?? '#475569';
+	}
+
+	const statusMap = $derived(new Map(statuses.map((s) => [s.node_id, s.computed_status])));
 
 	const moduleState = (id: string) => statusMap.get(id) ?? 'locked';
 
@@ -123,6 +147,20 @@
 
 	const nodeMap = $derived(new Map(layoutNodes.map((n) => [n.id, n])));
 
+	const allNodeTitleById = $derived(new Map(nodes.map((n) => [n.id, n.title])));
+
+	function prereqTitlesFor(nodeId: string): Array<{ title: string; satisfied: boolean }> {
+		const out: Array<{ title: string; satisfied: boolean }> = [];
+		for (const edge of prerequisites) {
+			if (edge.node_id !== nodeId) continue;
+			const title = allNodeTitleById.get(edge.prerequisite_node_id);
+			if (!title) continue;
+			const status = statusMap.get(edge.prerequisite_node_id);
+			out.push({ title, satisfied: status === 'completed' });
+		}
+		return out;
+	}
+
 	const edges = $derived.by(() => {
 		return filtered.prerequisites
 			.map((p) => {
@@ -133,7 +171,8 @@
 				const dy = to.y - from.y;
 				const dist = Math.hypot(dx, dy);
 				if (dist === 0) return null;
-				const ux = dx / dist, uy = dy / dist;
+				const ux = dx / dist,
+					uy = dy / dist;
 				return {
 					key: `${p.prerequisite_node_id}->${p.node_id}`,
 					x1: from.x + ux * NODE_R,
@@ -143,7 +182,14 @@
 					isActive: from.state === 'completed' && to.state !== 'locked'
 				};
 			})
-			.filter(Boolean) as Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isActive: boolean }>;
+			.filter(Boolean) as Array<{
+			key: string;
+			x1: number;
+			y1: number;
+			x2: number;
+			y2: number;
+			isActive: boolean;
+		}>;
 	});
 
 	let selected = $state<LayoutNode | null>(null);
@@ -154,7 +200,7 @@
 	const parentControlled = $derived(typeof onSelect === 'function');
 	const effectiveSelected = $derived.by(() => {
 		if (parentControlled) {
-			return selectedNodeId ? layoutNodes.find((n) => n.id === selectedNodeId) ?? null : null;
+			return selectedNodeId ? (layoutNodes.find((n) => n.id === selectedNodeId) ?? null) : null;
 		}
 		return selected;
 	});
@@ -212,14 +258,39 @@
 		panY = ch / 2 - bboxCenterY * zoom;
 	}
 
+	// Pixels per deltaY unit, normalized across deltaMode (Windows fires
+	// deltaMode=1/line ≈ 100px chunks per click; Mac fires deltaMode=0/pixel
+	// with small deltas). Without this, a single mouse-wheel notch on Windows
+	// blows past several zoom levels.
+	function normalizedPixels(e: WheelEvent): number {
+		const mode = e.deltaMode;
+		const dy = e.deltaY;
+		if (mode === 1) return dy * 16;
+		if (mode === 2) return dy * 100;
+		return dy;
+	}
+
 	function handleWheel(e: WheelEvent) {
+		// Treat a plain wheel as pan; only zoom on ctrlKey (which is how
+		// browsers report trackpad pinch) or when the user holds modifiers.
+		// Without this, Windows mouse wheels zoom violently because they
+		// fire huge deltaY values that no speed-tier heuristic survives.
+		const isPinchOrZoomIntent = e.ctrlKey || e.metaKey;
+		if (!isPinchOrZoomIntent) {
+			e.preventDefault();
+			panX -= e.deltaX;
+			panY -= e.deltaY;
+			return;
+		}
+
 		e.preventDefault();
 		const rect = containerEl!.getBoundingClientRect();
 		const mx = e.clientX - rect.left;
 		const my = e.clientY - rect.top;
-		const absDelta = Math.abs(e.deltaY);
-		const speed = absDelta < 10 ? 0.01 : absDelta < 50 ? 0.03 : 0.06;
-		const factor = 1 - Math.sign(e.deltaY) * speed * Math.min(absDelta, 60);
+		const px = normalizedPixels(e);
+		// 0.0025 per pixel keeps a trackpad pinch smooth and limits a single
+		// Windows wheel notch (~100 normalized px) to ~25% zoom change.
+		const factor = Math.exp(-px * 0.0025);
 		const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
 		panX = mx - (mx - panX) * (newZoom / zoom);
 		panY = my - (my - panY) * (newZoom / zoom);
@@ -238,8 +309,9 @@
 		if (typeof document === 'undefined') return null;
 		// Walk through any non-element stacking via elementsFromPoint so the
 		// first SVG group we hit wins, even if there's a transparent overlay.
-		const hits = (document.elementsFromPoint?.(clientX, clientY) ??
-			[document.elementFromPoint(clientX, clientY)]) as Array<Element | null>;
+		const hits = (document.elementsFromPoint?.(clientX, clientY) ?? [
+			document.elementFromPoint(clientX, clientY)
+		]) as Array<Element | null>;
 		for (const el of hits) {
 			const g = el?.closest('g[data-node-id]') as SVGElement | null;
 			if (g) return g.getAttribute('data-node-id');
@@ -253,9 +325,16 @@
 		if (parentControlled) {
 			const next = selectedNodeId === nodeId ? null : nodeId;
 			onSelect?.(next);
-		} else {
-			selected = selected?.id === nodeId ? null : node;
+			return;
 		}
+		// Locked nodes still toggle the hover-detail dialog (which shows
+		// prereqs) so users can understand WHY they can't enter. Everything
+		// else navigates straight to the course page.
+		if (node.state === 'locked') {
+			selected = selected?.id === nodeId ? null : node;
+			return;
+		}
+		goto(`${clickHrefBase}${node.slug}`);
 	}
 
 	function handlePointerDown(e: PointerEvent) {
@@ -388,7 +467,9 @@
 	<div
 		bind:this={containerEl}
 		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {didPan ? 'grabbing' : 'grab'};"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {didPan
+			? 'grabbing'
+			: 'grab'};"
 		onwheel={handleWheel}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
@@ -399,7 +480,7 @@
 		ontouchstart={handleTouchStart}
 		ontouchmove={handleTouchMove}
 	>
-		<svg viewBox={viewBox} style="width: 100%; height: 100%; display: block;">
+		<svg {viewBox} style="width: 100%; height: 100%; display: block;">
 			<defs>
 				{#each Object.entries(STATE_COLOR) as [key, color]}
 					<radialGradient id="fill-{key}">
@@ -435,7 +516,11 @@
 					/>
 					{#if edge.isActive}
 						<circle r="2" fill="#06b6d4">
-							<animateMotion dur="3s" repeatCount="indefinite" path="M {edge.x1} {edge.y1} L {edge.x2} {edge.y2}" />
+							<animateMotion
+								dur="3s"
+								repeatCount="indefinite"
+								path="M {edge.x1} {edge.y1} L {edge.x2} {edge.y2}"
+							/>
 						</circle>
 					{/if}
 				</g>
@@ -443,7 +528,7 @@
 
 			<!-- Nodes -->
 			{#each layoutNodes as node (node.id)}
-				{@const color = STATE_COLOR[node.state] ?? '#475569'}
+				{@const color = colorFor(node)}
 				{@const isLocked = node.state === 'locked'}
 				{@const isSelected = effectiveSelected?.id === node.id}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -454,34 +539,119 @@
 					onmouseleave={() => (hovered = null)}
 				>
 					{#if !isLocked}
-						<circle cx={node.x} cy={node.y} r={NODE_R + 10}
-							fill="url(#halo-{node.state})"
-							opacity={node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 0.9 : 0.5}
-							style="pointer-events: none;" />
+						<circle
+							cx={node.x}
+							cy={node.y}
+							r={NODE_R + 10}
+							fill={color}
+							opacity={node.state === 'in_progress' ||
+							node.state === 'video_pending' ||
+							node.state === 'quiz_pending'
+								? 0.35
+								: 0.18}
+							style="pointer-events: none; filter: blur(6px);"
+						/>
 					{/if}
-					<circle cx={node.x} cy={node.y} r={NODE_R}
-						fill={isLocked ? '#0f1729' : `url(#fill-${node.state})`}
+					<circle
+						cx={node.x}
+						cy={node.y}
+						r={NODE_R}
+						fill={isLocked ? '#0f1729' : color}
+						fill-opacity={isLocked ? 1 : 0.78}
 						stroke={color}
-						stroke-width={isSelected ? 2.5 : node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending' ? 2 : 1.2}
+						stroke-width={isSelected
+							? 2.5
+							: node.state === 'in_progress' ||
+								  node.state === 'video_pending' ||
+								  node.state === 'quiz_pending'
+								? 2
+								: 1.2}
 						opacity={isLocked ? 0.5 : 1}
-						style={isSelected ? `filter: drop-shadow(0 0 8px ${color});` : ''} />
-					<foreignObject x={node.x - NODE_R} y={node.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} style="pointer-events: none;">
-						<div style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked ? '#475569' : 'white'}; pointer-events: none; cursor: inherit;">
+						style={isSelected ? `filter: drop-shadow(0 0 8px ${color});` : ''}
+					/>
+					<foreignObject
+						x={node.x - NODE_R}
+						y={node.y - NODE_R}
+						width={NODE_R * 2}
+						height={NODE_R * 2}
+						style="pointer-events: none;"
+					>
+						<div
+							style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked
+								? '#475569'
+								: 'white'}; pointer-events: none; cursor: inherit;"
+						>
 							{#if node.state === 'completed'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; pointer-events: none;"><polyline points="4 12 10 18 20 6"/></svg>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									style="width: 20px; height: 20px; pointer-events: none;"
+									><polyline points="4 12 10 18 20 6" /></svg
+								>
 							{:else if node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending'}
-								<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width: 18px; height: 18px; pointer-events: none;"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+								<svg
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									stroke="none"
+									style="width: 18px; height: 18px; pointer-events: none;"
+									><polygon points="6 4 20 12 6 20 6 4" /></svg
+								>
 							{:else if node.state === 'mentor_checkoff_pending'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; pointer-events: none;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									style="width: 18px; height: 18px; pointer-events: none;"
+									><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg
+								>
 							{:else if node.state === 'available'}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; pointer-events: none;"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									style="width: 18px; height: 18px; pointer-events: none;"
+									><circle cx="12" cy="12" r="9" /><circle
+										cx="12"
+										cy="12"
+										r="3"
+										fill="currentColor"
+									/></svg
+								>
 							{:else}
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; pointer-events: none;"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									style="width: 16px; height: 16px; pointer-events: none;"
+									><rect x="5" y="11" width="14" height="10" rx="2" /><path
+										d="M8 11V8a4 4 0 0 1 8 0v3"
+									/></svg
+								>
 							{/if}
 						</div>
 					</foreignObject>
-					<text x={node.x} y={node.y + NODE_R + 18} text-anchor="middle"
-						fill={isLocked ? '#475569' : '#e6edf7'} font-size="11" font-weight="600" style="font-family: Inter, sans-serif; pointer-events: none;">
+					<text
+						x={node.x}
+						y={node.y + NODE_R + 18}
+						text-anchor="middle"
+						fill={isLocked ? '#475569' : '#e6edf7'}
+						font-size="11"
+						font-weight="600"
+						style="font-family: Inter, sans-serif; pointer-events: none;"
+					>
 						{node.title}
 					</text>
 					<!-- Hit target: invisible rect spanning circle + label so the whole
@@ -503,21 +673,39 @@
 		<div class="absolute right-4 bottom-4 flex flex-col gap-1.5" style="z-index: 5;">
 			<button
 				type="button"
-				onclick={() => { zoom = Math.min(MAX_ZOOM, zoom * 1.3); }}
+				onclick={() => {
+					zoom = Math.min(MAX_ZOOM, zoom * 1.3);
+				}}
 				class="grid h-8 w-8 place-items-center rounded-lg border backdrop-blur-xl"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
 				aria-label="Zoom in"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4"><path d="M12 5v14M5 12h14"/></svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					class="h-4 w-4"><path d="M12 5v14M5 12h14" /></svg
+				>
 			</button>
 			<button
 				type="button"
-				onclick={() => { zoom = Math.max(MIN_ZOOM, zoom / 1.3); }}
+				onclick={() => {
+					zoom = Math.max(MIN_ZOOM, zoom / 1.3);
+				}}
 				class="grid h-8 w-8 place-items-center rounded-lg border backdrop-blur-xl"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
 				aria-label="Zoom out"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4"><path d="M5 12h14"/></svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					class="h-4 w-4"><path d="M5 12h14" /></svg
+				>
 			</button>
 			<button
 				type="button"
@@ -526,7 +714,15 @@
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); cursor: pointer;"
 				aria-label="Fit to view"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="h-4 w-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg
+				>
 			</button>
 		</div>
 
@@ -549,11 +745,23 @@
 				}}
 				aria-label="Show legend"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="h-2.5 w-2.5"
+					><circle cx="12" cy="12" r="3" fill="currentColor" /><circle cx="12" cy="12" r="9" /></svg
+				>
 				Legend
 			</button>
 		{:else}
-			<div class="absolute left-4 bottom-4 rounded-2xl border p-3 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;">
+			<div
+				class="absolute bottom-4 left-4 rounded-2xl border p-3 backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); z-index: 5;"
+			>
 				<div class="mb-2 flex items-center justify-between gap-3">
 					<p class="eyebrow-label" style="margin-bottom: 0;">Legend</p>
 					<button
@@ -561,17 +769,35 @@
 						onclick={() => (legendMinimized = true)}
 						class="grid h-5 w-5 place-items-center rounded-md"
 						style="background: transparent; border: none; color: var(--app-text-dim); cursor: pointer;"
-						onmouseenter={(event) => { event.currentTarget.style.background = 'var(--app-glass-bg-hover)'; event.currentTarget.style.color = 'var(--app-text)'; }}
-						onmouseleave={(event) => { event.currentTarget.style.background = 'transparent'; event.currentTarget.style.color = 'var(--app-text-dim)'; }}
+						onmouseenter={(event) => {
+							event.currentTarget.style.background = 'var(--app-glass-bg-hover)';
+							event.currentTarget.style.color = 'var(--app-text)';
+						}}
+						onmouseleave={(event) => {
+							event.currentTarget.style.background = 'transparent';
+							event.currentTarget.style.color = 'var(--app-text-dim)';
+						}}
 						aria-label="Minimize legend"
 					>
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3 w-3"><path d="M5 12h14"/></svg>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							class="h-3 w-3"><path d="M5 12h14" /></svg
+						>
 					</button>
 				</div>
 				<div class="flex flex-col gap-1.5">
-					{#each [['completed','Completed'], ['in_progress','In progress'], ['mentor_checkoff_pending','Awaiting mentor'], ['available','Available'], ['locked','Locked']] as [key, label]}
+					{#each [['completed', 'Completed'], ['in_progress', 'In progress'], ['mentor_checkoff_pending', 'Awaiting mentor'], ['available', 'Available'], ['locked', 'Locked']] as [key, label]}
 						<div class="flex items-center gap-2 text-[11px]">
-							<span class="h-2.5 w-2.5 rounded-full" style="background: {STATE_COLOR[key]}; {key !== 'locked' ? `box-shadow: 0 0 6px ${STATE_COLOR[key]};` : ''}"></span>
+							<span
+								class="h-2.5 w-2.5 rounded-full"
+								style="background: {STATE_COLOR[key]}; {key !== 'locked'
+									? `box-shadow: 0 0 6px ${STATE_COLOR[key]};`
+									: ''}"
+							></span>
 							<span style="color: var(--app-text-muted);">{label}</span>
 						</div>
 					{/each}
@@ -582,29 +808,117 @@
 		<!-- Detail panel — suppressed when the parent component owns selection,
 		     because that page already renders its own context UI -->
 		{#if active && !parentControlled}
-			<div class="fade-up absolute right-4 top-4 w-80 rounded-2xl border p-5 backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); z-index: 5;">
+			<div
+				class="fade-up absolute top-4 right-4 w-80 rounded-2xl border p-5 backdrop-blur-xl"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); z-index: 5;"
+			>
 				<div class="mb-3 flex items-center justify-between">
-					<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
-						style="background: color-mix(in srgb, {STATE_COLOR[active.state] ?? '#475569'} 14%, transparent); border-color: color-mix(in srgb, {STATE_COLOR[active.state] ?? '#475569'} 30%, transparent); color: {STATE_COLOR[active.state] ?? '#475569'};">
+					<span
+						class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+						style="background: color-mix(in srgb, {STATE_COLOR[active.state] ??
+							'#475569'} 14%, transparent); border-color: color-mix(in srgb, {STATE_COLOR[
+							active.state
+						] ?? '#475569'} 30%, transparent); color: {STATE_COLOR[active.state] ?? '#475569'};"
+					>
 						{stateLabel(active.state)}
 					</span>
-					<button onclick={() => { selected = null; }}
+					<button
+						onclick={() => {
+							selected = null;
+						}}
 						class="grid h-6 w-6 place-items-center rounded-md"
 						style="background: transparent; border: none; color: var(--app-text-dim); cursor: pointer;"
-						onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; }}
-						onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" style="transform: rotate(45deg);"><path d="M12 5v14M5 12h14"/></svg>
+						onmouseenter={(e) => {
+							e.currentTarget.style.background = 'var(--app-glass-bg-hover)';
+						}}
+						onmouseleave={(e) => {
+							e.currentTarget.style.background = 'transparent';
+						}}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-3.5 w-3.5"
+							style="transform: rotate(45deg);"><path d="M12 5v14M5 12h14" /></svg
+						>
 					</button>
 				</div>
-				<h3 class="text-lg font-bold tracking-tight" style="letter-spacing: -0.02em;">{active.title}</h3>
+				<h3 class="text-lg font-bold tracking-tight" style="letter-spacing: -0.02em;">
+					{active.title}
+				</h3>
+				{#if active.state === 'locked'}
+					{@const prereqs = prereqTitlesFor(active.id)}
+					{#if prereqs.length > 0}
+						<div class="mt-3 space-y-1.5">
+							<p class="eyebrow-label" style="margin-bottom: 4px;">Unlocks after</p>
+							<ul class="space-y-1">
+								{#each prereqs as p}
+									<li class="flex items-center gap-2 text-xs" style="color: var(--app-text-muted);">
+										<span
+											class="grid h-4 w-4 place-items-center rounded-full"
+											style="background: {p.satisfied
+												? 'color-mix(in srgb, var(--app-success) 25%, transparent)'
+												: 'color-mix(in srgb, var(--app-text-dim) 14%, transparent)'}; color: {p.satisfied
+												? 'var(--app-success)'
+												: 'var(--app-text-dim)'};"
+										>
+											{#if p.satisfied}
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="3"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													class="h-2.5 w-2.5"><polyline points="4 12 10 18 20 6" /></svg
+												>
+											{:else}
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													class="h-2.5 w-2.5"
+													><rect x="5" y="11" width="14" height="10" rx="2" /><path
+														d="M8 11V8a4 4 0 0 1 8 0v3"
+													/></svg
+												>
+											{/if}
+										</span>
+										<span class:line-through={p.satisfied}>{p.title}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				{/if}
 				<div class="mt-4 flex gap-2">
 					{#if active.state !== 'locked'}
-						<a href={`/learn/${active.slug}`} class="btn btn-primary inline-flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-medium">
-							Open module
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+						<a
+							href={`${clickHrefBase}${active.slug}`}
+							class="btn btn-primary inline-flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-medium"
+						>
+							Open course
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.6"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="h-3 w-3"><path d="M5 12h14M13 5l7 7-7 7" /></svg
+							>
 						</a>
 					{:else}
-						<span class="inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-medium" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-dim); opacity: 0.6;">
+						<span
+							class="inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-medium"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-dim); opacity: 0.6;"
+						>
 							Locked
 						</span>
 					{/if}
@@ -613,7 +927,10 @@
 		{/if}
 	</div>
 {:else}
-	<div class="rounded-2xl border p-6 text-sm backdrop-blur-xl" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); box-shadow: var(--app-glass-shadow);">
+	<div
+		class="rounded-2xl border p-6 text-sm backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted); box-shadow: var(--app-glass-shadow);"
+	>
 		No prerequisite graph to show yet.
 	</div>
 {/if}

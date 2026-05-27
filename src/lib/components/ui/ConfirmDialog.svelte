@@ -49,14 +49,10 @@
 				</button>
 				<button
 					type="button"
-					class={`rounded px-3 py-1.5 text-sm font-semibold ${
-						danger ? '' : ''
-					}`}
-					style={
-						danger
-							? 'background: var(--app-danger); color: white;'
-							: 'background: var(--app-info); color: white;'
-					}
+					class={`rounded px-3 py-1.5 text-sm font-semibold ${danger ? '' : ''}`}
+					style={danger
+						? 'background: var(--app-danger); color: white;'
+						: 'background: var(--app-info); color: white;'}
 					onclick={() => onConfirm?.()}
 				>
 					{confirmLabel}

@@ -16,10 +16,13 @@ export async function finalizeSurveySubmission(
 		answers: Record<string, unknown>;
 	}
 ): Promise<SurveySubmitResult> {
-	const { data: insertedId, error: submitErr } = await supabase.rpc('submit_survey_submission_atomic', {
-		p_survey_id: args.surveyId,
-		p_answers: args.answers as object
-	});
+	const { data: insertedId, error: submitErr } = await supabase.rpc(
+		'submit_survey_submission_atomic',
+		{
+			p_survey_id: args.surveyId,
+			p_answers: args.answers as object
+		}
+	);
 	if (submitErr) {
 		const isCapError = /at most\s+\d+\s+submission/i.test(submitErr.message);
 		return {

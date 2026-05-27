@@ -24,12 +24,20 @@
 
 {#if compact}
 	{#if currentQrDataUrl}
-		<img src={currentQrDataUrl} alt="Passport QR code" class="block w-full aspect-square rounded bg-slate-900 p-2" />
+		<img
+			src={currentQrDataUrl}
+			alt="Student ID code"
+			class="block aspect-square w-full rounded bg-slate-900 p-2"
+		/>
 	{/if}
 {:else}
 	<div class="space-y-2">
 		{#if currentQrDataUrl}
-			<img src={currentQrDataUrl} alt="Passport QR code" class="h-56 w-56 rounded bg-slate-900 p-2" />
+			<img
+				src={currentQrDataUrl}
+				alt="Student ID code"
+				class="h-56 w-56 rounded bg-slate-900 p-2"
+			/>
 		{/if}
 		<div class="flex items-center gap-2">
 			<button

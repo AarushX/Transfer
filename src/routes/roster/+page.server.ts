@@ -4,7 +4,6 @@ import { isAdmin } from '$lib/roles';
 import { createSupabaseServiceClient } from '$lib/server/supabase';
 import { updateMemberAccess } from './actions';
 
-
 export const load: PageServerLoad = async ({ locals }) => {
 	const { profile } = await locals.safeGetSession();
 	const canManageUsers = isAdmin(profile);
@@ -22,10 +21,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	] = await Promise.all([
 		locals.supabase
 			.from('profiles')
-			.select('id,full_name,email,role,base_role,is_mentor,is_lead,subteam_id,lead_team_group_id,lead_subteam_id'),
+			.select(
+				'id,full_name,email,role,base_role,is_mentor,is_lead,subteam_id,lead_team_group_id,lead_subteam_id'
+			),
 		locals.supabase
 			.from('certifications')
-			.select('user_id,status,node_id,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)')
+			.select(
+				'user_id,status,node_id,quiz_score,quiz_passed_at,approved_at,nodes!inner(title,slug)'
+			)
 			.not('status', 'eq', 'locked'),
 		locals.supabase
 			.from('attendance_daily_sessions')
@@ -34,7 +37,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		service.from('team_groups').select('id,name,designator,sort_order').order('sort_order'),
 		service.from('subteams').select('id,name').order('name'),
 		service.from('profile_teams').select('user_id,team_id,category_slug,team_group_id'),
-		service.from('teams').select('id,name,slug,category_slug,team_group_id,sort_order').order('sort_order'),
+		service
+			.from('teams')
+			.select('id,name,slug,category_slug,team_group_id,sort_order')
+			.order('sort_order'),
 		service
 			.from('subteam_categories')
 			.select('slug,name,is_required_onboarding,sort_order')
@@ -61,9 +67,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// over the legacy profiles.subteam_id which is no longer populated.
 	const subteamById = new Map<string, string>((subteams ?? []).map((s) => [s.id, s.name]));
 	const teamNameById = new Map<string, string>(
-		((teamsList ?? []) as Array<{ id: string; name: string }>).map((t) => [String(t.id), String(t.name)])
+		((teamsList ?? []) as Array<{ id: string; name: string }>).map((t) => [
+			String(t.id),
+			String(t.name)
+		])
 	);
-	const teamRowsByUser = new Map<string, Array<{ team_id: string; category_slug: string | null }>>();
+	const teamRowsByUser = new Map<
+		string,
+		Array<{ team_id: string; category_slug: string | null }>
+	>();
 	for (const row of (profileTeamRows ?? []) as Array<{
 		user_id: string;
 		team_id: string | null;
@@ -105,9 +117,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Derive subteam membership from profile_teams (current source of truth).
 		// Fall back to the legacy profiles.subteam_id only if profile_teams is empty.
 		const ptRows = teamRowsByUser.get(String(profile.id)) ?? [];
-		const subteamIds: string[] = ptRows
-			.map((r) => r.team_id)
-			.filter((id): id is string => !!id);
+		const subteamIds: string[] = ptRows.map((r) => r.team_id).filter((id): id is string => !!id);
 		const primarySubteamName: string | null =
 			subteamIds.length > 0
 				? (teamNameById.get(subteamIds[0]) ?? null)
@@ -125,7 +135,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		);
 		const currentTeamIdByCategory: Record<string, string> = {};
 		for (const r of userTeamRows as Array<{ category_slug: string | null; team_id: string }>) {
-			if (r.category_slug && r.team_id) currentTeamIdByCategory[String(r.category_slug)] = String(r.team_id);
+			if (r.category_slug && r.team_id)
+				currentTeamIdByCategory[String(r.category_slug)] = String(r.team_id);
 		}
 		const currentPrimaryTeamGroupId = primaryTeamGroupByUser.get(String(profile.id)) ?? '';
 
@@ -178,7 +189,9 @@ export const actions: Actions = {
 			.select('slug,name,is_required_onboarding')
 			.eq('is_required_onboarding', true)
 			.order('sort_order');
-		const requiredCategoriesList = (categories ?? []).filter((row: any) => row.is_required_onboarding);
+		const requiredCategoriesList = (categories ?? []).filter(
+			(row: any) => row.is_required_onboarding
+		);
 		const selectedTeamIds = requiredCategoriesList
 			.map((category: any) => String(form.get(`team_id_${String(category.slug)}`) ?? '').trim())
 			.filter(Boolean);
@@ -210,9 +223,14 @@ export const actions: Actions = {
 			const selected = (selectedTeams ?? []).find(
 				(row: any) => row.id === selectedTeamId && String(row.category_slug ?? '') === categorySlug
 			);
-			if (!selected) return fail(400, { error: `Selection for ${String(category.name).toLowerCase()} is invalid.` });
+			if (!selected)
+				return fail(400, {
+					error: `Selection for ${String(category.name).toLowerCase()} is invalid.`
+				});
 			if (!linkedTeamIds.has(String(selectedTeamId))) {
-				return fail(400, { error: `Selected ${categorySlug} subteam is not linked to the chosen main team.` });
+				return fail(400, {
+					error: `Selected ${categorySlug} subteam is not linked to the chosen main team.`
+				});
 			}
 			inserts.push({
 				user_id: userId,

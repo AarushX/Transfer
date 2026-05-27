@@ -3,7 +3,13 @@
 	import CourseMappingCard from '$lib/components/admin/teams/CourseMappingCard.svelte';
 	import MainTeamCrud from '$lib/components/admin/teams/MainTeamCrud.svelte';
 	import SubteamCrud from '$lib/components/admin/teams/SubteamCrud.svelte';
-	import type { Category, CourseNode, Link, Subteam, TeamGroup } from '$lib/components/admin/teams/types';
+	import type {
+		Category,
+		CourseNode,
+		Link,
+		Subteam,
+		TeamGroup
+	} from '$lib/components/admin/teams/types';
 
 	let { data, form } = $props();
 
@@ -59,16 +65,16 @@
 			const first = linked ? Array.from(linked)[0] : undefined;
 			if (first) return first;
 			// Fall back to the subteam's primary team_group_id when no explicit link row exists
-			return String(
-				subteams.find((s) => String(s.id) === subteamId)?.team_group_id ?? ''
-			);
+			return String(subteams.find((s) => String(s.id) === subteamId)?.team_group_id ?? '');
 		}
 		return '';
 	});
 	const selectedSubteamId = $derived(selection?.kind === 'subteam' ? selection.subteamId : '');
 
 	const selectedTeam = $derived(teamGroups.find((t) => String(t.id) === selectedTeamId) ?? null);
-	const selectedSubteam = $derived(subteams.find((s) => String(s.id) === selectedSubteamId) ?? null);
+	const selectedSubteam = $derived(
+		subteams.find((s) => String(s.id) === selectedSubteamId) ?? null
+	);
 	const selectedTeamName = $derived(selectedTeam?.name ?? 'Team');
 	const selectedSubteamName = $derived(selectedSubteam?.name ?? 'Subteam');
 
@@ -85,11 +91,7 @@
 		if (!section) return;
 		const nextTeamId = String(form?.selectedTeamId ?? '');
 		const nextSubteamId = String(form?.selectedSubteamId ?? '');
-		if (
-			section === 'category' ||
-			section === 'category-update' ||
-			section === 'category-delete'
-		) {
+		if (section === 'category' || section === 'category-update' || section === 'category-delete') {
 			selection = { kind: 'categories' };
 		} else if (nextSubteamId && subteams.some((s) => String(s.id) === nextSubteamId)) {
 			selection = { kind: 'subteam', subteamId: nextSubteamId };
@@ -202,8 +204,10 @@
 	const setSubteamCourseSearch = (v: string) => (subteamCourseSearch = v);
 
 	// ── Sidebar helpers ───────────────────────────────────────────────────────────
-	const isTeamActive = (id: string) => selection?.kind === 'team' && selection.teamId === String(id);
-	const isSubteamActive = (id: string) => selection?.kind === 'subteam' && selection.subteamId === String(id);
+	const isTeamActive = (id: string) =>
+		selection?.kind === 'team' && selection.teamId === String(id);
+	const isSubteamActive = (id: string) =>
+		selection?.kind === 'subteam' && selection.subteamId === String(id);
 	// A team's subteam list stays expanded when the team itself is selected OR
 	// when any of its child subteams is currently selected.
 	const isTeamExpanded = (id: string) => {
@@ -218,7 +222,8 @@
 		}
 		return false;
 	};
-	const activePill = 'background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 30%, transparent), color-mix(in srgb, var(--app-accent) 15%, transparent)); color: var(--app-text);';
+	const activePill =
+		'background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 30%, transparent), color-mix(in srgb, var(--app-accent) 15%, transparent)); color: var(--app-text);';
 	const inactivePill = 'color: var(--app-text-muted);';
 
 	// Subteams linked to a given team group, sorted alphabetically.
@@ -248,78 +253,121 @@
 	<!-- Header -->
 	<div class="fade-up flex items-end justify-between gap-3">
 		<div>
-			<a href="/admin/settings" class="glass-back-link text-xs" style="color: var(--app-text-muted);">← Workspace</a>
+			<a
+				href="/admin/settings"
+				class="glass-back-link text-xs"
+				style="color: var(--app-text-muted);">← Workspace</a
+			>
 			<p class="eyebrow-label" style="margin-bottom: 2px;">Team Management</p>
 			<h1 class="text-2xl font-bold tracking-tight"><span class="gradient-text">Teams</span></h1>
 		</div>
 		<div class="grid grid-cols-3 gap-2 text-xs">
-			<div class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<div
+				class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl"
+				style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+			>
 				<p class="eyebrow-label">Main teams</p>
-				<p class="mono mt-1 text-lg font-bold" style="color: var(--app-text);">{teamGroups.length}</p>
+				<p class="mono mt-1 text-lg font-bold" style="color: var(--app-text);">
+					{teamGroups.length}
+				</p>
 			</div>
-			<div class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<div
+				class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl"
+				style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+			>
 				<p class="eyebrow-label">Subteams</p>
 				<p class="mono mt-1 text-lg font-bold" style="color: var(--app-text);">{subteams.length}</p>
 			</div>
-			<div class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl" style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);">
+			<div
+				class="rounded-xl border px-3 py-2 text-center backdrop-blur-xl"
+				style="border-color: var(--app-glass-border); background: var(--app-glass-bg); box-shadow: var(--app-glass-shadow);"
+			>
 				<p class="eyebrow-label">Categories</p>
-				<p class="mono mt-1 text-lg font-bold" style="color: var(--app-text);">{categories.length}</p>
+				<p class="mono mt-1 text-lg font-bold" style="color: var(--app-text);">
+					{categories.length}
+				</p>
 			</div>
 		</div>
 	</div>
 
 	<!-- Banners -->
 	{#if form?.error}
-		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);">{form.error}</p>
+		<p
+			class="rounded-xl border p-2 text-sm"
+			style="border-color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+		>
+			{form.error}
+		</p>
 	{:else if form?.ok}
-		<p class="rounded-xl border p-2 text-sm" style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);">Saved.</p>
+		<p
+			class="rounded-xl border p-2 text-sm"
+			style="border-color: var(--app-success); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 80%, white);"
+		>
+			Saved.
+		</p>
 	{/if}
 
 	<!-- Master-detail layout -->
 	<div class="grid gap-4 md:grid-cols-[280px_1fr]">
-
 		<!-- Sidebar -->
-		<aside class="rounded-2xl border p-3 backdrop-blur-xl md:self-start md:sticky md:top-2" style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);">
-
+		<aside
+			class="rounded-2xl border p-3 backdrop-blur-xl md:sticky md:top-2 md:self-start"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+		>
 			<!-- Main Teams section -->
 			<div class="mb-4">
-				<p class="eyebrow-label px-2.5 mb-2">Main Teams</p>
+				<p class="eyebrow-label mb-2 px-2.5">Main Teams</p>
 				<ul class="space-y-0.5">
 					{#each teamGroups as team (team.id)}
 						<li>
 							<button
 								type="button"
 								onclick={() => (selection = { kind: 'team', teamId: String(team.id) })}
-								class="sidebar-btn w-full text-left rounded-lg px-2.5 py-1.5 text-sm font-medium"
+								class="sidebar-btn w-full rounded-lg px-2.5 py-1.5 text-left text-sm font-medium"
 								style={isTeamActive(String(team.id)) ? activePill : inactivePill}
 							>
 								{team.name}
 							</button>
 							<!-- Linked subteams (indented) -->
 							{#if isTeamExpanded(String(team.id))}
-								<ul class="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style="border-color: var(--app-glass-border);">
+								<ul
+									class="mt-0.5 ml-3 space-y-0.5 border-l pl-2"
+									style="border-color: var(--app-glass-border);"
+								>
 									{#each subteamsForTeam(String(team.id)) as sub (sub.id)}
 										{@const linkedGroups = linkedGroupsForSubteam(String(sub.id))}
 										<li>
 											<button
 												type="button"
 												onclick={() => (selection = { kind: 'subteam', subteamId: String(sub.id) })}
-												class="sidebar-btn w-full text-left rounded-lg px-2 py-1 text-xs flex items-center gap-1.5"
+												class="sidebar-btn flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left text-xs"
 												style={isSubteamActive(String(sub.id)) ? activePill : inactivePill}
 											>
-												<span class="truncate flex-1">{sub.name}</span>
+												<span class="flex-1 truncate">{sub.name}</span>
 												{#if linkedGroups.length > 0}
 													<span
 														class="link-pill relative grid h-4 w-4 place-items-center rounded-full"
 														style="background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-accent);"
 														aria-label="Linked to {linkedGroups.map((g) => g.name).join(', ')}"
 													>
-														<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5">
-															<path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07L11.5 5.5"/>
-															<path d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07L12.5 18.5"/>
+														<svg
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															stroke-width="2.2"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															class="h-2.5 w-2.5"
+														>
+															<path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07L11.5 5.5" />
+															<path
+																d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07L12.5 18.5"
+															/>
 														</svg>
-														<span class="link-tooltip pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-lg border px-2 py-1 text-[10px] opacity-0"
-															style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text); box-shadow: var(--app-glass-shadow); backdrop-filter: blur(12px); transition: opacity 0.15s ease;">
+														<span
+															class="link-tooltip pointer-events-none absolute top-full left-1/2 z-20 mt-1 -translate-x-1/2 rounded-lg border px-2 py-1 text-[10px] whitespace-nowrap opacity-0"
+															style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text); box-shadow: var(--app-glass-shadow); backdrop-filter: blur(12px); transition: opacity 0.15s ease;"
+														>
 															Linked: {linkedGroups.map((g) => g.name).join(', ')}
 														</span>
 													</span>
@@ -331,13 +379,15 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="px-2.5 py-1.5 text-xs" style="color: var(--app-text-muted);">No main teams yet.</li>
+						<li class="px-2.5 py-1.5 text-xs" style="color: var(--app-text-muted);">
+							No main teams yet.
+						</li>
 					{/each}
 				</ul>
 				<button
 					type="button"
 					onclick={() => (selection = { kind: 'team', teamId: '' })}
-					class="sidebar-btn mt-1.5 w-full text-left rounded-lg px-2.5 py-1.5 text-xs"
+					class="sidebar-btn mt-1.5 w-full rounded-lg px-2.5 py-1.5 text-left text-xs"
 					style={selection?.kind === 'team' && selection.teamId === '' ? activePill : inactivePill}
 				>
 					+ New main team
@@ -350,8 +400,10 @@
 				<button
 					type="button"
 					onclick={() => (selection = { kind: 'subteam', subteamId: '' })}
-					class="sidebar-btn w-full text-left rounded-lg px-2.5 py-1.5 text-xs"
-					style={selection?.kind === 'subteam' && selection.subteamId === '' ? activePill : inactivePill}
+					class="sidebar-btn w-full rounded-lg px-2.5 py-1.5 text-left text-xs"
+					style={selection?.kind === 'subteam' && selection.subteamId === ''
+						? activePill
+						: inactivePill}
 				>
 					+ New subteam
 				</button>
@@ -362,7 +414,7 @@
 				<button
 					type="button"
 					onclick={() => (selection = { kind: 'categories' })}
-					class="sidebar-btn w-full text-left rounded-lg px-2.5 py-1.5 text-sm font-medium"
+					class="sidebar-btn w-full rounded-lg px-2.5 py-1.5 text-left text-sm font-medium"
 					style={selection?.kind === 'categories' ? activePill : inactivePill}
 				>
 					<span class="eyebrow-label" style="color: inherit;">Categories</span>
@@ -411,8 +463,13 @@
 			{:else if selection?.kind === 'categories'}
 				<CategoryCrud {categories} />
 			{:else}
-				<div class="rounded-2xl border p-8 text-center" style="background: var(--app-glass-bg); border-color: var(--app-glass-border);">
-					<p style="color: var(--app-text-muted);">Select a team or subteam on the left to edit it.</p>
+				<div
+					class="rounded-2xl border p-8 text-center"
+					style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+				>
+					<p style="color: var(--app-text-muted);">
+						Select a team or subteam on the left to edit it.
+					</p>
 				</div>
 			{/if}
 		</div>
@@ -420,8 +477,19 @@
 </section>
 
 <style>
-	.glass-back-link:hover { color: var(--app-text); }
-	.sidebar-btn { transition: background 0.15s, color 0.15s; }
-	.sidebar-btn:hover:not([style*="linear-gradient"]) { background: var(--app-glass-bg-hover); color: var(--app-text); }
-	.link-pill:hover .link-tooltip { opacity: 1; }
+	.glass-back-link:hover {
+		color: var(--app-text);
+	}
+	.sidebar-btn {
+		transition:
+			background 0.15s,
+			color 0.15s;
+	}
+	.sidebar-btn:hover:not([style*='linear-gradient']) {
+		background: var(--app-glass-bg-hover);
+		color: var(--app-text);
+	}
+	.link-pill:hover .link-tooltip {
+		opacity: 1;
+	}
 </style>

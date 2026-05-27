@@ -139,10 +139,7 @@ export const listFolderImages = async (
 	const walk = async (id: string, depth: number) => {
 		if (depth > maxDepth || seen.has(id) || all.length >= 20000) return;
 		seen.add(id);
-		const [images, subfolders] = await Promise.all([
-			listImagesIn(id),
-			listChildFolders(id)
-		]);
+		const [images, subfolders] = await Promise.all([listImagesIn(id), listChildFolders(id)]);
 		for (const img of images) all.push(img);
 		// Recurse breadth-first across subfolders in parallel.
 		await Promise.all(subfolders.map((sf) => walk(sf.id, depth + 1)));
@@ -179,14 +176,17 @@ export const countFolderImages = async (folderId: string): Promise<number> => {
  */
 export const folderSummary = async (
 	folderId: string
-): Promise<{ cover: DrivePhoto | null; approxPhotoCount: number; hasMoreThanReturned: boolean }> => {
+): Promise<{
+	cover: DrivePhoto | null;
+	approxPhotoCount: number;
+	hasMoreThanReturned: boolean;
+}> => {
 	const drive = getDriveClient();
 	const safeFolder = escapeForQuery(folderId);
 	const { data } = await drive.files.list({
 		...sharedDriveOptions,
 		q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
-		fields:
-			'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height))',
+		fields: 'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height))',
 		orderBy: 'createdTime, name',
 		pageSize: 200
 	});
@@ -373,7 +373,8 @@ export const getMediaEventsSummary = async (): Promise<MediaEventSummary[]> => {
 		const resp = await drive.files.list({
 			...sharedDriveOptions,
 			q: `mimeType contains 'image/' and trashed = false`,
-			fields: 'nextPageToken, files(id, name, mimeType, parents, imageMediaMetadata(width, height), createdTime)',
+			fields:
+				'nextPageToken, files(id, name, mimeType, parents, imageMediaMetadata(width, height), createdTime)',
 			orderBy: 'createdTime desc, name',
 			pageSize: 1000,
 			pageToken: imagePageToken
@@ -434,4 +435,3 @@ export const getMediaEventsSummary = async (): Promise<MediaEventSummary[]> => {
 
 	return summaries;
 };
-

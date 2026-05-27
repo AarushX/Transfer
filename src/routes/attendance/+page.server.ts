@@ -32,8 +32,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const bucket = attendanceHourBucket();
 	const studentToken = isActive ? await createAttendancePublicHourlyToken('students') : '';
 	const mentorToken = isActive ? await createAttendancePublicHourlyToken('mentors') : '';
-	const studentQrDataUrl = await QRCode.toDataURL(isActive ? studentToken : ATTENDANCE_PUBLIC_ACTIVATION_QR);
-	const mentorQrDataUrl = await QRCode.toDataURL(isActive ? mentorToken : ATTENDANCE_PUBLIC_ACTIVATION_QR);
+	const studentQrDataUrl = await QRCode.toDataURL(
+		isActive ? studentToken : ATTENDANCE_PUBLIC_ACTIVATION_QR
+	);
+	const mentorQrDataUrl = await QRCode.toDataURL(
+		isActive ? mentorToken : ATTENDANCE_PUBLIC_ACTIVATION_QR
+	);
 	return {
 		authorized: true,
 		isActive,

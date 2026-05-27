@@ -4,7 +4,13 @@ import { computeLetteringProgressPure, computeLetteringProgress } from './letter
 describe('computeLetteringProgressPure', () => {
 	it('returns zero state when no requirements exist', () => {
 		const result = computeLetteringProgressPure([], {});
-		expect(result).toEqual({ pct: 0, completedCount: 0, totalRequired: 0, overflow: false, categories: [] });
+		expect(result).toEqual({
+			pct: 0,
+			completedCount: 0,
+			totalRequired: 0,
+			overflow: false,
+			categories: []
+		});
 	});
 
 	it('computes percent from completed-vs-required ratio across requirements', () => {
@@ -23,19 +29,15 @@ describe('computeLetteringProgressPure', () => {
 	});
 
 	it('flags overflow when raw average exceeds 100%', () => {
-		const result = computeLetteringProgressPure(
-			[{ category: 'hours', required_value: 40 }],
-			{ hours: 60 }
-		);
+		const result = computeLetteringProgressPure([{ category: 'hours', required_value: 40 }], {
+			hours: 60
+		});
 		expect(result.pct).toBeGreaterThan(100);
 		expect(result.overflow).toBe(true);
 	});
 
 	it('treats missing tally entries as zero', () => {
-		const result = computeLetteringProgressPure(
-			[{ category: 'outreach', required_value: 4 }],
-			{}
-		);
+		const result = computeLetteringProgressPure([{ category: 'outreach', required_value: 4 }], {});
 		expect(result.pct).toBe(0);
 		expect(result.completedCount).toBe(0);
 	});

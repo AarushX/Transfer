@@ -2,7 +2,6 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { isAdmin, isMentor } from '$lib/roles';
 import { createSupabaseServiceClient } from '$lib/server/supabase';
-import { sendAnnouncementEmail, isEmailConfigured } from '$lib/server/email';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -17,7 +16,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.maybeSingle();
 
 	if (!season) {
-		return { season: null, categories: [], events: [], opportunities: [], families: [], pendingVerifications: [], commitmentStats: [], gapsReport: [], announcements: [], emailConfigured: isEmailConfigured() };
+		return {
+			season: null,
+			categories: [],
+			events: [],
+			opportunities: [],
+			families: [],
+			pendingVerifications: [],
+			commitmentStats: [],
+			gapsReport: []
+		};
 	}
 
 	const [
@@ -26,21 +34,43 @@ export const load: PageServerLoad = async ({ locals }) => {
 		{ data: opportunities },
 		{ data: families },
 		{ data: commitments },
-		{ data: allSignups },
-		{ data: announcements }
+		{ data: allSignups }
 	] = await Promise.all([
 		service.from('volunteer_categories').select('*').eq('is_active', true).order('sort_order'),
-		service.from('volunteer_events').select('*').eq('season_id', season.id).order('start_date', { ascending: false }),
-		service.from('volunteer_opportunities').select('*,category:volunteer_categories(name,slug),event:volunteer_events(title),creator:profiles!volunteer_opportunities_created_by_fkey(full_name,email)').eq('season_id', season.id).order('event_date', { ascending: false }),
-		service.from('families').select('id,name,family_members(user_id,role,profile:profiles(full_name,email))').eq('season_id', season.id),
-		service.from('volunteer_commitments').select('*,family:families(id,name),category:volunteer_categories(name,slug)').eq('season_id', season.id),
-		service.from('volunteer_signups').select('*,family:families(id,name),opportunity:volunteer_opportunities(*,category:volunteer_categories(name,slug,unit)),signer:profiles!volunteer_signups_user_id_fkey(full_name,email)').neq('status', 'cancelled'),
-		service.from('announcements').select('*,author:profiles!announcements_created_by_fkey(full_name)').eq('season_id', season.id).order('created_at', { ascending: false })
+		service
+			.from('volunteer_events')
+			.select('*')
+			.eq('season_id', season.id)
+			.order('start_date', { ascending: false }),
+		service
+			.from('volunteer_opportunities')
+			.select(
+				'*,category:volunteer_categories(name,slug),event:volunteer_events(title),creator:profiles!volunteer_opportunities_created_by_fkey(full_name,email)'
+			)
+			.eq('season_id', season.id)
+			.order('event_date', { ascending: false }),
+		service
+			.from('families')
+			.select('id,name,family_members(user_id,role,profile:profiles(full_name,email))')
+			.eq('season_id', season.id),
+		service
+			.from('volunteer_commitments')
+			.select('*,family:families(id,name),category:volunteer_categories(name,slug)')
+			.eq('season_id', season.id),
+		service
+			.from('volunteer_signups')
+			.select(
+				'*,family:families(id,name),opportunity:volunteer_opportunities(*,category:volunteer_categories(name,slug,unit)),signer:profiles!volunteer_signups_user_id_fkey(full_name,email)'
+			)
+			.neq('status', 'cancelled')
 	]);
 
 	const signupCountByOpp = new Map<string, number>();
 	for (const s of allSignups ?? []) {
-		signupCountByOpp.set(s.opportunity_id, (signupCountByOpp.get(s.opportunity_id) ?? 0) + (s.slots_claimed ?? 1));
+		signupCountByOpp.set(
+			s.opportunity_id,
+			(signupCountByOpp.get(s.opportunity_id) ?? 0) + (s.slots_claimed ?? 1)
+		);
 	}
 
 	const catMap = new Map((categories ?? []).map((c: any) => [c.id, c]));
@@ -48,14 +78,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 	for (const opp of opportunities ?? []) {
 		const filled = signupCountByOpp.get(opp.id) ?? 0;
 		if (filled < opp.slots) {
-			gapsReport.push({ opportunity: opp, filled, needed: opp.slots - filled, categoryName: opp.category?.name ?? '' });
+			gapsReport.push({
+				opportunity: opp,
+				filled,
+				needed: opp.slots - filled,
+				categoryName: opp.category?.name ?? ''
+			});
 		}
 	}
 
-	const familyProgress = new Map<string, { pledged: number; verified: number; familyName: string }>();
+	const familyProgress = new Map<
+		string,
+		{ pledged: number; verified: number; familyName: string }
+	>();
 	for (const com of commitments ?? []) {
 		if (com.response !== 'yes') continue;
-		const entry = familyProgress.get(com.family_id) ?? { pledged: 0, verified: 0, familyName: (com.family as any)?.name ?? '' };
+		const entry = familyProgress.get(com.family_id) ?? {
+			pledged: 0,
+			verified: 0,
+			familyName: (com.family as any)?.name ?? ''
+		};
 		entry.pledged++;
 		familyProgress.set(com.family_id, entry);
 	}
@@ -92,7 +134,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Tally fulfilled pledged categories for each family
 	for (const [familyId, entry] of familyProgress.entries()) {
-		const familyPledges = (commitments ?? []).filter((c: any) => c.family_id === familyId && c.response === 'yes');
+		const familyPledges = (commitments ?? []).filter(
+			(c: any) => c.family_id === familyId && c.response === 'yes'
+		);
 		for (const pledge of familyPledges) {
 			const cat = catMap.get(pledge.category_id);
 			if (!cat) continue;
@@ -117,8 +161,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 				category_id: opp.category_id,
 				category: opp.category,
 				reporter: s.signer,
-				amount: (opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
-					Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1) * (s.slots_claimed ?? 1),
+				amount:
+					(opp.category?.unit === 'hours' && opp.start_time && opp.end_time
+						? Math.round(
+								((opp.end_time.split(':').map(Number)[0] * 60 +
+									opp.end_time.split(':').map(Number)[1] -
+									(opp.start_time.split(':').map(Number)[0] * 60 +
+										opp.start_time.split(':').map(Number)[1])) /
+									60) *
+									10
+							) / 10
+						: 1) * (s.slots_claimed ?? 1),
 				activity_date: opp.event_date,
 				description: `Slot signup for "${opp.title}" (Needs Approval)${s.slots_claimed > 1 ? ` - ${s.slots_claimed} slots` : ''}`,
 				verification_status: 'pending',
@@ -134,8 +187,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 					category_id: opp.category_id,
 					category: opp.category,
 					reporter: s.signer,
-					amount: (opp.category?.unit === 'hours' && opp.start_time && opp.end_time ? 
-						Math.round(((opp.end_time.split(':').map(Number)[0] * 60 + opp.end_time.split(':').map(Number)[1] - (opp.start_time.split(':').map(Number)[0] * 60 + opp.start_time.split(':').map(Number)[1])) / 60) * 10) / 10 : 1) * (s.slots_claimed ?? 1),
+					amount:
+						(opp.category?.unit === 'hours' && opp.start_time && opp.end_time
+							? Math.round(
+									((opp.end_time.split(':').map(Number)[0] * 60 +
+										opp.end_time.split(':').map(Number)[1] -
+										(opp.start_time.split(':').map(Number)[0] * 60 +
+											opp.start_time.split(':').map(Number)[1])) /
+										60) *
+										10
+								) / 10
+							: 1) * (s.slots_claimed ?? 1),
 					activity_date: opp.event_date,
 					description: `Attendance verification for "${opp.title}"${s.slots_claimed > 1 ? ` - ${s.slots_claimed} slots` : ''}`,
 					verification_status: 'pending',
@@ -149,24 +211,35 @@ export const load: PageServerLoad = async ({ locals }) => {
 		season,
 		categories: categories ?? [],
 		events: events ?? [],
-		opportunities: (opportunities ?? []).map((o: any) => ({ ...o, currentSignups: signupCountByOpp.get(o.id) ?? 0 })),
+		opportunities: (opportunities ?? []).map((o: any) => ({
+			...o,
+			currentSignups: signupCountByOpp.get(o.id) ?? 0
+		})),
 		families: families ?? [],
 		pendingVerifications,
-		commitmentStats: Array.from(familyProgress.entries()).map(([id, v]) => ({ familyId: id, familyName: v.familyName, pledgedCount: v.pledged, verifiedCount: v.verified })),
-		gapsReport,
-		announcements: announcements ?? [],
-		emailConfigured: isEmailConfigured()
+		commitmentStats: Array.from(familyProgress.entries()).map(([id, v]) => ({
+			familyId: id,
+			familyName: v.familyName,
+			pledgedCount: v.pledged,
+			verifiedCount: v.verified
+		})),
+		gapsReport
 	};
 };
 
 export const actions: Actions = {
 	createEvent: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 
-		const { data: season } = await service.from('lettering_seasons').select('id').eq('is_active', true).maybeSingle();
+		const { data: season } = await service
+			.from('lettering_seasons')
+			.select('id')
+			.eq('is_active', true)
+			.maybeSingle();
 		if (!season) return fail(400, { error: 'No active season.' });
 
 		const title = String(form.get('title') ?? '').trim();
@@ -178,13 +251,26 @@ export const actions: Actions = {
 
 		if (!title || !startDate) return fail(400, { error: 'Title and start date are required.' });
 
-		const { data: event, error } = await service.from('volunteer_events').insert({
-			season_id: season.id, title, description, location, start_date: startDate, end_date: endDate, created_by: user.id
-		}).select('id').single();
+		const { data: event, error } = await service
+			.from('volunteer_events')
+			.insert({
+				season_id: season.id,
+				title,
+				description,
+				location,
+				start_date: startDate,
+				end_date: endDate,
+				created_by: user.id
+			})
+			.select('id')
+			.single();
 		if (error || !event) return fail(400, { error: error?.message ?? 'Failed to create event.' });
 
 		if (categoryIds.length > 0) {
-			const { data: cats } = await service.from('volunteer_categories').select('id,name').in('id', categoryIds);
+			const { data: cats } = await service
+				.from('volunteer_categories')
+				.select('id,name')
+				.in('id', categoryIds);
 			for (const cat of cats ?? []) {
 				const slots = Math.max(1, Number(form.get(`slots_${cat.id}`) ?? 4));
 				await service.from('volunteer_opportunities').insert({
@@ -205,11 +291,16 @@ export const actions: Actions = {
 
 	updateEvent: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 
-		const { data: season } = await service.from('lettering_seasons').select('id').eq('is_active', true).maybeSingle();
+		const { data: season } = await service
+			.from('lettering_seasons')
+			.select('id')
+			.eq('is_active', true)
+			.maybeSingle();
 		if (!season) return fail(400, { error: 'No active season.' });
 
 		const id = String(form.get('id') ?? '').trim();
@@ -220,11 +311,20 @@ export const actions: Actions = {
 		const endDate = String(form.get('end_date') ?? '').trim() || null;
 		const categoryIds = new Set(form.getAll('category_ids').map(String).filter(Boolean));
 
-		if (!id || !title || !startDate) return fail(400, { error: 'ID, title, and start date are required.' });
+		if (!id || !title || !startDate)
+			return fail(400, { error: 'ID, title, and start date are required.' });
 
-		const { error } = await service.from('volunteer_events').update({
-			title, description, location, start_date: startDate, end_date: endDate, updated_at: new Date().toISOString()
-		}).eq('id', id);
+		const { error } = await service
+			.from('volunteer_events')
+			.update({
+				title,
+				description,
+				location,
+				start_date: startDate,
+				end_date: endDate,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', id);
 		if (error) return fail(400, { error: error.message });
 
 		const { data: existingOpps } = await service
@@ -242,10 +342,17 @@ export const actions: Actions = {
 			const slots = Math.max(1, Number(form.get(`slots_${categoryId}`) ?? 4));
 			if (existing) {
 				if (!existing.is_active) {
-					await service.from('volunteer_opportunities').update({ is_active: true }).eq('id', existing.id);
+					await service
+						.from('volunteer_opportunities')
+						.update({ is_active: true })
+						.eq('id', existing.id);
 				}
 			} else {
-				const { data: cat } = await service.from('volunteer_categories').select('name').eq('id', categoryId).maybeSingle();
+				const { data: cat } = await service
+					.from('volunteer_categories')
+					.select('name')
+					.eq('id', categoryId)
+					.maybeSingle();
 				await service.from('volunteer_opportunities').insert({
 					event_id: id,
 					category_id: categoryId,
@@ -262,7 +369,10 @@ export const actions: Actions = {
 
 		for (const [catId, existing] of existingByCategory) {
 			if (!categoryIds.has(catId) && existing.is_active) {
-				await service.from('volunteer_opportunities').update({ is_active: false }).eq('id', existing.id);
+				await service
+					.from('volunteer_opportunities')
+					.update({ is_active: false })
+					.eq('id', existing.id);
 			}
 		}
 
@@ -271,7 +381,8 @@ export const actions: Actions = {
 
 	updateOpportunity: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '').trim();
@@ -303,7 +414,8 @@ export const actions: Actions = {
 
 	deleteEvent: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const id = String((await request.formData()).get('id') ?? '').trim();
 		if (!id) return fail(400, { error: 'Event ID required.' });
@@ -312,10 +424,10 @@ export const actions: Actions = {
 		return { ok: true, section: 'event_delete' };
 	},
 
-
 	deleteOpportunity: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const id = String((await request.formData()).get('id') ?? '').trim();
 		if (!id) return fail(400, { error: 'Opportunity ID required.' });
@@ -326,26 +438,32 @@ export const actions: Actions = {
 
 	toggleOpportunity: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '').trim();
 		const active = form.get('is_active') === 'true';
-		const { error } = await service.from('volunteer_opportunities').update({ is_active: active }).eq('id', id);
+		const { error } = await service
+			.from('volunteer_opportunities')
+			.update({ is_active: active })
+			.eq('id', id);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true, section: 'toggle' };
 	},
 
 	verifyHours: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
+		if (!user || !profile || !(isAdmin(profile) || isMentor(profile)))
+			return fail(403, { error: 'Forbidden' });
 		const service = createSupabaseServiceClient();
 		const form = await request.formData();
 		const logId = String(form.get('log_id') ?? form.get('signup_id') ?? '').trim();
 		const action = String(form.get('action') ?? '').trim();
 		const rejectionReason = String(form.get('rejection_reason') ?? '').trim();
 
-		if (!logId || !['verify', 'reject', 'approve'].includes(action)) return fail(400, { error: 'Invalid action.' });
+		if (!logId || !['verify', 'reject', 'approve'].includes(action))
+			return fail(400, { error: 'Invalid action.' });
 
 		let status = 'verified';
 		if (action === 'approve') status = 'confirmed';
@@ -370,89 +488,6 @@ export const actions: Actions = {
 		return { ok: true, section: 'verify' };
 	},
 
-	createAnnouncement: async ({ locals, request }) => {
-		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
-		const service = createSupabaseServiceClient();
-		const form = await request.formData();
-
-		const { data: season } = await service.from('lettering_seasons').select('id').eq('is_active', true).maybeSingle();
-		if (!season) return fail(400, { error: 'No active season.' });
-
-		const title = String(form.get('title') ?? '').trim();
-		const body = String(form.get('body') ?? '').trim();
-		const audience = String(form.get('audience') ?? 'all').trim();
-		const isPinned = form.get('is_pinned') === 'on';
-		const sendEmail = form.get('send_email') === 'on';
-
-		if (!title) return fail(400, { error: 'Title is required.' });
-
-		const { data: ann, error } = await service.from('announcements').insert({
-			season_id: season.id, title, body, audience, is_pinned: isPinned, created_by: user.id
-		}).select('id').single();
-		if (error) return fail(400, { error: error.message });
-
-		if (sendEmail && ann) {
-			let emailFilter = service.from('profiles').select('email').eq('email', '').neq('email', '');
-			if (audience === 'parents') {
-				emailFilter = service.from('profiles').select('email').eq('is_parent_guardian', true);
-			} else if (audience === 'students') {
-				emailFilter = service.from('profiles').select('email').eq('is_parent_guardian', false).not('role', 'in', '("admin")');
-			} else if (audience === 'mentors') {
-				emailFilter = service.from('profiles').select('email').or('is_mentor.eq.true,role.eq.mentor');
-			} else {
-				emailFilter = service.from('profiles').select('email');
-			}
-			const { data: recipients } = await emailFilter;
-			const emails = (recipients ?? []).map((r: any) => r.email).filter(Boolean);
-
-			if (emails.length > 0) {
-				const { data: orgSettings } = await service.from('organization_settings').select('org_name').limit(1).maybeSingle();
-				const result = await sendAnnouncementEmail({
-					title, body, recipients: emails, orgName: orgSettings?.org_name ?? 'Team'
-				});
-				await service.from('announcements').update({
-					emailed_at: new Date().toISOString(),
-					email_count: result.sent
-				}).eq('id', ann.id);
-			}
-		}
-
-		return { ok: true, section: 'announcement' };
-	},
-
-	updateAnnouncement: async ({ locals, request }) => {
-		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
-		const service = createSupabaseServiceClient();
-		const form = await request.formData();
-
-		const id = String(form.get('id') ?? '').trim();
-		const title = String(form.get('title') ?? '').trim();
-		const body = String(form.get('body') ?? '').trim();
-		const audience = String(form.get('audience') ?? 'all').trim();
-		const isPinned = form.get('is_pinned') === 'on';
-
-		if (!id || !title) return fail(400, { error: 'ID and title required.' });
-
-		const { error } = await service.from('announcements').update({
-			title, body, audience, is_pinned: isPinned, updated_at: new Date().toISOString()
-		}).eq('id', id);
-		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'ann_update' };
-	},
-
-	deleteAnnouncement: async ({ locals, request }) => {
-		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !(isAdmin(profile) || isMentor(profile))) return fail(403, { error: 'Forbidden' });
-		const service = createSupabaseServiceClient();
-		const id = String((await request.formData()).get('id') ?? '').trim();
-		if (!id) return fail(400, { error: 'Announcement ID required.' });
-		const { error } = await service.from('announcements').delete().eq('id', id);
-		if (error) return fail(400, { error: error.message });
-		return { ok: true, section: 'ann_delete' };
-	},
-
 	updateCategory: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
 		if (!user || !profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
@@ -462,7 +497,10 @@ export const actions: Actions = {
 		const targetValue = Number(form.get('target_value') ?? 0);
 		const isActive = form.get('is_active') === 'on';
 		if (!id) return fail(400, { error: 'Category ID required.' });
-		const { error } = await service.from('volunteer_categories').update({ target_value: targetValue, is_active: isActive }).eq('id', id);
+		const { error } = await service
+			.from('volunteer_categories')
+			.update({ target_value: targetValue, is_active: isActive })
+			.eq('id', id);
 		if (error) return fail(400, { error: error.message });
 		return { ok: true, section: 'category' };
 	}

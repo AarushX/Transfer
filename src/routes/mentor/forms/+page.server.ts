@@ -25,7 +25,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(1000)
 	]);
 	const userIds = Array.from(new Set((submissions ?? []).map((row: any) => String(row.user_id))));
-	const reviewerIds = Array.from(new Set((submissions ?? []).map((row: any) => String(row.reviewed_by ?? '')).filter(Boolean)));
+	const reviewerIds = Array.from(
+		new Set((submissions ?? []).map((row: any) => String(row.reviewed_by ?? '')).filter(Boolean))
+	);
 	const profileIds = Array.from(new Set([...userIds, ...reviewerIds]));
 	const { data: profiles } = profileIds.length
 		? await locals.supabase.from('profiles').select('id,full_name,email').in('id', profileIds)
@@ -52,7 +54,8 @@ export const actions: Actions = {
 		const isActive = String(form.get('is_active') ?? '') === 'on';
 		const templateDriveLinkRaw = String(form.get('template_drive_link') ?? '').trim();
 		const templateDriveLink = toDriveDownloadUrl(templateDriveLinkRaw);
-		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		const allowStudentViewSubmissions =
+			String(form.get('allow_student_view_submissions') ?? '') === 'on';
 		if (!name || !slug) return fail(400, { error: 'Name and slug are required.' });
 
 		const { error } = await locals.supabase.from('form_types').insert({
@@ -104,7 +107,8 @@ export const actions: Actions = {
 		const isActive = String(form.get('is_active') ?? '') === 'on';
 		const templateDriveLinkRaw = String(form.get('template_drive_link') ?? '').trim();
 		const templateDriveLink = toDriveDownloadUrl(templateDriveLinkRaw);
-		const allowStudentViewSubmissions = String(form.get('allow_student_view_submissions') ?? '') === 'on';
+		const allowStudentViewSubmissions =
+			String(form.get('allow_student_view_submissions') ?? '') === 'on';
 		if (!formId) return fail(400, { error: 'Form is required.' });
 		if (!name || !slug) return fail(400, { error: 'Name and slug are required.' });
 

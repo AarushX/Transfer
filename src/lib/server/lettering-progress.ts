@@ -69,7 +69,9 @@ export function computeLetteringProgressPure(
 		clampedSum += Math.min(rawRatio, 1);
 		rawSum += rawRatio;
 
-		const label = categoryLabels[r.category] ?? r.category.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+		const label =
+			categoryLabels[r.category] ??
+			r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 		categoriesList.push({
 			category: r.category,
 			label,
@@ -163,7 +165,9 @@ export async function computeLetteringProgress(
 			.eq('user_id', userId)
 			.eq('competition_events.season_id', season.id);
 		// Each distinct attendance_date counts as one "day" of competition presence
-		const distinctDays = new Set((rows ?? []).map((r: { attendance_date: string }) => r.attendance_date));
+		const distinctDays = new Set(
+			(rows ?? []).map((r: { attendance_date: string }) => r.attendance_date)
+		);
 		tally.competition_hours = distinctDays.size;
 	}
 
@@ -187,7 +191,9 @@ export async function computeLetteringProgress(
 				.eq('status', 'verified');
 
 			if (signups && signups.length > 0) {
-				const catIds = [...new Set(signups.map((s: any) => s.opportunity?.category_id).filter(Boolean))];
+				const catIds = [
+					...new Set(signups.map((s: any) => s.opportunity?.category_id).filter(Boolean))
+				];
 				const { data: cats } = await supabase
 					.from('volunteer_categories')
 					.select('id,unit')

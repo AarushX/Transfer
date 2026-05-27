@@ -76,6 +76,38 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(303, '/dashboard');
 	}
 
+	// Block app navigation until onboarding is finished, but allow the
+	// onboarding flow itself, the API endpoints it uses, and the attendance
+	// kiosk. Admins can preview onboarding without being trapped in it.
+	if (
+		user &&
+		profile &&
+		!isParentGuardian(profile) &&
+		!isAdmin(profile) &&
+		!path.startsWith('/onboarding') &&
+		!path.startsWith('/auth/') &&
+		!path.startsWith('/api/') &&
+		path !== '/login' &&
+		path !== '/attendance'
+	) {
+		const { data: requiredSteps } = await event.locals.supabase
+			.from('onboarding_steps')
+			.select('id')
+			.eq('is_active', true);
+		const required = (requiredSteps ?? []).map((s: any) => String(s.id));
+		if (required.length > 0) {
+			const { data: doneSteps } = await event.locals.supabase
+				.from('onboarding_progress')
+				.select('step_id')
+				.eq('user_id', user.id)
+				.not('completed_at', 'is', null);
+			const done = new Set((doneSteps ?? []).map((p: any) => String(p.step_id)));
+			if (required.some((id) => !done.has(id))) {
+				throw redirect(303, '/onboarding');
+			}
+		}
+	}
+
 	if (profile && isParentGuardian(profile)) {
 		const parentBlockedPrefixes = [
 			'/mentor',
