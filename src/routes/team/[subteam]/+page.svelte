@@ -2,7 +2,6 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import GlassCard from '$lib/components/ui/GlassCard.svelte';
 	import StatusDonut from '$lib/components/StatusDonut.svelte';
-	import MiniSkillTree from '$lib/components/MiniSkillTree.svelte';
 	import ProficiencyBadge from '$lib/components/ProficiencyBadge.svelte';
 	let { data, form } = $props();
 
@@ -65,103 +64,30 @@
 
 <section class="space-y-6">
 	<!-- ═══════════ HEADER ═══════════ -->
-	<header class="fade-up flex items-end justify-between">
-		<div>
-			<p class="eyebrow-label">
-				<a href="/team" class="underline" style="color: var(--app-accent);"
-					>{data.teamGroup?.name ?? 'Team'}</a
-				> · Subteam
+	<header class="fade-up">
+		<p class="eyebrow-label">
+			{data.teamGroup?.name ?? 'Team'} · Subteam
+		</p>
+		<h1 class="text-2xl font-bold tracking-tight">
+			<span class="gradient-text"
+				>{data.subteamCategory?.name ?? data.subteam?.name ?? 'Subteam'}</span
+			>
+		</h1>
+		{#if !data.userIsOnSubteam}
+			<p class="mt-1 text-xs" style="color: var(--app-warning);">
+				You're viewing this subteam but not assigned to it.
 			</p>
-			<h1 class="text-2xl font-bold tracking-tight">
-				<span class="gradient-text"
-					>{data.subteamCategory?.name ?? data.subteam?.name ?? 'Subteam'}</span
-				>
-			</h1>
-			{#if !data.userIsOnSubteam}
-				<p class="mt-1 text-xs" style="color: var(--app-warning);">
-					You're viewing this subteam but not assigned to it.
-				</p>
-			{/if}
-		</div>
-		<a
-			href="/dashboard"
-			class="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-			style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
-			>Open full graph →</a
-		>
+		{/if}
 	</header>
 
-	<!-- ═══════════ DONUT + MINI SKILL MAP ROW ═══════════ -->
-	<div class="fade-up grid gap-4 md:grid-cols-[1.6fr_1fr]" style="animation-delay: 0.05s;">
-		<!-- Left: donut + legend -->
-		<div
-			class="flex items-center gap-4 rounded-2xl border p-5 backdrop-blur-xl"
-			style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
-		>
-			<StatusDonut counts={data.statusCounts} size={130} />
-			<div class="flex-1">
-				<p class="eyebrow-label">Subteam progress</p>
-				<div class="flex items-baseline gap-2">
-					<span class="text-4xl font-bold tracking-tight" style="color: var(--app-text);"
-						>{data.statusCounts.done}</span
-					>
-					<span class="text-sm" style="color: var(--app-text-muted);">of {total} done</span>
-				</div>
-				<p class="text-xs" style="color: var(--app-text-dim);">
-					+{data.recentCompletions} this week
-				</p>
-				<ul class="mt-3 space-y-1 text-xs" style="color: var(--app-text-muted);">
-					<li>
-						<span
-							class="mr-2 inline-block h-2 w-2 rounded-full"
-							style="background: var(--app-success);"
-						></span><strong>{data.statusCounts.done}</strong> done
-					</li>
-					<li>
-						<span
-							class="mr-2 inline-block h-2 w-2 rounded-full"
-							style="background: var(--app-info);"
-						></span><strong>{data.statusCounts.current}</strong> in progress
-					</li>
-					<li>
-						<span
-							class="mr-2 inline-block h-2 w-2 rounded-full"
-							style="background: var(--app-warning);"
-						></span><strong>{data.statusCounts.awaiting}</strong> awaiting mentor
-					</li>
-					<li>
-						<span
-							class="mr-2 inline-block h-2 w-2 rounded-full"
-							style="background: var(--app-danger);"
-						></span><strong>{data.statusCounts.blocked}</strong> blocked
-					</li>
-					<li>
-						<span
-							class="mr-2 inline-block h-2 w-2 rounded-full"
-							style="background: var(--app-text-dim, var(--app-text-muted));"
-						></span><strong>{data.statusCounts.locked}</strong> locked
-					</li>
-				</ul>
-			</div>
-		</div>
-		<!-- Right: mini skill map -->
-		<div>
-			<MiniSkillTree
-				nodes={data.graphNodes}
-				statuses={data.userStatuses}
-				prerequisites={data.graphPrereqs}
-				scope={data.scopeNodeIds}
-			/>
-		</div>
-	</div>
-
-	<!-- ═══════════ COURSES — STATUS-TINTED CARDS ═══════════ -->
-	<div class="fade-up space-y-3" style="animation-delay: 0.1s;">
-		<div class="flex items-end justify-between">
-			<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-				Coursework
-			</p>
-		</div>
+	<!-- ═══════════ COURSES + FLOATING DONUT ═══════════
+	     Donut floats top-right (where "Open full graph" used to be); the
+	     course grid uses `grid-auto-flow: dense` so cards fill in to the left
+	     of the donut on row 1, then flow full-width below as overflow. -->
+	<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
+		<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+			Coursework
+		</p>
 
 		{#if inProgress.length > 0}
 			<div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -187,7 +113,14 @@
 			</div>
 		{/if}
 
-		<div class="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+		<div class="cw-grid">
+			<!-- Floating progress donut: pinned to row 1 col -1 (top-right). With
+			     grid-auto-flow: dense, the other course cards backfill into
+			     row 1 cols 1..-2 first and then flow into rows 2+ full-width. -->
+			<div class="cw-donut">
+				<StatusDonut counts={data.statusCounts} size={96} />
+			</div>
+
 			{#each data.courses as c (c.id)}
 				{@const tone =
 					c.status === 'completed'
@@ -302,9 +235,9 @@
 						class="mono rounded-xl border px-3 py-2 text-sm"
 						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
 						name="url"
-						type="url"
+						type="text"
 						required
-						placeholder="https://…"
+						placeholder="test.com or https://example.com"
 					/>
 				</label>
 				<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
@@ -329,8 +262,8 @@
 						class="mono rounded-xl border px-3 py-2 text-sm"
 						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
 						name="image_url"
-						type="url"
-						placeholder="https://…"
+						type="text"
+						placeholder="test.com/cover.png or https://…"
 					/>
 				</label>
 				<div class="flex justify-end sm:col-span-2">
@@ -370,7 +303,7 @@
 									class="mono rounded-xl border px-3 py-2 text-sm"
 									style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
 									name="url"
-									type="url"
+									type="text"
 									value={r.url}
 									required
 								/>
@@ -385,7 +318,7 @@
 								class="mono w-full rounded-xl border px-3 py-2 text-sm"
 								style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
 								name="image_url"
-								type="url"
+								type="text"
 								value={r.image_url ?? ''}
 								placeholder="Image URL (optional)"
 							/>
@@ -557,3 +490,33 @@
 		</div>
 	{/if}
 </section>
+
+<style>
+	/* Course grid with a floating progress donut anchored in the top-right.
+	   grid-auto-flow: dense lets later cards backfill earlier empty cells,
+	   so courses pack into row 1 to the left of the donut and then flow
+	   full-width below it once row 1 is full. */
+	.cw-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 0.5rem;
+		grid-auto-flow: dense;
+	}
+	.cw-donut {
+		grid-column: -2 / -1;
+		grid-row: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem;
+		border: 1px solid var(--app-glass-border);
+		border-radius: 1rem;
+		background: var(--app-glass-bg);
+	}
+	@media (max-width: 640px) {
+		.cw-donut {
+			grid-column: 1 / -1;
+			grid-row: auto;
+		}
+	}
+</style>

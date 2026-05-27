@@ -324,7 +324,7 @@
 		return out;
 	});
 
-	// --- Up next strip (in-progress first, then takeable, cap at 6) ---
+	// --- Up next strip (in-progress first, then takeable, cap at 9 for a 3x3 grid) ---
 	const upNextCourses = $derived.by(() => {
 		const inProgress = inProgressPrimary ?? [];
 		const takeable = takeablePrimary ?? [];
@@ -339,7 +339,7 @@
 				slug: String(n.slug),
 				subteamLabel: linkedTeamLabelForNode(n.id)
 			});
-			if (out.length >= 6) break;
+			if (out.length >= 9) break;
 		}
 		return out;
 	});
@@ -404,177 +404,27 @@
 			</div>
 		</div>
 
-		<!-- Two-column layout -->
-		<div class="grid gap-4 md:grid-cols-[2fr_1fr]">
-			<!-- Left column -->
-			<div class="space-y-4">
-				{#if heroNode}
-					<div class="fade-up aurora-border">
-						<div
-							class="hero-glass relative overflow-hidden rounded-[17px] p-6 md:p-7"
-							style="background: var(--app-surface);"
-						>
-							<svg
-								class="pointer-events-none absolute inset-0 h-full w-full"
-								viewBox="0 0 800 200"
-								preserveAspectRatio="none"
-								style="opacity: 0.16;"
-								aria-hidden="true"
-							>
-								<defs>
-									<linearGradient id="hero-line" x1="0" y1="0" x2="1" y2="0">
-										<stop offset="0%" stop-color="#8b5cf6" />
-										<stop offset="100%" stop-color="#06b6d4" />
-									</linearGradient>
-								</defs>
-								<path
-									d="M 60 0 V 60 H 200 V 120 H 360"
-									stroke="url(#hero-line)"
-									stroke-width="1.2"
-									fill="none"
-								/>
-								<path
-									d="M 800 40 L 640 40 L 640 80 L 480 80"
-									stroke="url(#hero-line)"
-									stroke-width="1.2"
-									fill="none"
-								/>
-								<circle cx="200" cy="60" r="3" fill="#8b5cf6" />
-								<circle cx="360" cy="120" r="3" fill="#06b6d4" />
-							</svg>
-
-							<div class="relative">
-								<div class="mb-3 flex flex-wrap items-center gap-2">
-									<span
-										class="chip-cyan inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
-									>
-										<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" class="h-3 w-3"
-											><polygon points="6 4 20 12 6 20 6 4" /></svg
-										>
-										Pick up where you left off
-									</span>
-									<span
-										class="chip-violet inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
-									>
-										<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" class="h-3 w-3"
-											><polygon points="13 2 4 14 11 14 9 22 20 9 13 9 15 2 13 2" /></svg
-										>
-										{statusLabel(heroStatus)}
-									</span>
-								</div>
-
-								<h1
-									class="text-3xl font-extrabold tracking-tighter md:text-4xl"
-									style="line-height: 1.02;"
-								>
-									<span style="color: var(--app-text-dim);">Continue</span><br />
-									<span class="gradient-text">{heroNode.title}</span>
-								</h1>
-
-								{#if totalModulesForNode(heroNode.id) > 0}
-									<p
-										class="mt-3 max-w-xl text-sm"
-										style="color: var(--app-text-muted); line-height: 1.55;"
-									>
-										You've completed {Math.min(
-											blockDoneByNode[heroNode.id] ?? 0,
-											totalModulesForNode(heroNode.id)
-										)} of {totalModulesForNode(heroNode.id)} steps. Keep going!
-									</p>
-								{:else}
-									<p
-										class="mt-3 max-w-xl text-sm"
-										style="color: var(--app-text-muted); line-height: 1.55;"
-									>
-										Jump back in and continue making progress.
-									</p>
-								{/if}
-
-								{#if heroBlocks.length > 0}
-									<div class="mt-5 flex flex-wrap items-center gap-1.5">
-										{#each heroBlocks as block, i}
-											<div
-												class="flex items-center gap-2 rounded-full border px-2 py-1"
-												style={block.state === 'current'
-													? 'border-color: color-mix(in srgb, #06b6d4 50%, transparent); background: color-mix(in srgb, #06b6d4 10%, transparent);'
-													: 'border-color: var(--app-glass-border); background: transparent;'}
-											>
-												<span
-													class="grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold"
-													style={block.state === 'completed'
-														? 'background: #34d399; color: white;'
-														: block.state === 'current'
-															? 'background: var(--aurora); color: white; box-shadow: 0 0 16px -2px #06b6d4;'
-															: 'background: color-mix(in srgb, white 6%, transparent); color: var(--app-text-dim);'}
-												>
-													{#if block.state === 'completed'}
-														<svg
-															viewBox="0 0 24 24"
-															fill="none"
-															stroke="currentColor"
-															stroke-width="3"
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															class="h-3 w-3"><polyline points="4 12 10 18 20 6" /></svg
-														>
-													{:else if block.state === 'current'}
-														<span class="h-1.5 w-1.5 rounded-full bg-white"></span>
-													{:else}
-														{i + 1}
-													{/if}
-												</span>
-												<span
-													class="text-xs font-medium"
-													style="color: {block.state === 'upcoming'
-														? 'var(--app-text-dim)'
-														: 'var(--app-text)'};">{block.label}</span
-												>
-											</div>
-											{#if i < heroBlocks.length - 1}
-												<span class="h-px w-3" style="background: var(--app-glass-border);"></span>
-											{/if}
-										{/each}
-									</div>
-								{/if}
-
-								<div class="mt-6 flex flex-wrap items-center gap-3">
-									<Button variant="primary" size="lg" href={`/learn/${heroNode.slug}`}>
-										Resume
-										<svg
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.6"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											class="ml-1 h-4 w-4"><path d="M5 12h14M13 5l7 7-7 7" /></svg
-										>
-									</Button>
-								</div>
-							</div>
-						</div>
-					</div>
-				{/if}
-
-				<UpNextStrip courses={upNextCourses} />
-
-				<!-- Skill map: every course offered to the user's team and subteams,
-				     nodes tinted by subteam color. Clicking a node jumps to the
-				     course page; locked nodes show their prereqs. -->
-				{#if primaryNodes.length > 0}
-					<div class="fade-up rounded-2xl" style="height: 480px;">
-						<SkillTree
-							nodes={primaryNodes}
-							statuses={data.statuses}
-							prerequisites={data.prerequisites}
-							scope={skillMapScope}
-							{subteamByNode}
-							teamColors={teamColorMap}
-							clickHrefBase="/learn/"
-						/>
-					</div>
-				{/if}
+		<!-- Skill map: every course offered to the user's team and subteams,
+		     nodes tinted by subteam color. Sits above the rest of the dashboard
+		     so the overview is the first thing you see. -->
+		{#if primaryNodes.length > 0}
+			<div class="fade-up rounded-2xl" style="height: 480px;">
+				<SkillTree
+					nodes={primaryNodes}
+					statuses={data.statuses}
+					prerequisites={data.prerequisites}
+					scope={skillMapScope}
+					{subteamByNode}
+					teamColors={teamColorMap}
+					clickHrefBase="/learn/"
+				/>
 			</div>
+		{/if}
+
+		<!-- Two-column layout: courses grid on the left, ID+stats rail on the right -->
+		<div class="grid gap-4 md:grid-cols-[2fr_1fr]">
+			<!-- Left column: 3-row grid of the courses the user actually has to do -->
+			<UpNextStrip courses={upNextCourses} />
 
 			<!-- Right rail -->
 			<StatusRail

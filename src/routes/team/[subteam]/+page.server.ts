@@ -229,6 +229,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	};
 };
 
+// Accepts shorthand like "test.com" / "team.org/path" and rewrites it as a
+// fully-qualified https URL. Leaves anything that already has a scheme alone
+// (http://, https://, mailto:, tel:, …). Empty input returns empty string.
+function normalizeUrl(raw: string): string {
+	const trimmed = raw.trim();
+	if (!trimmed) return '';
+	if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+	return `https://${trimmed}`;
+}
+
 export const actions: Actions = {
 	createResource: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
@@ -236,9 +246,9 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const teamId = String(form.get('team_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();
-		const url = String(form.get('url') ?? '').trim();
+		const url = normalizeUrl(String(form.get('url') ?? ''));
 		const description = String(form.get('description') ?? '').trim();
-		const imageUrl = String(form.get('image_url') ?? '').trim();
+		const imageUrl = normalizeUrl(String(form.get('image_url') ?? ''));
 		if (!teamId || !title || !url)
 			return fail(400, { error: 'Title and URL are required.', section: 'resource' });
 
@@ -272,9 +282,9 @@ export const actions: Actions = {
 		if (!id) return fail(400, { error: 'Missing resource id.', section: 'resource' });
 		const update: Record<string, any> = {
 			title: String(form.get('title') ?? '').trim(),
-			url: String(form.get('url') ?? '').trim(),
+			url: normalizeUrl(String(form.get('url') ?? '')),
 			description: String(form.get('description') ?? '').trim(),
-			image_url: String(form.get('image_url') ?? '').trim() || null,
+			image_url: normalizeUrl(String(form.get('image_url') ?? '')) || null,
 			updated_at: new Date().toISOString()
 		};
 		const { error: err } = await locals.supabase

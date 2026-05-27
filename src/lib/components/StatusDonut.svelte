@@ -18,9 +18,23 @@
 					: key === 'blocked'
 						? 'var(--app-danger)'
 						: 'var(--app-text-dim, var(--app-text-muted))';
+	const labelFor = (key: string) =>
+		key === 'done'
+			? 'Done'
+			: key === 'current'
+				? 'In progress'
+				: key === 'awaiting'
+					? 'Awaiting mentor'
+					: key === 'blocked'
+						? 'Blocked'
+						: 'Locked';
+	const countFor = (key: string): number =>
+		(counts as Record<string, number>)[key] ?? 0;
+
+	let hoveredKey = $state<string | null>(null);
 </script>
 
-<div class="relative" style="width: {size}px; height: {size}px;">
+<div class="donut-wrap relative" style="width: {size}px; height: {size}px;">
 	<svg viewBox="0 0 100 100" width={size} height={size}>
 		<circle
 			cx="50"
@@ -32,25 +46,49 @@
 		/>
 		{#each segments as seg (seg.key)}
 			{#if seg.length > 0}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<circle
 					cx="50"
 					cy="50"
 					r={radius}
 					stroke={colorFor(seg.key)}
-					stroke-width="14"
+					stroke-width={hoveredKey === seg.key ? 18 : 14}
 					fill="none"
 					stroke-dasharray={`${seg.length} ${circumference - seg.length}`}
 					stroke-dashoffset={-seg.offset}
 					transform="rotate(-90 50 50)"
-				/>
+					style="cursor: pointer; transition: stroke-width 0.12s ease;"
+					onmouseenter={() => (hoveredKey = seg.key)}
+					onmouseleave={() => (hoveredKey = null)}
+				>
+					<title>{labelFor(seg.key)} · {countFor(seg.key)}</title>
+				</circle>
 			{/if}
 		{/each}
 	</svg>
-	<div class="absolute inset-0 flex flex-col items-center justify-center">
-		<span class="text-3xl font-bold tracking-tight" style="color: var(--app-text);">{pct}%</span>
-		<span
-			class="text-[9px] font-bold tracking-[0.18em] uppercase"
-			style="color: var(--app-text-muted);">Complete</span
-		>
+	<div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+		{#if hoveredKey}
+			<span class="text-lg font-bold tracking-tight" style="color: {colorFor(hoveredKey)};">
+				{countFor(hoveredKey)}
+			</span>
+			<span
+				class="text-[8px] font-bold tracking-[0.18em] uppercase"
+				style="color: var(--app-text-muted);"
+			>
+				{labelFor(hoveredKey)}
+			</span>
+		{:else}
+			<span class="text-3xl font-bold tracking-tight" style="color: var(--app-text);">{pct}%</span>
+			<span
+				class="text-[9px] font-bold tracking-[0.18em] uppercase"
+				style="color: var(--app-text-muted);">Complete</span
+			>
+		{/if}
 	</div>
 </div>
+
+<style>
+	.donut-wrap :global(svg) {
+		display: block;
+	}
+</style>

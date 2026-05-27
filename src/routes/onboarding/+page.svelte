@@ -1,7 +1,13 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/Button.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
+
+	// Steps the user clicked the link for in *this* session. Used to flip the
+	// confirmation checkbox on immediately rather than waiting for a reload to
+	// pick up the server-side `link_clicked_at` write.
+	let locallyClickedStepIds = $state<Set<string>>(new Set());
 
 	type Step = {
 		id: string;
@@ -241,7 +247,9 @@
 							</Button>
 						</form>
 					{:else if currentStep.kind === 'external_link'}
-						{@const linkClicked = Boolean(currentProgress?.link_clicked_at)}
+						{@const linkClicked =
+							Boolean(currentProgress?.link_clicked_at) ||
+							locallyClickedStepIds.has(currentStep.id)}
 						{@const stepIdForLink = currentStep.id}
 						<div class="space-y-3">
 							{#if currentStep.link_url}
@@ -252,10 +260,18 @@
 									class="aurora-border block"
 									onclick={async () => {
 										if (previewing) return;
+										// Optimistic UI: enable the checkbox the instant the link is
+										// clicked, before the round trip finishes. The server write +
+										// invalidateAll() keep the persisted state correct.
+										locallyClickedStepIds = new Set([
+											...locallyClickedStepIds,
+											stepIdForLink
+										]);
 										const body = new FormData();
 										body.set('step_id', stepIdForLink);
 										try {
 											await fetch('?/trackLinkClick', { method: 'POST', body });
+											await invalidateAll();
 										} catch {
 											/* best-effort; the URL still opens */
 										}
