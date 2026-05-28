@@ -223,32 +223,40 @@
 									</div>
 								</td>
 								<td class="p-3">
-									<div class="flex items-center gap-2">
-										<div
-											class="h-1.5 w-24 rounded-full"
-											style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"
-										>
+									{#if row.progressPercent > 0}
+										<div class="flex items-center gap-2">
 											<div
-												class="h-full rounded-full"
-												style="width: {row.progressPercent}%; background: var(--app-accent);"
-											></div>
+												class="h-1.5 w-24 rounded-full"
+												style="background: color-mix(in srgb, var(--app-glass-border) 50%, transparent);"
+											>
+												<div
+													class="h-full rounded-full"
+													style="width: {row.progressPercent}%; background: var(--app-accent);"
+												></div>
+											</div>
+											<span class="mono text-xs" style="color: var(--app-text-muted);"
+												>{row.progressPercent}%</span
+											>
 										</div>
-										<span class="mono text-xs" style="color: var(--app-text-muted);"
-											>{row.progressPercent}%</span
+									{:else}
+										<span class="mono text-xs" style="color: var(--app-text-dim);">—</span>
+									{/if}
+								</td>
+								<td class="p-3">
+									{#if (row.pendingCheckoffs ?? 0) > 0}
+										<span data-role="pending-count" class="mono" style="color: var(--app-warning);"
+											>{row.pendingCheckoffs}</span
 										>
-									</div>
+									{:else}
+										<span data-role="pending-count" class="mono" style="color: var(--app-text-dim);"
+											>—</span
+										>
+									{/if}
 								</td>
 								<td class="p-3">
 									<span
-										data-role="pending-count"
 										class="mono"
-										style="color: {(row.pendingCheckoffs ?? 0) > 0
-											? 'var(--app-warning)'
-											: 'var(--app-text-muted)'};">{row.pendingCheckoffs ?? 0}</span
-									>
-								</td>
-								<td class="p-3">
-									<span class="mono" style="color: var(--app-text-muted);"
+										style="color: {row.hoursTotal ? 'var(--app-text-muted)' : 'var(--app-text-dim)'};"
 										>{row.hoursTotal ?? '—'}</span
 									>
 								</td>

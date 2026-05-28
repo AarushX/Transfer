@@ -4,6 +4,44 @@
 
 	let { data } = $props();
 	let showParentEmail = $state(false);
+
+	// Hidden debug entry: rapid-click "Continue with Google" 5 times to open
+	// an import dialog for a session blob exported from /admin. Normal users
+	// click once and see a ~380ms delayed form submit (barely perceptible
+	// before the cross-origin redirect to Google anyway).
+	let googleFormEl = $state<HTMLFormElement | null>(null);
+	let googleClicks = 0;
+	let googleSubmitTimer: ReturnType<typeof setTimeout> | null = null;
+	let showImportDialog = $state(false);
+	let importPayload = $state('');
+
+	function handleGoogleClick(e: MouseEvent) {
+		e.preventDefault();
+		googleClicks += 1;
+		if (googleSubmitTimer) {
+			clearTimeout(googleSubmitTimer);
+			googleSubmitTimer = null;
+		}
+		if (googleClicks >= 5) {
+			googleClicks = 0;
+			showImportDialog = true;
+			return;
+		}
+		googleSubmitTimer = setTimeout(() => {
+			googleClicks = 0;
+			googleSubmitTimer = null;
+			googleFormEl?.requestSubmit();
+		}, 380);
+	}
+
+	function closeImportDialog() {
+		showImportDialog = false;
+		importPayload = '';
+	}
+
+	function onDialogKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') closeImportDialog();
+	}
 </script>
 
 <div class="flex min-h-[60vh] items-center justify-center px-4">
@@ -41,8 +79,19 @@
 					</div>
 				{/if}
 
-				<form method="POST" action="/auth/google" class="relative">
-					<Button variant="primary" type="submit" class="w-full" size="lg">
+				<form
+					bind:this={googleFormEl}
+					method="POST"
+					action="/auth/google"
+					class="relative"
+				>
+					<Button
+						variant="primary"
+						type="submit"
+						class="w-full"
+						size="lg"
+						onclick={handleGoogleClick}
+					>
 						<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor"
 							><path
 								d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -124,3 +173,72 @@
 		</div>
 	</div>
 </div>
+
+{#if showImportDialog}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center px-4"
+		style="background: color-mix(in srgb, var(--app-bg) 70%, transparent); backdrop-filter: blur(6px);"
+		onclick={closeImportDialog}
+		onkeydown={onDialogKeydown}
+		role="dialog"
+		aria-modal="true"
+		aria-label="Import session"
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="w-full max-w-md rounded-2xl border p-5 backdrop-blur-xl"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<div class="mb-3 flex items-start justify-between gap-3">
+				<div>
+					<p class="eyebrow-label" style="margin-bottom: 4px;">Debug</p>
+					<h2 class="text-base font-semibold" style="color: var(--app-text);">
+						Import session blob
+					</h2>
+					<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+						Paste the base64 blob from <span class="mono">/admin → Debug → Export</span>. This sets
+						Supabase auth cookies on this browser and reloads as that user.
+					</p>
+				</div>
+				<button
+					type="button"
+					onclick={closeImportDialog}
+					aria-label="Close"
+					class="rounded-md p-1 text-xs"
+					style="color: var(--app-text-muted);"
+				>
+					✕
+				</button>
+			</div>
+
+			<form method="POST" action="/auth/debug-import" class="space-y-3">
+				<textarea
+					name="payload"
+					bind:value={importPayload}
+					required
+					rows="5"
+					autocomplete="off"
+					spellcheck="false"
+					placeholder="eyJ...session blob...=="
+					class="mono w-full resize-none rounded-xl border px-3 py-2 text-[11px]"
+					style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
+				></textarea>
+				<p
+					class="rounded-lg border px-2.5 py-1.5 text-[11px]"
+					style="border-color: color-mix(in srgb, var(--app-warning) 45%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);"
+				>
+					Anyone you paste this from now controls your account. Only paste blobs you generated
+					yourself, on this device.
+				</p>
+				<div class="flex items-center justify-end gap-2">
+					<Button variant="ghost" size="sm" onclick={closeImportDialog}>Cancel</Button>
+					<Button variant="primary" type="submit" size="sm">Import &amp; sign in</Button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}

@@ -241,16 +241,21 @@
 			</div>
 			<div class="mt-2 grid gap-2 md:grid-cols-2">
 				<Button
-					variant="secondary"
+					variant="primary"
 					disabled={adminActionPending || !adminAttendeeUserId}
 					onclick={() => runAdminAction('check_in')}>Manual Check In</Button
 				>
 				<Button
-					variant="secondary"
+					variant="primary"
 					disabled={adminActionPending || !adminAttendeeUserId}
 					onclick={() => runAdminAction('check_out')}>Manual Check Out</Button
 				>
 			</div>
+			{#if !adminAttendeeUserId}
+				<p class="mt-1.5 text-[11px]" style="color: var(--app-text-dim);">
+					Pick a member above to enable these actions.
+				</p>
+			{/if}
 		</div>
 	</div>
 	{#if adminActionMessage}<p class="mt-2 text-xs" style="color: var(--app-success);">
@@ -261,8 +266,7 @@
 		</p>{/if}
 
 	<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
-		<p class="eyebrow-label">Member sessions</p>
-		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Member Sessions</h2>
+		<h2 class="text-lg font-semibold" style="color: var(--app-text);">Member sessions</h2>
 		{#each filteredSessions as row (row.id)}
 			<div
 				class="rounded-xl border p-3 backdrop-blur-xl"

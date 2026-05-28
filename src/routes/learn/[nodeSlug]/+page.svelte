@@ -313,7 +313,7 @@
      `mx-auto max-w-6xl px-6 md:px-10 py-8 md:py-10` wrapper. -->
 <div class="fixed top-0 right-0 left-0 z-20 md:left-64">
 	<header
-		class="course-topbar border-b backdrop-blur-xl"
+		class="course-topbar relative border-b backdrop-blur-xl"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 	>
 		<!-- Row padding (py-4) matches the sidebar header's py-4 so the two
@@ -364,19 +364,14 @@
 				{/if}
 			</div>
 		</div>
-		<!-- Progress bar sits flush with the bottom border so the bar's
-		     overall height stays in lock-step with the sidebar header. No
-		     extra padding below. -->
-		{#if blocks.length > 0}
-			<div class="aurora-progress" style="height: 3px; border-radius: 0;">
-				<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
-			</div>
-		{/if}
 		{#if data.previewBypass}
 			<p class="px-4 pb-2 text-xs md:px-6" style="color: var(--app-info);">
 				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
 			</p>
 		{/if}
+		<!-- Progress used to render here as a 2px aurora bar, but the dots row
+		     and "N/M" count already convey the same information. Keeping the
+		     bar made the header read as visually busy without adding info. -->
 	</header>
 </div>
 

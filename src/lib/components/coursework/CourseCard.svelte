@@ -107,22 +107,34 @@
 		: 1};"
 	aria-disabled={isLocked}
 >
-	<!-- Banner: app-store-style tile head. Just the code on the left and the
-	     status pill on the right; the level label moved into the body. -->
+	<!-- Banner: app-store-style tile head. The title is the hero so each card
+	     is visually unique; the code becomes a small mono chip in the top-left
+	     because course codes are often non-unique ("B1" everywhere) and giant
+	     repeating codes were defeating the point of having a banner label. -->
 	<div
-		class="relative flex items-center justify-between {compact
-			? 'h-16 px-3'
-			: 'h-24 px-4'}"
+		class="relative flex items-end justify-between gap-3 {compact
+			? 'h-16 px-3 py-2'
+			: 'h-24 px-4 py-3'}"
 		style="background: linear-gradient(135deg, color-mix(in srgb, {accent} 70%, transparent), color-mix(in srgb, {accent} 18%, transparent));"
 	>
-		<p
-			class="mono relative z-10 font-extrabold tracking-tight {compact ? 'text-2xl' : 'text-3xl'}"
-			style="color: white; text-shadow: 0 2px 14px color-mix(in srgb, {accent} 60%, transparent); line-height: 1;"
-		>
-			{course.code ?? '••'}
-		</p>
+		<div class="relative z-10 flex min-w-0 flex-col gap-1">
+			{#if course.code}
+				<span
+					class="mono inline-flex w-fit items-center rounded-md border px-1.5 py-0 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+					style="border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.18); color: white;"
+				>
+					{course.code}
+				</span>
+			{/if}
+			<p
+				class="line-clamp-2 font-bold tracking-tight {compact ? 'text-sm' : 'text-base'}"
+				style="color: white; text-shadow: 0 2px 14px color-mix(in srgb, {accent} 60%, transparent); line-height: 1.15;"
+			>
+				{course.title}
+			</p>
+		</div>
 		<span
-			class="relative z-10 shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+			class="relative z-10 shrink-0 self-start rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
 			style={isCompleted
 				? 'border-color: rgba(255,255,255,0.45); background: rgba(34,197,94,0.85); color: white;'
 				: isLocked
@@ -153,17 +165,12 @@
 		</svg>
 	</div>
 
-	<!-- Body. Order: title → description → level label → subteam chips
-	     occupy the footer-left now, replacing the standalone proficiency pill. -->
+	<!-- Body. Title now lives in the banner (so each card has a unique hero
+	     even when course codes repeat); body opens with the description and
+	     the level/subteam chips for context. -->
 	<div class="flex flex-1 flex-col {compact ? 'p-3' : 'p-4'}">
-		<h3
-			class="font-bold tracking-tight {compact ? 'text-sm' : 'text-base'}"
-			style="color: var(--app-text); line-height: 1.2;"
-		>
-			{course.title}
-		</h3>
 		{#if course.description && !compact}
-			<p class="mt-1.5 line-clamp-2 text-[12px] leading-snug" style="color: var(--app-text-muted);">
+			<p class="line-clamp-2 text-[12px] leading-snug" style="color: var(--app-text-muted);">
 				{course.description}
 			</p>
 		{/if}

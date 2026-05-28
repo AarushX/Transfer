@@ -59,7 +59,13 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
 		}
 		return { events: eventsCache?.events ?? [], error: null as string | null };
 	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Could not load media folders.';
-		return { events: [] as MediaEvent[], error: message };
+		const raw = err instanceof Error ? err.message : '';
+		// Hide environment-config detail from end users — the env-var name is
+		// noise to them, and seeing "X is not set" implies the page is broken
+		// when it's actually just an unconfigured integration in this env.
+		const friendly = /GOOGLE_SERVICE_ACCOUNT_JSON|google.+credentials/i.test(raw)
+			? "Media isn't connected for this workspace yet. Ask an admin to wire up the Google Drive integration."
+			: 'Photos are temporarily unavailable. Try again in a moment.';
+		return { events: [] as MediaEvent[], error: friendly };
 	}
 };

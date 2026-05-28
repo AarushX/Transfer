@@ -29,6 +29,23 @@
 			}
 		};
 	};
+
+	// Debug: session-export state. Only used when data.isAdmin is true.
+	let debugRevealed = $state(false);
+	let debugCopyState = $state<'idle' | 'copied' | 'error'>('idle');
+	let debugExporting = $state(false);
+	async function copyDebugPayload() {
+		const value = (form as any)?.sessionPayload as string | undefined;
+		if (!value) return;
+		try {
+			await navigator.clipboard.writeText(value);
+			debugCopyState = 'copied';
+			setTimeout(() => (debugCopyState = 'idle'), 1800);
+		} catch {
+			debugCopyState = 'error';
+			setTimeout(() => (debugCopyState = 'idle'), 1800);
+		}
+	}
 </script>
 
 <section class="mx-auto max-w-3xl space-y-6">
@@ -163,14 +180,24 @@
 		class="fade-up rounded-2xl border p-5 backdrop-blur-xl"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.1s;"
 	>
-		<h2 class="text-base font-semibold" style="color: var(--app-text);">Team membership</h2>
-		<p class="mb-3 text-xs" style="color: var(--app-text-muted);">
-			Drives your default course grouping.
-		</p>
+		<div class="mb-3 flex items-baseline justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold" style="color: var(--app-text);">Team membership</h2>
+				<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
+					Drives your default course grouping.
+				</p>
+			</div>
+			<span
+				class="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase"
+				style="border-color: color-mix(in srgb, var(--app-info) 40%, transparent); background: color-mix(in srgb, var(--app-info) 12%, transparent); color: var(--app-info);"
+			>
+				Choose one
+			</span>
+		</div>
 		<div class="grid gap-2 md:grid-cols-2">
 			{#each data.teamSubteams as team (team.id)}
 				<label
-					class="flex cursor-pointer items-center gap-2 rounded border p-3"
+					class="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition"
 					style="border-color: var(--app-glass-border);"
 				>
 					<input
@@ -200,14 +227,26 @@
 			class="fade-up rounded-2xl border p-5"
 			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); animation-delay: 0.15s;"
 		>
-			<h2 class="text-base font-semibold" style="color: var(--app-text);">Mentor checkoff teams</h2>
-			<p class="mb-3 text-xs" style="color: var(--app-text-muted);">
-				Which teams to show in your mentor queue when filtering to "My teams".
-			</p>
+			<div class="mb-3 flex items-baseline justify-between gap-3">
+				<div>
+					<h2 class="text-base font-semibold" style="color: var(--app-text);">Mentor checkoff teams</h2>
+					<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
+						Which teams to show in your mentor queue when filtering to "My teams".
+					</p>
+				</div>
+				<!-- Hint that distinguishes this card from the radio-based "Team
+				     membership" card above (which uses the same card layout). -->
+				<span
+					class="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase"
+					style="border-color: color-mix(in srgb, var(--app-accent) 40%, transparent); background: color-mix(in srgb, var(--app-accent) 12%, transparent); color: var(--app-accent);"
+				>
+					Pick any
+				</span>
+			</div>
 			<div class="grid gap-2 md:grid-cols-2">
 				{#each data.teamSubteams as team (team.id)}
 					<label
-						class="flex cursor-pointer items-center gap-2 rounded border p-3"
+						class="mentor-team-tile flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition"
 						style="border-color: var(--app-glass-border);"
 					>
 						<input
@@ -296,4 +335,139 @@
 			</div>
 		</GlassCard>
 	</div>
+
+	{#if data.isAdmin}
+		<!-- ─── Debug (admin-only, collapsed by default) ───
+		     Exports your own Supabase session cookies as a base64 blob so you
+		     can paste them into a sandboxed/preview browser (the login page's
+		     5-click import dialog) without round-tripping through DevTools.
+		     The blob is effectively a password — treat it like one. -->
+		<details class="fade-up debug-fold" style="animation-delay: 0.25s;">
+			<summary class="debug-summary">
+				<span>Debug</span>
+				<span class="debug-summary-hint">Session export</span>
+			</summary>
+
+			<div
+				class="mt-3 space-y-4 rounded-2xl border p-5"
+				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+			>
+				<div>
+					<h2 class="text-sm font-semibold" style="color: var(--app-text);">
+						Export Supabase session
+					</h2>
+					<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+						Dumps the cookies on this request as a base64 blob. Paste it into the login page of a
+						sandboxed browser (5 clicks on “Continue with Google” opens the import dialog) to sign
+						in there as you, without going through Google again.
+					</p>
+					<p
+						class="mt-2 rounded-lg border px-2.5 py-1.5 text-[11px]"
+						style="border-color: color-mix(in srgb, var(--app-warning) 45%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);"
+					>
+						Anyone holding this blob can act as your account until the tokens expire. Don't paste
+						it into chat, screenshots, or anywhere persistent.
+					</p>
+				</div>
+
+				<form
+					method="POST"
+					action="?/exportSession"
+					use:enhance={() => {
+						debugExporting = true;
+						debugRevealed = false;
+						return async ({ update }) => {
+							await update({ reset: false });
+							debugExporting = false;
+						};
+					}}
+				>
+					<Button variant="secondary" type="submit" size="sm" disabled={debugExporting}>
+						{debugExporting ? 'Reading cookies…' : 'Export current session'}
+					</Button>
+				</form>
+
+				{#if (form as any)?.error && !(form as any)?.sessionPayload}
+					<p
+						class="rounded-lg border px-2.5 py-1.5 text-xs"
+						style="border-color: color-mix(in srgb, var(--app-danger) 45%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+					>
+						{(form as any).error}
+					</p>
+				{/if}
+
+				{#if (form as any)?.sessionPayload}
+					<div class="space-y-2">
+						<div class="flex items-center justify-between gap-2">
+							<p class="text-[11px]" style="color: var(--app-text-dim);">
+								Exported {(form as any).exportedAt
+									? new Date((form as any).exportedAt).toLocaleTimeString()
+									: 'just now'}
+							</p>
+							<div class="flex items-center gap-2">
+								<button
+									type="button"
+									onclick={() => (debugRevealed = !debugRevealed)}
+									class="rounded-md border px-2 py-0.5 text-[11px]"
+									style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);"
+								>
+									{debugRevealed ? 'Hide' : 'Reveal'}
+								</button>
+								<button
+									type="button"
+									onclick={copyDebugPayload}
+									class="rounded-md border px-2 py-0.5 text-[11px]"
+									style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text-muted);"
+								>
+									{debugCopyState === 'copied'
+										? 'Copied!'
+										: debugCopyState === 'error'
+											? 'Copy failed'
+											: 'Copy'}
+								</button>
+							</div>
+						</div>
+						<textarea
+							readonly
+							rows="4"
+							class="mono w-full resize-none rounded-lg border px-2.5 py-1.5 text-[11px]"
+							style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border); filter: {debugRevealed
+								? 'none'
+								: 'blur(5px)'}; transition: filter 0.18s ease;"
+							value={(form as any).sessionPayload}
+							onclick={(e) => (e.currentTarget as HTMLTextAreaElement).select()}
+						></textarea>
+					</div>
+				{/if}
+			</div>
+		</details>
+	{/if}
 </section>
+
+<style>
+	.debug-fold > summary {
+		list-style: none;
+		cursor: pointer;
+	}
+	.debug-fold > summary::-webkit-details-marker {
+		display: none;
+	}
+	.debug-summary {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--app-text-muted);
+		padding: 0.25rem 0;
+	}
+	.debug-summary-hint {
+		font-size: 10px;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		text-transform: none;
+		color: var(--app-text-dim);
+	}
+</style>

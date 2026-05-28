@@ -13,14 +13,26 @@
 	const pendingCount = $derived((data.pendingVerifications ?? []).length);
 	const gapCount = $derived((data.gapsReport ?? []).length);
 
-	const fmtDate = (d: string | null) =>
-		d
-			? new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
-					month: 'short',
-					day: 'numeric',
-					year: 'numeric'
-				})
-			: '';
+	const fmtDate = (d: string | null) => {
+		if (!d) return '';
+		const dt = new Date(d + 'T00:00:00');
+		// Don't let `new Date("…junk…")` leak its literal "Invalid Date"
+		// string into the UI — fall back to an em dash so the row reads as
+		// "no date set" instead of broken.
+		if (Number.isNaN(dt.getTime())) return '—';
+		return dt.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
+	};
+	const fmtDateRange = (start: string | null, end: string | null) => {
+		const a = fmtDate(start);
+		const b = fmtDate(end);
+		if (!a && !b) return 'Date not set';
+		if (a && b && a !== b) return `${a} – ${b}`;
+		return a || b;
+	};
 	const fmtTime = (t: string | null) => {
 		if (!t) return '';
 		const [h, m] = t.split(':').map(Number);
@@ -50,7 +62,9 @@
 	// Date proximity accent for event cards
 	function eventAccentColor(startDate: string | null): string {
 		if (!startDate) return 'var(--app-text-dim)';
-		const days = Math.ceil((new Date(startDate + 'T00:00:00').getTime() - Date.now()) / 86400000);
+		const t = new Date(startDate + 'T00:00:00').getTime();
+		if (Number.isNaN(t)) return 'var(--app-text-dim)';
+		const days = Math.ceil((t - Date.now()) / 86400000);
 		if (days < 0) return 'var(--app-text-dim)';
 		if (days <= 7) return 'var(--app-danger)';
 		if (days <= 21) return 'var(--app-warning)';
@@ -75,7 +89,9 @@
 				<span class="gradient-text">Volunteer Management</span>
 			</h1>
 			{#if data.season}
-				<p class="mt-1 text-sm" style="color: var(--app-text-muted);">{data.season.label}</p>
+				<p class="mt-1 text-xs tracking-wider uppercase" style="color: var(--app-text-dim);">
+					Season · <span class="mono" style="color: var(--app-text-muted);">{data.season.label}</span>
+				</p>
 			{/if}
 		</div>
 		{#if data.season}
@@ -433,7 +449,7 @@
 												style="color: var(--app-text-muted);"
 											>
 												<span style="color: {accentColor};">●</span>
-												{fmtDate(evt.start_date)}{evt.end_date ? ` – ${fmtDate(evt.end_date)}` : ''}
+												{fmtDateRange(evt.start_date, evt.end_date)}
 											</span>
 											{#if evt.location}
 												<span class="text-xs" style="color: var(--app-text-dim);"

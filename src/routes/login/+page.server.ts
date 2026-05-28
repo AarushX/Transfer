@@ -3,7 +3,11 @@ import type { PageServerLoad } from './$types';
 const errorMessages: Record<string, string> = {
 	domain: 'Please sign in with your team email domain.',
 	missing_credentials: 'Email and password are required.',
-	parent_only: 'Email/password login is only for parent/guardian accounts.'
+	parent_only: 'Email/password login is only for parent/guardian accounts.',
+	debug_empty: 'Paste an exported session blob first.',
+	debug_decode: 'That session blob is not valid base64 JSON.',
+	debug_shape: 'Session blob is not in the expected format.',
+	debug_invalid: 'No valid Supabase session cookies found in that blob.'
 };
 
 function friendlyError(raw: string): string {

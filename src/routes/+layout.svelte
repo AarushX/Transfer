@@ -309,7 +309,7 @@
 				</ul>
 
 				{#if !canParent && data.primaryTeamName}
-					{@render sectionLabel(data.primaryTeamName)}
+					{@render sectionLabel('Subteams', data.primaryTeamName)}
 					<ul class="space-y-0.5">
 						{#each teamSection as item (item.href)}
 							<li>{@render navRow(item)}</li>

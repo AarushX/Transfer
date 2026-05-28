@@ -425,7 +425,7 @@
 		<!-- Skill map: every course offered to the user's team and subteams,
 		     nodes tinted by subteam color. -->
 		{#if primaryNodes.length > 0}
-			<div class="fade-up rounded-2xl" style="height: 480px;">
+			<div class="fade-up rounded-2xl" style="height: 600px;">
 				<SkillTree
 					nodes={primaryNodes}
 					statuses={data.statuses}

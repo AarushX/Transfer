@@ -26,6 +26,9 @@
 				return 'background: color-mix(in srgb, var(--app-accent) 15%, transparent); color: #c4b5fd;';
 		}
 	});
+	// Treat a literal 0 (or "0") as an empty state so a row of three "0" cards
+	// doesn't dominate the page when there's genuinely nothing to act on.
+	const isEmpty = $derived(value === 0 || value === '0');
 </script>
 
 <article
@@ -63,7 +66,10 @@
 			{/if}
 		</svg>
 	</div>
-	<p class="mono text-3xl font-bold" style="letter-spacing: -0.04em; color: var(--app-text);">
+	<p
+		class="mono font-bold {isEmpty ? 'text-xl' : 'text-3xl'}"
+		style="letter-spacing: -0.04em; color: {isEmpty ? 'var(--app-text-dim)' : 'var(--app-text)'};"
+	>
 		{value}
 	</p>
 	<p class="text-xs" style="color: var(--app-text-muted);">{label}</p>

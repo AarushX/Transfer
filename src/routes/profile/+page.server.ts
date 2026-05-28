@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { isMentor, isParentGuardian } from '$lib/roles';
+import { isAdmin, isMentor, isParentGuardian } from '$lib/roles';
 import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
 import { computeUserRanks } from '$lib/server/ranks';
 
@@ -154,11 +154,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 			status: String(row.status ?? ''),
 			parent: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : (row.profiles ?? null)
 		})),
-		activeParentLinkCode: parentCodes?.[0] ?? null
+		activeParentLinkCode: parentCodes?.[0] ?? null,
+		isAdmin: isAdmin(profile)
 	};
 };
 
+// Supabase @ssr cookie naming: `sb-<project-ref>-auth-token` plus chunk
+// suffixes like `.0`, `.1` when the payload is large.
+const SUPABASE_COOKIE_RE = /^sb-.+-auth-token(\.\d+)?$/;
+
 export const actions: Actions = {
+	// Debug-only: dump the current admin's own Supabase session cookies as a
+	// single base64(JSON) blob. The caller already has these cookies in their
+	// own browser — this is just a more reliable way to copy them out than
+	// digging through DevTools (Supabase cookies are HttpOnly so they're not
+	// readable from page JS). Admin-only.
+	exportSession: async ({ cookies, locals }) => {
+		const { profile } = await locals.safeGetSession();
+		if (!isAdmin(profile)) return fail(403, { error: 'Forbidden' });
+		const session = cookies.getAll().filter((c) => SUPABASE_COOKIE_RE.test(c.name));
+		if (session.length === 0) {
+			return fail(404, { error: 'No Supabase session cookies on this request.' });
+		}
+		const payload = Buffer.from(JSON.stringify(session), 'utf-8').toString('base64');
+		return { sessionPayload: payload, exportedAt: new Date().toISOString() };
+	},
+
 	save: async ({ locals, request }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { error: 'Unauthorized' });

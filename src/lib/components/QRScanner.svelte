@@ -7,8 +7,11 @@
 	const stopCamera = () => {
 		controls?.stop();
 		controls = null;
-		const stream = videoEl?.srcObject;
-		if (stream instanceof MediaStream) {
+		// Duck-type instead of `instanceof MediaStream` so this file is safe to
+		// evaluate during SSR (where the MediaStream global is undefined). The
+		// shape we care about is just `getTracks(): MediaStreamTrack[]`.
+		const stream = videoEl?.srcObject as { getTracks?: () => Array<{ stop: () => void }> } | null;
+		if (stream && typeof stream.getTracks === 'function') {
 			for (const track of stream.getTracks()) track.stop();
 		}
 		if (videoEl) videoEl.srcObject = null;

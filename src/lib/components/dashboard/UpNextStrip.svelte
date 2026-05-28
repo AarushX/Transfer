@@ -7,7 +7,7 @@
 
 {#if courses.length > 0}
 	<div
-		class="rounded-2xl border p-4"
+		class="self-start rounded-2xl border p-4"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 	>
 		<div class="mb-3 flex items-center justify-between">
@@ -15,14 +15,15 @@
 				class="text-[10px] font-bold tracking-[0.18em] uppercase"
 				style="color: var(--app-text-muted);"
 			>
-				Courses you need · {courses.length}
+				Up next · {courses.length}
 			</p>
 			<a href="/coursework" class="text-xs" style="color: var(--app-link);">See all →</a>
 		</div>
-		<!-- Three-row grid that takes the place of the old "Pick up where you
-		     left off" hero. Two cols on tablet, three on desktop; the parent
-		     dashboard caps the list at 9 so it fills three rows. -->
-		<div class="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+		<!-- Compact tile grid. Two cols on tablet, three on desktop. We
+		     intentionally let each row size to content (auto-rows-auto) so the
+		     panel doesn't stretch to match the StatusRail's full height, which
+		     was producing a ~600px black void under just 1-2 rows of cards. -->
+		<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
 			{#each courses as c (c.id)}
 				<a
 					href={`/learn/${c.slug}`}

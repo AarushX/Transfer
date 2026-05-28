@@ -219,7 +219,7 @@
 				</p>
 			</div>
 			{#if data.canManageResources && data.userTeamId}
-				<Button variant="primary" size="sm" onclick={() => (showAddResource = !showAddResource)}>
+				<Button variant="secondary" size="sm" onclick={() => (showAddResource = !showAddResource)}>
 					{showAddResource ? 'Cancel' : '+ Add resource'}
 				</Button>
 			{/if}
@@ -570,33 +570,44 @@
 </section>
 
 <style>
-	/* Section header — meant to read as an actual region heading, not a
-	   tiny "● coursework" label. Bigger title, full-width solid rule
-	   underneath (no gradient fade), and a count badge / right-side slot
-	   for action buttons. Combined with space-y-10 on the parent section,
-	   each region feels distinctly chambered instead of bleeding together. */
+	/* Section header — meant to read as an actual region heading. A solid
+	   1px rule runs the full content-column width so each section is a
+	   clearly bounded region, and an accent stub on the leftmost ~20%
+	   adds the section's color without competing with the content. */
 	.section-divider {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
 		padding-bottom: 0.75rem;
-		border-bottom: 1px solid var(--app-glass-border);
 		position: relative;
 	}
-	/* Accent stub on the left edge of the rule, color-mixed from the section's
-	   --divider-accent (set inline). Adds just enough hue to anchor the
-	   section without competing with the content below. */
+	/* Solid full-width rule that genuinely separates the section. Uses a
+	   color-mix off --app-text so the line stays visible on both dark and
+	   light themes (raw --app-glass-border was too dim against dark bg
+	   and made the rule look like it ended at the accent stub). */
+	.section-divider::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: color-mix(in srgb, var(--app-text) 36%, transparent);
+	}
+	/* Accent stub on the left edge — overlays the solid rule with the
+	   section's color for the leftmost ~20%. */
 	.section-divider::before {
 		content: '';
 		position: absolute;
 		left: 0;
 		right: 80%;
-		bottom: -1px;
+		bottom: -0.5px;
 		height: 2px;
 		border-radius: 2px;
 		background: var(--divider-accent, var(--app-accent));
-		opacity: 0.85;
+		opacity: 0.95;
+		z-index: 1;
 	}
 	.section-divider-label {
 		display: flex;
