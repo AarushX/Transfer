@@ -404,9 +404,23 @@
 			</div>
 		</div>
 
+		<!-- Two-column layout first: what the student has to act on today.
+		     The big-picture skill map sits below as context, not on top. -->
+		<div class="grid gap-4 md:grid-cols-[2fr_1fr]">
+			<!-- Left column: 3-row grid of the courses the user actually has to do -->
+			<UpNextStrip courses={upNextCourses} />
+
+			<!-- Right rail -->
+			<StatusRail
+				passportQrDataUrl={data.passportQrDataUrl ?? ''}
+				hoursSeason={data.hoursSeason ?? 0}
+				hoursTarget={data.hoursTarget ?? 0}
+				lettering={data.letteringProgress ?? { pct: 0, overflow: false }}
+			/>
+		</div>
+
 		<!-- Skill map: every course offered to the user's team and subteams,
-		     nodes tinted by subteam color. Sits above the rest of the dashboard
-		     so the overview is the first thing you see. -->
+		     nodes tinted by subteam color. -->
 		{#if primaryNodes.length > 0}
 			<div class="fade-up rounded-2xl" style="height: 480px;">
 				<SkillTree
@@ -420,20 +434,6 @@
 				/>
 			</div>
 		{/if}
-
-		<!-- Two-column layout: courses grid on the left, ID+stats rail on the right -->
-		<div class="grid gap-4 md:grid-cols-[2fr_1fr]">
-			<!-- Left column: 3-row grid of the courses the user actually has to do -->
-			<UpNextStrip courses={upNextCourses} />
-
-			<!-- Right rail -->
-			<StatusRail
-				passportQrDataUrl={data.passportQrDataUrl ?? ''}
-				hoursSeason={data.hoursSeason ?? 0}
-				hoursTarget={data.hoursTarget ?? 0}
-				lettering={data.letteringProgress ?? { pct: 0, overflow: false }}
-			/>
-		</div>
 	{/if}
 </section>
 

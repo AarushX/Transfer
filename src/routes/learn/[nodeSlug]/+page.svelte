@@ -285,76 +285,69 @@
 </script>
 
 <section class="space-y-4">
-	<div class="fade-up aurora-border">
-		<div
-			class="relative overflow-hidden rounded-[17px] p-5 md:p-6"
-			style="background: var(--app-surface);"
-		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-[17px]"
-				style="background: var(--app-glass-shine);"
-			></div>
-			<div class="relative">
-				<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs" style="color: var(--app-text-dim);">
-					<a
-						href="/dashboard"
-						class="transition-colors hover:brightness-125"
-						style="color: var(--app-text-dim);">← Dashboard</a
-					>
-				</div>
-
+	<!-- Flush top bar — mirrors the bottom block-strip's visual language so the
+	     player feels framed top + bottom by the same chrome rather than by
+	     two stacked glass cards. -->
+	<header
+		class="course-topbar fade-up rounded-2xl border backdrop-blur-xl"
+		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+	>
+		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+			<div class="flex min-w-0 items-center gap-3">
+				<a
+					href="/dashboard"
+					class="shrink-0 text-xs font-semibold transition-colors hover:brightness-125"
+					style="color: var(--app-text-dim);">← Dashboard</a
+				>
+				<span
+					class="h-4 w-px shrink-0"
+					style="background: var(--app-glass-border);"
+					aria-hidden="true"
+				></span>
 				<h1
-					class="gradient-text mt-3 text-2xl font-bold tracking-tight md:text-3xl"
-					style="letter-spacing: -0.025em;"
+					class="truncate text-base font-semibold tracking-tight"
+					style="color: var(--app-text);"
 				>
 					{data.node.title}
 				</h1>
-				{#if data.node.description}
-					<p class="mt-1.5 text-sm" style="color: var(--app-text-muted);">
-						{data.node.description}
-					</p>
-				{/if}
-
-				<div class="mt-3 flex flex-wrap items-center gap-3">
-					<StatusChip label={statusInfo.label} tone={statusTone} />
-					{#if blocks.length > 0}
-						<span class="flex items-center gap-1.5">
-							{#each blocks as block, i (block.id)}
-								{@const done = isBlockCompleted(block)}
-								{@const current = i === activeBlockIndex && !done}
-								<span
-									class="inline-block h-2 w-2 rounded-full transition-all"
-									style={done
-										? 'background: var(--app-success); box-shadow: 0 0 6px var(--app-success);'
-										: current
-											? 'background: var(--app-warning); box-shadow: 0 0 6px var(--app-warning);'
-											: 'background: color-mix(in srgb, var(--app-text) 15%, transparent);'}
-									title={`${blockTypeLabel(block.type)}: ${done ? 'Complete' : current ? 'Current' : 'Upcoming'}`}
-								></span>
-							{/each}
-						</span>
-						<span class="mono text-xs" style="color: var(--app-text-dim);"
-							>{completedBlockCount}/{blocks.length}</span
-						>
-					{/if}
-				</div>
-
+			</div>
+			<div class="flex flex-wrap items-center gap-3">
+				<StatusChip label={statusInfo.label} tone={statusTone} />
 				{#if blocks.length > 0}
-					<div class="mt-4">
-						<div class="aurora-progress">
-							<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
-						</div>
-					</div>
+					<span class="flex items-center gap-1">
+						{#each blocks as block, i (block.id)}
+							{@const done = isBlockCompleted(block)}
+							{@const current = i === activeBlockIndex && !done}
+							<span
+								class="inline-block h-2 w-2 rounded-full transition-all"
+								style={done
+									? 'background: var(--app-success); box-shadow: 0 0 6px var(--app-success);'
+									: current
+										? 'background: var(--app-warning); box-shadow: 0 0 6px var(--app-warning);'
+										: 'background: color-mix(in srgb, var(--app-text) 15%, transparent);'}
+								title={`${blockTypeLabel(block.type)}: ${done ? 'Complete' : current ? 'Current' : 'Upcoming'}`}
+							></span>
+						{/each}
+					</span>
+					<span class="mono text-xs" style="color: var(--app-text-dim);"
+						>{completedBlockCount}/{blocks.length}</span
+					>
 				{/if}
 			</div>
-
-			{#if data.previewBypass}
-				<p class="relative mt-3 text-xs" style="color: var(--app-info);">
-					Preview mode: prerequisite locks are bypassed for mentor/admin preview.
-				</p>
-			{/if}
 		</div>
-	</div>
+		{#if blocks.length > 0}
+			<div class="px-4 pb-2">
+				<div class="aurora-progress" style="height: 4px;">
+					<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
+				</div>
+			</div>
+		{/if}
+		{#if data.previewBypass}
+			<p class="px-4 pb-2 text-xs" style="color: var(--app-info);">
+				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
+			</p>
+		{/if}
+	</header>
 
 	{#if awaitingMentor && !completed}
 		<div
@@ -547,35 +540,33 @@
 	{:else}
 		<div class="space-y-4 pb-24">
 			{#if activeBlock}
-				{@const chipClass = blockTypeChip(activeBlock.type)}
 				{@const icon = blockTypeIcon(activeBlock.type)}
 				{@const label = blockTypeLabel(activeBlock.type)}
-				<div
-					class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
-					style="animation-delay: 0.08s;"
-				>
-					<div
-						class="pointer-events-none absolute inset-0 rounded-2xl"
-						style="background: var(--app-glass-shine);"
-					></div>
-					<div class="relative space-y-4">
-						<div class="flex flex-wrap items-center gap-2">
-							<span
-								class={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${chipClass}`}
+				<div class="fade-up space-y-4" style="animation-delay: 0.08s;">
+					<!-- Merged step header: icon + number + type + section title, all on
+					     one line. Replaces the old chip + h2 stacked pair. -->
+					<div class="flex flex-wrap items-center gap-2.5">
+						<h2
+							class="flex min-w-0 flex-1 items-center gap-2 text-lg font-semibold"
+							style="color: var(--app-text);"
+						>
+							<span aria-hidden="true" style="color: var(--app-accent);">{icon}</span>
+							<span class="mono shrink-0" style="color: var(--app-text-muted);"
+								>{selectedBlockIndex + 1}.</span
 							>
-								<span>{icon}</span>
-								{selectedBlockIndex + 1}. {label}
-							</span>
-							{#if isBlockCompleted(activeBlock)}
-								<span
-									class="chip-emerald inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium"
-									>✓ Done</span
-								>
-							{/if}
-						</div>
-						<h2 class="text-lg font-semibold" style="color: var(--app-text);">
-							{blockSummary(activeBlock)}
+							<span class="shrink-0" style="color: var(--app-text-muted);">{label}</span>
+							<span style="color: var(--app-text-dim);">—</span>
+							<span class="truncate">{blockSummary(activeBlock)}</span>
 						</h2>
+						{#if isBlockCompleted(activeBlock)}
+							<span
+								class="chip-emerald inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium"
+								>✓ Done</span
+							>
+						{/if}
+					</div>
+					<!-- Body of the active block follows. -->
+					<div class="space-y-4">
 
 						{#if activeBlock.type === 'video'}
 							{@const vid = extractVideoId(activeBlock.config.video_url)}

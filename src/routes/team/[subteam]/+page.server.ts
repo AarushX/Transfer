@@ -32,7 +32,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		{ data: nodes },
 		{ data: nodeStatuses },
 		{ data: nodeTeamTargets },
-		{ data: nodeTeamGroupTargets }
+		{ data: nodeTeamGroupTargets },
+		{ data: teams },
+		{ data: teamGroups }
 	] = await Promise.all([
 		locals.supabase
 			.from('team_groups')
@@ -45,13 +47,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.eq('slug', subteamSlug)
 			.maybeSingle(),
 		locals.supabase.from('subteams').select('id,name,slug').eq('slug', subteamSlug).maybeSingle(),
-		locals.supabase.from('nodes').select('id,title,slug,subteam_id,proficiency_level,code'),
+		locals.supabase
+			.from('nodes')
+			.select('id,title,slug,description,subteam_id,proficiency_level,code'),
 		locals.supabase
 			.from('v_user_node_status')
 			.select('node_id,computed_status')
 			.eq('user_id', user.id),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
-		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id')
+		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
+		locals.supabase.from('teams').select('id,name,color_hex,team_group_id'),
+		locals.supabase.from('team_groups').select('id,name,color_hex')
 	]);
 
 	if (!subteamCategory) throw error(404, 'Subteam not found');
@@ -83,6 +89,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Required courses: anything targeted at this subteam (via node_team_targets),
 	// at the whole team_group (via node_team_group_targets), OR the legacy
 	// nodes.subteam_id pointing at this subteam. De-duped by node id.
+	// Shape mirrors `CatalogCourse` from `/coursework` so the same CourseCard
+	// component renders here.
 	const courses = (nodes ?? [])
 		.filter((n: any) => {
 			if (userTeamId && (teamTargetsByNode.get(n.id) ?? new Set()).has(userTeamId)) return true;
@@ -91,14 +99,29 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			if (subteam?.id && n.subteam_id === subteam.id) return true;
 			return false;
 		})
-		.map((n: any) => ({
-			id: n.id,
-			title: n.title,
-			slug: n.slug,
-			proficiency_level: n.proficiency_level ?? null,
-			code: n.code ?? null,
-			status: statusByNode.get(String(n.id)) ?? 'not_started'
-		}));
+		.map((n: any) => {
+			const subteamIds = Array.from(teamTargetsByNode.get(n.id) ?? []);
+			if (n.subteam_id && !subteamIds.includes(String(n.subteam_id))) {
+				subteamIds.push(String(n.subteam_id));
+			}
+			const teamGroupIds = Array.from(groupTargetsByNode.get(n.id) ?? []);
+			return {
+				nodeId: String(n.id),
+				title: String(n.title ?? 'Course'),
+				slug: String(n.slug ?? ''),
+				code: n.code ?? null,
+				proficiencyLevel: n.proficiency_level ?? null,
+				description: String(n.description ?? ''),
+				subteamIds,
+				teamGroupIds,
+				status: statusByNode.get(String(n.id)) ?? 'locked',
+				isRequired: true,
+				href: `/learn/${n.slug}`,
+				// Legacy fields the page still uses for the in-progress strip + status counts.
+				id: n.id,
+				proficiency_level: n.proficiency_level ?? null
+			};
+		});
 
 	let isLeadOfSubteam = false;
 	let isLeadOfTeam = false;
@@ -209,6 +232,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		userTeamId: userTeamId ?? null,
 		userIsOnSubteam,
 		courses,
+		teams: teams ?? [],
+		teamGroups: teamGroups ?? [],
 		canManageResources,
 		canViewRoster,
 		roster,
