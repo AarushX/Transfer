@@ -405,8 +405,11 @@
 		</div>
 
 		<!-- Two-column layout first: what the student has to act on today.
-		     The big-picture skill map sits below as context, not on top. -->
-		<div class="grid gap-4 md:grid-cols-[2fr_1fr]">
+		     The big-picture skill map sits below as context, not on top.
+		     4fr/1fr (instead of 2fr/1fr) shrinks the right rail to roughly
+		     half its original width so the QR / hours / lettering tiles read
+		     as a side dock instead of competing with the main grid. -->
+		<div class="grid gap-4 md:grid-cols-[4fr_1fr]">
 			<!-- Left column: 3-row grid of the courses the user actually has to do -->
 			<UpNextStrip courses={upNextCourses} />
 

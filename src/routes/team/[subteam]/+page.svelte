@@ -84,7 +84,7 @@
 	);
 </script>
 
-<section class="space-y-6">
+<section class="space-y-10">
 	<!-- ═══════════ HEADER (coursework-style hero) ═══════════ -->
 	<header class="fade-up">
 		<div class="flex flex-wrap items-end justify-between gap-3">
@@ -144,13 +144,11 @@
 	</header>
 
 	<!-- ═══════════ COURSE CATALOG (shared CourseCard, compact density) ═══════════ -->
-	<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
-		<div class="section-divider">
+	<div class="fade-up space-y-4" style="animation-delay: 0.05s;">
+		<div class="section-divider" style="--divider-accent: var(--app-accent);">
 			<h2 class="section-divider-label">
 				Coursework
-				<span class="mono text-[11px]" style="color: var(--app-text-dim);"
-					>{incompleteCourses.length}</span
-				>
+				<span class="mono">{incompleteCourses.length}</span>
 			</h2>
 		</div>
 
@@ -179,12 +177,13 @@
 	     main /coursework page. -->
 	{#if completedCourses.length > 0}
 		<details class="fade-up completed-fold" style="animation-delay: 0.1s;">
-			<summary class="section-divider completed-fold-summary">
+			<summary
+				class="section-divider completed-fold-summary"
+				style="--divider-accent: var(--app-success);"
+			>
 				<h2 class="section-divider-label">
 					Completed
-					<span class="mono text-[11px]" style="color: var(--app-text-dim);"
-						>{completedCourses.length}</span
-					>
+					<span class="mono">{completedCourses.length}</span>
 				</h2>
 				<svg
 					class="completed-fold-chevron h-3 w-3 shrink-0"
@@ -209,16 +208,16 @@
 	{/if}
 
 	<!-- ═══════════ PINBOARD ═══════════ -->
-	<div class="fade-up space-y-3" style="animation-delay: 0.15s;">
-		<div class="section-divider">
-			<h2 class="section-divider-label">
-				Resources
-				<span class="text-[11px] font-normal normal-case tracking-normal" style="color: var(--app-text-dim);">
+	<div class="fade-up space-y-4" style="animation-delay: 0.15s;">
+		<div class="section-divider" style="--divider-accent: var(--app-info);">
+			<div class="min-w-0">
+				<h2 class="section-divider-label">Resources</h2>
+				<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
 					{data.canManageResources
 						? 'Pin CAD files, strategy docs, trackers.'
 						: 'Curated by subteam leads.'}
-				</span>
-			</h2>
+				</p>
+			</div>
 			{#if data.canManageResources && data.userTeamId}
 				<Button variant="primary" size="sm" onclick={() => (showAddResource = !showAddResource)}>
 					{showAddResource ? 'Cancel' : '+ Add resource'}
@@ -497,14 +496,14 @@
 
 	<!-- ═══════════ ROSTER ═══════════ -->
 	{#if data.canViewRoster && data.roster && data.roster.length > 0}
-		<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
-			<div class="section-divider">
-				<h2 class="section-divider-label">
-					Subteam roster
-					<span class="text-[11px] font-normal normal-case tracking-normal" style="color: var(--app-text-dim);">
+		<div class="fade-up space-y-4" style="animation-delay: 0.2s;">
+			<div class="section-divider" style="--divider-accent: var(--app-warning);">
+				<div class="min-w-0">
+					<h2 class="section-divider-label">Subteam roster</h2>
+					<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
 						{data.roster.length} member{data.roster.length !== 1 ? 's' : ''}
-					</span>
-				</h2>
+					</p>
+				</div>
 			</div>
 			<div
 				class="overflow-hidden rounded-2xl border"
@@ -571,34 +570,55 @@
 </section>
 
 <style>
-	/* Full-width section header with a hairline that extends to the right
-	   edge of the content area. Replaces the leading-dot "● COURSEWORK"
-	   pattern with something that reads as a real section separator. */
+	/* Section header — meant to read as an actual region heading, not a
+	   tiny "● coursework" label. Bigger title, full-width solid rule
+	   underneath (no gradient fade), and a count badge / right-side slot
+	   for action buttons. Combined with space-y-10 on the parent section,
+	   each region feels distinctly chambered instead of bleeding together. */
 	.section-divider {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 0.75rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid var(--app-glass-border);
+		position: relative;
+	}
+	/* Accent stub on the left edge of the rule, color-mixed from the section's
+	   --divider-accent (set inline). Adds just enough hue to anchor the
+	   section without competing with the content below. */
+	.section-divider::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 80%;
+		bottom: -1px;
+		height: 2px;
+		border-radius: 2px;
+		background: var(--divider-accent, var(--app-accent));
+		opacity: 0.85;
 	}
 	.section-divider-label {
 		display: flex;
 		align-items: baseline;
-		gap: 0.5rem;
-		font-size: 11px;
+		gap: 0.625rem;
+		font-size: 15px;
 		font-weight: 700;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
+		letter-spacing: -0.01em;
+		text-transform: none;
 		color: var(--app-text);
-		white-space: nowrap;
 	}
-	.section-divider::after {
-		content: '';
-		flex: 1;
-		height: 1px;
-		background: linear-gradient(
-			90deg,
-			color-mix(in srgb, var(--app-glass-border) 90%, transparent),
-			transparent
-		);
+	.section-divider-label .mono {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.25rem;
+		padding: 0 0.4rem;
+		height: 1.25rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--app-text) 8%, transparent);
+		color: var(--app-text-muted);
+		font-size: 11px;
 	}
 
 	/* Completed-courses collapsible: the summary IS the section divider,

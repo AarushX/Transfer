@@ -325,9 +325,12 @@
 					class="shrink-0 text-xs font-semibold transition-colors hover:brightness-125"
 					style="color: var(--app-text-dim);">← Dashboard</a
 				>
+				<!-- Slim vertical separator. h-3 + low-opacity glass-border so the
+				     line reads as the thinnest hairline possible without
+				     disappearing entirely. -->
 				<span
-					class="h-4 w-px shrink-0"
-					style="background: var(--app-glass-border);"
+					class="h-3 shrink-0"
+					style="width: 1px; background: color-mix(in srgb, var(--app-glass-border) 55%, transparent);"
 					aria-hidden="true"
 				></span>
 				<h1
