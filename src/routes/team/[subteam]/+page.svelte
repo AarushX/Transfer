@@ -32,6 +32,35 @@
 		new Map(((data.teamGroups ?? []) as TeamGroupRow[]).map((g) => [String(g.id), g]))
 	);
 
+	// Display name for the subteam: prefer the actual team the user picked
+	// ("Outreach", "FRC Build", …) over the category slug ("Business" /
+	// "Technical"), because that's what the sidebar shows and what the user
+	// recognizes as "their subteam".
+	const subteamDisplayName = $derived(
+		(data.userTeamId ? teamsById.get(String(data.userTeamId))?.name : null) ??
+			data.subteam?.name ??
+			data.subteamCategory?.name ??
+			'Subteam'
+	);
+
+	// Donut hover handoff: when a segment is hovered, the stat card swaps
+	// "X / Y done" for "N {Label}". The percentage in the donut center stays.
+	let hoveredSegment = $state<string | null>(null);
+	const segmentLabel = (key: string) =>
+		key === 'done'
+			? 'Done'
+			: key === 'current'
+				? 'In progress'
+				: key === 'awaiting'
+					? 'Awaiting mentor'
+					: key === 'blocked'
+						? 'Blocked'
+						: 'Locked';
+	const segmentCount = (key: string): number => {
+		const c = data.statusCounts ?? ({} as Record<string, number>);
+		return (c as Record<string, number>)[key] ?? 0;
+	};
+
 	// Cast to the shared CatalogCourse shape; the loader projects courses
 	// into that shape so this page can render the same CourseCard component
 	// as `/coursework`.
@@ -59,43 +88,50 @@
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div class="min-w-0">
 				<p class="eyebrow-label">
-					{data.teamGroup?.name ?? 'Team'} · Subteam
+					{data.teamGroup?.name ?? 'Team'}
 				</p>
 				<h1
 					class="text-3xl font-extrabold tracking-tighter"
 					style="letter-spacing: -0.02em;"
 				>
-					<span class="gradient-text"
-						>{data.subteamCategory?.name ?? data.subteam?.name ?? 'Subteam'}</span
-					>
+					<span class="gradient-text">{subteamDisplayName}</span>
 				</h1>
-				<p class="mt-1 max-w-xl text-sm" style="color: var(--app-text-muted);">
-					Every course required for this subteam.{#if !data.userIsOnSubteam}
-						<span style="color: var(--app-warning);">
-							You're viewing this subteam but not assigned to it.</span
-						>
-					{/if}
-				</p>
+				{#if !data.userIsOnSubteam}
+					<p class="mt-1 text-sm" style="color: var(--app-warning);">
+						You're viewing this subteam but not assigned to it.
+					</p>
+				{/if}
 			</div>
-			<!-- Subteam progress stat — the donut from before, but now living in
-			     the header card like `/coursework`'s progress ring. Hover a
-			     segment to see what it represents. -->
+			<!-- Progress stat — donut keeps showing the overall %; the label on
+			     the right swaps from "N / total done" to the hovered segment
+			     (e.g. "1 In progress") while the cursor is on a segment. -->
 			<div
 				class="flex items-center gap-3 rounded-2xl border px-4 py-3"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
 			>
-				<StatusDonut counts={data.statusCounts} size={64} />
+				<StatusDonut
+					counts={data.statusCounts}
+					size={64}
+					onSegmentHover={(key) => (hoveredSegment = key)}
+				/>
 				<div>
 					<p
 						class="text-[10px] font-bold tracking-[0.18em] uppercase"
 						style="color: var(--app-text-muted);"
 					>
-						Subteam progress
+						Progress
 					</p>
-					<p class="text-sm" style="color: var(--app-text);">
-						<span class="mono font-bold">{data.statusCounts?.done ?? 0}</span>
-						<span style="color: var(--app-text-dim);">/ {total} done · {progressPct}%</span>
-					</p>
+					{#if hoveredSegment}
+						<p class="text-sm" style="color: var(--app-text);">
+							<span class="mono font-bold">{segmentCount(hoveredSegment)}</span>
+							<span style="color: var(--app-text-dim);">{segmentLabel(hoveredSegment)}</span>
+						</p>
+					{:else}
+						<p class="text-sm" style="color: var(--app-text);">
+							<span class="mono font-bold">{data.statusCounts?.done ?? 0}</span>
+							<span style="color: var(--app-text-dim);">/ {total} done</span>
+						</p>
+					{/if}
 				</div>
 			</div>
 		</div>

@@ -219,34 +219,36 @@
 		</p>
 	</div>
 {:else}
-	<form class="space-y-4" onsubmit={onSubmit}>
+	<form class="space-y-3" onsubmit={onSubmit}>
 		{#if result && !result.passed}
-			<div class="rounded border border-amber-700 bg-amber-900/30 p-3 text-sm text-amber-200">
+			<div
+				class="rounded-xl border p-3 text-sm"
+				style="border-color: color-mix(in srgb, var(--app-warning) 35%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);"
+			>
 				You scored {result.score}% (need {passingScore}% to pass). Review the questions and try
 				again.
 			</div>
 		{/if}
 		{#if errorMsg}
-			<div class="rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-200">
+			<div
+				class="rounded-xl border p-3 text-sm"
+				style="border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+			>
 				{errorMsg}
-			</div>
-		{/if}
-		{#if hasRandomizableQuestions}
-			<div class="flex justify-end">
-				<button
-					type="button"
-					class="rounded border border-slate-700 px-3 py-1 text-xs hover:bg-slate-800"
-					onclick={() => (randomizeEpoch += 1)}
-					disabled={submitting || !allowSubmit}
-				>
-					Randomize choices
-				</button>
 			</div>
 		{/if}
 
 		{#each questions as question, i (question.id ?? i)}
-			<fieldset class="space-y-2 rounded border border-slate-800 bg-slate-900/50 p-3">
-				<legend class="px-1 text-xs text-slate-400">Question {i + 1}</legend>
+			<fieldset
+				class="space-y-2 rounded-xl border p-3"
+				style="border-color: var(--app-glass-border); background: var(--app-glass-bg);"
+			>
+				<legend
+					class="px-1 text-[10px] font-bold tracking-[0.18em] uppercase"
+					style="color: var(--app-text-muted);"
+				>
+					Question {i + 1}
+				</legend>
 				<p class="font-medium">{question.prompt}</p>
 				{#if question.type === 'mc'}
 					<div class="space-y-1">

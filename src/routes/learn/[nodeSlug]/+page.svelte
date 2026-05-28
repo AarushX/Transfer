@@ -288,6 +288,20 @@
 		return String(cfg.title ?? 'Skills Check');
 	}
 
+	// Same as blockSummary but no "· N questions/resources" suffix and no
+	// fallback "Quiz" / "Reading" label — used by the inline step heading in
+	// the body so the title reads as a real heading instead of a breadcrumb.
+	// The bottom block-strip still uses blockSummary() for the full label.
+	function blockTitle(block: LearnBlock): string {
+		const cfg = block.config;
+		const raw = String(cfg.title ?? '').trim();
+		if (raw) return raw;
+		if (block.type === 'video') return 'Video';
+		if (block.type === 'quiz') return 'Quiz';
+		if (block.type === 'reading') return 'Reading';
+		return 'Skills Check';
+	}
+
 	const completedBlockCount = $derived(blocks.filter((b) => isBlockCompleted(b)).length);
 	const progressPercent = $derived(
 		blocks.length > 0 ? Math.round((completedBlockCount / blocks.length) * 100) : 0
@@ -302,7 +316,9 @@
 		class="course-topbar border-b backdrop-blur-xl"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 	>
-		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 md:px-6">
+		<!-- Row padding (py-4) matches the sidebar header's py-4 so the two
+		     headers line up at the same horizontal axis on desktop. -->
+		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
 			<div class="flex min-w-0 items-center gap-3">
 				<a
 					href="/dashboard"
@@ -345,11 +361,12 @@
 				{/if}
 			</div>
 		</div>
+		<!-- Progress bar sits flush with the bottom border so the bar's
+		     overall height stays in lock-step with the sidebar header. No
+		     extra padding below. -->
 		{#if blocks.length > 0}
-			<div class="px-4 pb-2 md:px-6">
-				<div class="aurora-progress" style="height: 4px;">
-					<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
-				</div>
+			<div class="aurora-progress" style="height: 3px; border-radius: 0;">
+				<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
 			</div>
 		{/if}
 		{#if data.previewBypass}
@@ -360,9 +377,9 @@
 	</header>
 </div>
 
-<!-- pt-20 reserves space for the fixed top bar (~72px including progress
-     bar + safety buffer) so the rest of the page doesn't slide under it. -->
-<section class="space-y-4 pt-20">
+<!-- pt-24 reserves space for the fixed top bar (~80–88px = py-4 row + 3px
+     progress bar) so the rest of the page doesn't slide under it. -->
+<section class="space-y-4 pt-24">
 
 	{#if awaitingMentor && !completed}
 		<div
@@ -486,22 +503,17 @@
 		<div class="space-y-4 pb-24">
 			{#if activeBlock}
 				{@const icon = blockTypeIcon(activeBlock.type)}
-				{@const label = blockTypeLabel(activeBlock.type)}
-				<div class="fade-up space-y-4" style="animation-delay: 0.08s;">
-					<!-- Merged step header: icon + number + type + section title, all on
-					     one line. Replaces the old chip + h2 stacked pair. -->
+				<div class="fade-up space-y-3" style="animation-delay: 0.08s;">
+					<!-- Step heading: icon + clean title only. The "2. Quiz · 7 questions"
+					     breadcrumb-style label still lives in the bottom block-strip; up
+					     here we want the title to read as a real heading. -->
 					<div class="flex flex-wrap items-center gap-2.5">
 						<h2
 							class="flex min-w-0 flex-1 items-center gap-2 text-lg font-semibold"
 							style="color: var(--app-text);"
 						>
 							<span aria-hidden="true" style="color: var(--app-accent);">{icon}</span>
-							<span class="mono shrink-0" style="color: var(--app-text-muted);"
-								>{selectedBlockIndex + 1}.</span
-							>
-							<span class="shrink-0" style="color: var(--app-text-muted);">{label}</span>
-							<span style="color: var(--app-text-dim);">—</span>
-							<span class="truncate">{blockSummary(activeBlock)}</span>
+							<span class="truncate">{blockTitle(activeBlock)}</span>
 						</h2>
 						{#if isBlockCompleted(activeBlock)}
 							<span
@@ -511,7 +523,7 @@
 						{/if}
 					</div>
 					<!-- Body of the active block follows. -->
-					<div class="space-y-4">
+					<div class="space-y-3">
 
 						{#if activeBlock.type === 'video'}
 							{@const vid = extractVideoId(activeBlock.config.video_url)}

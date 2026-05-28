@@ -1,6 +1,17 @@
 <script lang="ts">
 	import { computeSegments, type StatusCounts } from './status-donut-math';
-	let { counts, size = 130 }: { counts: StatusCounts; size?: number } = $props();
+	let {
+		counts,
+		size = 130,
+		onSegmentHover
+	}: {
+		counts: StatusCounts;
+		size?: number;
+		// Fires when the user hovers a segment (key) or moves off all segments
+		// (null). Lets the parent swap an adjacent label while the donut center
+		// stays locked to the overall percentage.
+		onSegmentHover?: (key: string | null) => void;
+	} = $props();
 	const radius = 40;
 	const circumference = 2 * Math.PI * radius;
 	const segments = $derived(computeSegments(counts, circumference));
@@ -32,6 +43,10 @@
 		(counts as Record<string, number>)[key] ?? 0;
 
 	let hoveredKey = $state<string | null>(null);
+	function setHover(key: string | null) {
+		hoveredKey = key;
+		onSegmentHover?.(key);
+	}
 </script>
 
 <div class="donut-wrap relative" style="width: {size}px; height: {size}px;">
@@ -58,38 +73,23 @@
 					stroke-dashoffset={-seg.offset}
 					transform="rotate(-90 50 50)"
 					style="cursor: pointer; transition: stroke-width 0.12s ease;"
-					onmouseenter={() => (hoveredKey = seg.key)}
-					onmouseleave={() => (hoveredKey = null)}
+					onmouseenter={() => setHover(seg.key)}
+					onmouseleave={() => setHover(null)}
 				>
 					<title>{labelFor(seg.key)} · {countFor(seg.key)}</title>
 				</circle>
 			{/if}
 		{/each}
 	</svg>
-	<!-- Center label: just the percentage, sized to a fraction of the donut so
-	     it always fits regardless of how the donut is consumed (size=64 in
-	     the subteam header, size=96 in dense grids, size=130 on hero cards). -->
+	<!-- Center label: always the overall percentage. The hovered-segment
+	     label is surfaced to the parent through `onSegmentHover` instead, so
+	     the % never disappears mid-interaction. -->
 	<div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-		{#if hoveredKey}
-			<span
-				class="font-bold tracking-tight"
-				style="color: {colorFor(hoveredKey)}; font-size: {Math.max(11, Math.round(size * 0.18))}px; line-height: 1;"
-			>
-				{countFor(hoveredKey)}
-			</span>
-			<span
-				class="font-bold tracking-[0.16em] uppercase"
-				style="color: var(--app-text-muted); font-size: {Math.max(8, Math.round(size * 0.075))}px;"
-			>
-				{labelFor(hoveredKey)}
-			</span>
-		{:else}
-			<span
-				class="font-bold tracking-tight"
-				style="color: var(--app-text); font-size: {Math.max(11, Math.round(size * 0.2))}px; line-height: 1;"
-				>{pct}%</span
-			>
-		{/if}
+		<span
+			class="font-bold tracking-tight"
+			style="color: var(--app-text); font-size: {Math.max(11, Math.round(size * 0.2))}px; line-height: 1;"
+			>{pct}%</span
+		>
 	</div>
 </div>
 
