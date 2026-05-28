@@ -226,7 +226,7 @@
 				{:else}
 					<div
 						class="h-6 w-6 rounded"
-						style="background: linear-gradient(135deg, var(--app-info), var(--app-accent));"
+						style="background: var(--app-accent);"
 					></div>
 				{/if}
 				<div class="min-w-0 flex-1 leading-tight">

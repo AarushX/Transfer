@@ -239,16 +239,19 @@
 		{/if}
 
 		{#each questions as question, i (question.id ?? i)}
-			<fieldset
+			<!-- div + heading instead of fieldset/legend: the browser default
+			     for <legend> floats it half-over the fieldset's top border,
+			     which reads as "weird margin" above each quiz question. -->
+			<div
 				class="space-y-2 rounded-xl border p-3"
 				style="border-color: var(--app-glass-border); background: var(--app-glass-bg);"
 			>
-				<legend
-					class="px-1 text-[10px] font-bold tracking-[0.18em] uppercase"
+				<p
+					class="text-[10px] font-bold tracking-[0.18em] uppercase"
 					style="color: var(--app-text-muted);"
 				>
 					Question {i + 1}
-				</legend>
+				</p>
 				<p class="font-medium">{question.prompt}</p>
 				{#if question.type === 'mc'}
 					<div class="space-y-1">
@@ -592,7 +595,7 @@
 						disabled={submitting || !allowSubmit}
 					/>
 				{/if}
-			</fieldset>
+			</div>
 		{/each}
 
 		<div class="flex flex-wrap items-center gap-3">

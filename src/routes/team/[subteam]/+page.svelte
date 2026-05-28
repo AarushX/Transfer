@@ -68,14 +68,16 @@
 	const total = $derived(courses.length);
 
 	const LEVEL_ORDER: Record<string, number> = { beginner: 0, intermediate: 1, advanced: 2 };
-	const sortedCourses = $derived(
-		[...courses].sort((a, b) => {
+	function sortCourses(list: CatalogCourse[]) {
+		return [...list].sort((a, b) => {
 			const la = a.proficiencyLevel ? LEVEL_ORDER[a.proficiencyLevel] : 99;
 			const lb = b.proficiencyLevel ? LEVEL_ORDER[b.proficiencyLevel] : 99;
 			if (la !== lb) return la - lb;
 			return (a.code ?? a.title).localeCompare(b.code ?? b.title);
-		})
-	);
+		});
+	}
+	const incompleteCourses = $derived(sortCourses(courses.filter((c) => c.status !== 'completed')));
+	const completedCourses = $derived(sortCourses(courses.filter((c) => c.status === 'completed')));
 
 	const progressPct = $derived(
 		total === 0 ? 0 : Math.round(((data.statusCounts?.done ?? 0) / total) * 100)
@@ -104,7 +106,11 @@
 			</div>
 			<!-- Progress stat — donut keeps showing the overall %; the label on
 			     the right swaps from "N / total done" to the hovered segment
-			     (e.g. "1 In progress") while the cursor is on a segment. -->
+			     (e.g. "1 In progress") while the cursor is on a segment.
+			     min-w on the label container reserves space for the widest
+			     possible label ("Awaiting mentor") so swapping states doesn't
+			     resize the card and yank the donut out from under the cursor
+			     (which used to cause a hover-on/hover-off flicker). -->
 			<div
 				class="flex items-center gap-3 rounded-2xl border px-4 py-3"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"
@@ -114,7 +120,7 @@
 					size={64}
 					onSegmentHover={(key) => (hoveredSegment = key)}
 				/>
-				<div>
+				<div class="min-w-[10.5rem]">
 					<p
 						class="text-[10px] font-bold tracking-[0.18em] uppercase"
 						style="color: var(--app-text-muted);"
@@ -142,7 +148,9 @@
 		<div class="section-divider">
 			<h2 class="section-divider-label">
 				Coursework
-				<span class="mono text-[11px]" style="color: var(--app-text-dim);">{total}</span>
+				<span class="mono text-[11px]" style="color: var(--app-text-dim);"
+					>{incompleteCourses.length}</span
+				>
 			</h2>
 		</div>
 
@@ -152,14 +160,53 @@
 					No courses tied to this subteam yet.
 				</p></GlassCard
 			>
+		{:else if incompleteCourses.length === 0}
+			<p class="text-sm italic" style="color: var(--app-text-dim);">
+				Everything's done. Nice work.
+			</p>
 		{:else}
 			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-				{#each sortedCourses as course (course.nodeId)}
+				{#each incompleteCourses as course (course.nodeId)}
 					<CourseCard {course} {teamsById} {teamGroupsById} compact />
 				{/each}
 			</div>
 		{/if}
 	</div>
+
+	<!-- ═══════════ COMPLETED FOLD ═══════════
+	     Completed courses live in their own collapsible bar instead of
+	     cluttering the main grid. Mirrors the "Completed" section on the
+	     main /coursework page. -->
+	{#if completedCourses.length > 0}
+		<details class="fade-up completed-fold" style="animation-delay: 0.1s;">
+			<summary class="section-divider completed-fold-summary">
+				<h2 class="section-divider-label">
+					Completed
+					<span class="mono text-[11px]" style="color: var(--app-text-dim);"
+						>{completedCourses.length}</span
+					>
+				</h2>
+				<svg
+					class="completed-fold-chevron h-3 w-3 shrink-0"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+					style="color: var(--app-text-muted);"
+				>
+					<polyline points="6 9 12 15 18 9" />
+				</svg>
+			</summary>
+			<div class="grid gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-3">
+				{#each completedCourses as course (course.nodeId)}
+					<CourseCard {course} {teamsById} {teamGroupsById} compact />
+				{/each}
+			</div>
+		</details>
+	{/if}
 
 	<!-- ═══════════ PINBOARD ═══════════ -->
 	<div class="fade-up space-y-3" style="animation-delay: 0.15s;">
@@ -183,72 +230,137 @@
 			<form
 				method="POST"
 				action="?/createResource"
-				class="grid gap-3 rounded-2xl border p-4 sm:grid-cols-2"
-				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+				class="resource-form rounded-2xl border p-5"
+				style="background: var(--app-glass-bg); border-color: color-mix(in srgb, var(--app-accent) 30%, var(--app-glass-border));"
 			>
 				<input type="hidden" name="team_id" value={data.userTeamId} />
-				<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
-					<span class="eyebrow-label">Title</span>
-					<input
-						class="rounded-xl border px-3 py-2 text-sm"
-						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
-						name="title"
-						required
-						placeholder="Robot V1 OnShape"
-					/>
-				</label>
-				<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
-					<span class="eyebrow-label">URL</span>
-					<input
-						class="mono rounded-xl border px-3 py-2 text-sm"
-						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
-						name="url"
-						type="text"
-						required
-						placeholder="test.com or https://example.com"
-					/>
-				</label>
-				<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
-					<span class="eyebrow-label"
-						>Description <span class="text-xs" style="color: var(--app-text-dim);">(optional)</span
-						></span
+				<div class="mb-4 flex items-center gap-2">
+					<span
+						class="grid h-7 w-7 place-items-center rounded-full"
+						style="background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-accent);"
+						aria-hidden="true"
 					>
-					<textarea
-						class="rounded-xl border px-3 py-2 text-sm"
-						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
-						name="description"
-						rows="2"
-						placeholder="What this is for."
-					></textarea>
-				</label>
-				<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
-					<span class="eyebrow-label"
-						>Image URL <span class="text-xs" style="color: var(--app-text-dim);">(optional)</span
-						></span
-					>
-					<input
-						class="mono rounded-xl border px-3 py-2 text-sm"
-						style="background: var(--app-input-bg); color: var(--app-input-text); border-color: var(--app-glass-border);"
-						name="image_url"
-						type="text"
-						placeholder="test.com/cover.png or https://…"
-					/>
-				</label>
-				<div class="flex justify-end sm:col-span-2">
-					<Button variant="primary" type="submit" size="sm">Pin to board</Button>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-3.5 w-3.5"
+						>
+							<path d="M9 17h6m-3-3v6M12 4v6m0 0a4 4 0 1 0-4-4h8a4 4 0 1 0-4 4Z" />
+						</svg>
+					</span>
+					<div>
+						<p class="text-sm font-bold" style="color: var(--app-text);">Pin a new resource</p>
+						<p class="text-xs" style="color: var(--app-text-muted);">
+							Share a link the whole subteam should bookmark.
+						</p>
+					</div>
+				</div>
+
+				<div class="grid gap-3 sm:grid-cols-2">
+					<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
+						<span class="eyebrow-label">Title</span>
+						<input
+							class="resource-input rounded-xl border px-3 py-2 text-sm"
+							name="title"
+							required
+							placeholder="Robot V1 OnShape"
+						/>
+					</label>
+					<label class="flex flex-col gap-1.5 text-sm sm:col-span-1">
+						<span class="eyebrow-label">URL</span>
+						<input
+							class="resource-input mono rounded-xl border px-3 py-2 text-sm"
+							name="url"
+							type="text"
+							required
+							placeholder="test.com or https://example.com"
+						/>
+					</label>
+					<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+						<span class="eyebrow-label"
+							>Description
+							<span class="text-xs" style="color: var(--app-text-dim);">(optional)</span></span
+						>
+						<textarea
+							class="resource-input rounded-xl border px-3 py-2 text-sm"
+							name="description"
+							rows="2"
+							placeholder="What this is for."
+						></textarea>
+					</label>
+					<label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+						<span class="eyebrow-label"
+							>Image URL
+							<span class="text-xs" style="color: var(--app-text-dim);">(optional)</span></span
+						>
+						<input
+							class="resource-input mono rounded-xl border px-3 py-2 text-sm"
+							name="image_url"
+							type="text"
+							placeholder="test.com/cover.png or https://…"
+						/>
+					</label>
+				</div>
+				<div class="mt-4 flex items-center justify-between gap-2">
+					<p class="text-[11px]" style="color: var(--app-text-dim);">
+						Tip: short titles read best on the card grid.
+					</p>
+					<div class="flex items-center gap-2">
+						<Button variant="ghost" size="sm" onclick={() => (showAddResource = false)}>
+							Cancel
+						</Button>
+						<Button variant="primary" type="submit" size="sm">Pin to board</Button>
+					</div>
 				</div>
 			</form>
 		{/if}
 
-		{#if resources.length === 0}
-			<GlassCard>
-				<p class="text-sm" style="color: var(--app-text-muted);">
-					Nothing pinned here yet.{data.canManageResources
-						? ' Use “Add resource” to drop a link in.'
-						: ''}
-				</p>
-			</GlassCard>
-		{:else}
+		{#if resources.length === 0 && !showAddResource}
+			<div
+				class="resource-empty rounded-2xl border-2 border-dashed p-8 text-center"
+				style="border-color: color-mix(in srgb, var(--app-glass-border) 80%, transparent); background: color-mix(in srgb, var(--app-glass-bg) 50%, transparent);"
+			>
+				<div class="mx-auto flex flex-col items-center gap-3">
+					<div
+						class="grid h-12 w-12 place-items-center rounded-2xl"
+						style="background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-accent);"
+						aria-hidden="true"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-6 w-6"
+						>
+							<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+						</svg>
+					</div>
+					<div>
+						<p class="text-sm font-semibold" style="color: var(--app-text);">
+							No resources pinned yet
+						</p>
+						<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+							{data.canManageResources
+								? 'Drop in the docs, CAD files, and trackers your subteam keeps reaching for.'
+								: 'Subteam leads can pin links here. Check back soon.'}
+						</p>
+					</div>
+					{#if data.canManageResources && data.userTeamId}
+						<Button variant="primary" size="sm" onclick={() => (showAddResource = true)}>
+							+ Pin your first resource
+						</Button>
+					{/if}
+				</div>
+			</div>
+		{:else if resources.length > 0}
 			<div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 				{#each resources as r (r.id)}
 					{#if editingResourceId === r.id}
@@ -487,6 +599,48 @@
 			color-mix(in srgb, var(--app-glass-border) 90%, transparent),
 			transparent
 		);
+	}
+
+	/* Completed-courses collapsible: the summary IS the section divider,
+	   the chevron rotates when expanded. */
+	.completed-fold > summary {
+		cursor: pointer;
+		list-style: none;
+	}
+	.completed-fold > summary::-webkit-details-marker {
+		display: none;
+	}
+	.completed-fold-summary:hover .completed-fold-chevron {
+		color: var(--app-text);
+	}
+	.completed-fold[open] .completed-fold-chevron {
+		transform: rotate(180deg);
+	}
+	.completed-fold-chevron {
+		transition: transform 0.15s ease, color 0.15s ease;
+	}
+
+	/* "Pin a new resource" form — keep inputs consistent with the rest of
+	   the app and give them a focus ring. */
+	.resource-input {
+		background: var(--app-input-bg);
+		color: var(--app-input-text);
+		border-color: var(--app-glass-border);
+		transition:
+			border-color 0.12s ease,
+			box-shadow 0.12s ease;
+	}
+	.resource-input:focus {
+		outline: none;
+		border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-glass-border));
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 20%, transparent);
+	}
+	.resource-empty {
+		transition: border-color 0.18s ease, background 0.18s ease;
+	}
+	.resource-empty:hover {
+		border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-glass-border));
+		background: color-mix(in srgb, var(--app-accent) 5%, var(--app-glass-bg));
 	}
 
 	/* Resource-card footer actions: proper pill buttons rather than bare

@@ -41,15 +41,12 @@
 		0 8px 32px -4px rgba(2, 6, 23, 0.7), 0 2px 8px -2px rgba(2, 6, 23, 0.4),
 		inset 0 1px 0 0 color-mix(in srgb, white 6%, transparent);
 
-	/* Aurora gradient */
-	--aurora: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 50%, #f472b6 100%);
-	--aurora-soft: linear-gradient(
-		135deg,
-		color-mix(in srgb, #8b5cf6 18%, transparent) 0%,
-		color-mix(in srgb, #06b6d4 18%, transparent) 50%,
-		color-mix(in srgb, #f472b6 18%, transparent) 100%
-	);
-	--app-gradient-accent: var(--aurora);
+	/* Accent fills. Originally a purple→cyan→pink gradient; flattened to the
+	   theme accent so brand surfaces (buttons, progress bars, headings,
+	   selection chips) all read as one solid color rather than a rainbow. */
+	--aurora: var(--app-accent);
+	--aurora-soft: color-mix(in srgb, var(--app-accent) 18%, transparent);
+	--app-gradient-accent: var(--app-accent);
 
 	/* Mesh gradient orbs — positioned via the .mesh-bg class */
 	--app-mesh-1: var(--app-accent);
@@ -267,12 +264,15 @@ a[class*='hover:bg-slate-8']:hover {
 /* ============================================================
    Typography utilities
    ============================================================ */
+/* Was a purple→cyan→pink gradient; flattened to the single theme accent
+   so headings (Dashboard "Hi …", page titles, etc.) sit on a clean
+   brand color. */
 .gradient-text {
-	background: var(--aurora);
-	-webkit-background-clip: text;
-	background-clip: text;
-	-webkit-text-fill-color: transparent;
-	color: transparent;
+	color: var(--app-accent);
+	background: none;
+	-webkit-background-clip: initial;
+	background-clip: initial;
+	-webkit-text-fill-color: currentColor;
 }
 .eyebrow-label {
 	font-size: 11px;

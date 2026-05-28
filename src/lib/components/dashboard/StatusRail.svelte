@@ -75,7 +75,7 @@
 		>
 			<div
 				class="h-full rounded-full"
-				style="width: {hoursPct}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
+				style="width: {hoursPct}%; background: var(--app-accent);"
 			></div>
 		</div>
 	</div>

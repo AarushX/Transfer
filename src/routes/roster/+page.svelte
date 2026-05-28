@@ -230,7 +230,7 @@
 										>
 											<div
 												class="h-full rounded-full"
-												style="width: {row.progressPercent}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
+												style="width: {row.progressPercent}%; background: var(--app-accent);"
 											></div>
 										</div>
 										<span class="mono text-xs" style="color: var(--app-text-muted);"

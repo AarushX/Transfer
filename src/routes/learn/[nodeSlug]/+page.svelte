@@ -377,9 +377,11 @@
 	</header>
 </div>
 
-<!-- pt-24 reserves space for the fixed top bar (~80–88px = py-4 row + 3px
-     progress bar) so the rest of the page doesn't slide under it. -->
-<section class="space-y-4 pt-24">
+<!-- pt-12 clears the fixed top bar (~60px = py-4 row + 3px progress) with a
+     small visual buffer below. main's existing py-8 stacks on top of this
+     padding, so first-child y ≈ 32 (main) + 48 (section pt) = 80px from
+     viewport top — bar bottom is at ~60, giving a clean ~20px gap. -->
+<section class="space-y-4 pt-12">
 
 	{#if awaitingMentor && !completed}
 		<div
