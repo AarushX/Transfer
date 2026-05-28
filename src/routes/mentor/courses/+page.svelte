@@ -386,9 +386,6 @@
 	{:else}
 		<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
 			{#each data.nodes as node (node.id)}
-				{@const agg = data.aggregates?.[String(node.id)]}
-				{@const pct =
-					agg && agg.assigned > 0 ? Math.round((agg.completed / agg.assigned) * 100) : 0}
 				<li>
 					<a
 						href={`/mentor/courses/${node.slug}`}
@@ -401,22 +398,6 @@
 								<ProficiencyBadge level={node.proficiency_level} code={node.code} size="xs" />
 							</div>
 							<p class="truncate text-[11px]" style="color: var(--app-text-muted);">{node.slug}</p>
-							{#if agg}
-								<div class="mt-1.5 flex items-center gap-2">
-									<div
-										class="h-1 w-20 rounded-full"
-										style="background: color-mix(in srgb, var(--app-glass-border) 70%, transparent);"
-									>
-										<div
-											class="h-full rounded-full"
-											style="width: {pct}%; background: linear-gradient(90deg, var(--app-accent), var(--app-info));"
-										></div>
-									</div>
-									<span class="mono text-[10px]" style="color: var(--app-text-muted);">
-										{agg.completed} / {agg.assigned}
-									</span>
-								</div>
-							{/if}
 						</div>
 						<svg
 							viewBox="0 0 24 24"

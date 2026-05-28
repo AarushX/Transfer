@@ -217,15 +217,13 @@
 		<!-- ═══════════ COURSE CARDS ═══════════ -->
 		{#snippet section(title: string, list: CatalogCourse[], emptyMsg: string, accent: string)}
 			<div class="space-y-3">
-				<div class="flex items-center gap-2">
-					<span
-						class="h-2 w-2 rounded-full"
-						style="background: {accent}; box-shadow: 0 0 8px {accent};"
-					></span>
-					<h2 class="text-sm font-bold tracking-wider uppercase" style="color: var(--app-text);">
+				<div class="section-divider" style="--divider-accent: {accent};">
+					<h2 class="section-divider-label">
 						{title}
+						<span class="mono text-[11px] font-semibold" style="color: var(--app-text-dim);"
+							>{list.length}</span
+						>
 					</h2>
-					<span class="mono text-[11px]" style="color: var(--app-text-dim);">{list.length}</span>
 				</div>
 				{#if list.length === 0}
 					<p class="text-sm italic" style="color: var(--app-text-dim);">{emptyMsg}</p>
@@ -270,6 +268,35 @@
 </section>
 
 <style>
+	/* Full-width section header with a tinted hairline; the section's
+	   accent color tints the leading edge of the line. */
+	.section-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+	.section-divider-label {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--app-text);
+		white-space: nowrap;
+	}
+	.section-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--divider-accent, var(--app-glass-border)) 60%, transparent),
+			transparent
+		);
+	}
+
 	.cw-search {
 		background: var(--app-glass-bg);
 		border-color: var(--app-glass-border);

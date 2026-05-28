@@ -315,18 +315,7 @@
 							<li>{@render navRow(item)}</li>
 						{/each}
 						{#each subteamLinks as item (item.href)}
-							<li>
-								<a
-									href={item.href}
-									onclick={() => (mobileOpen = false)}
-									class="subteam-link flex items-center gap-2 rounded-lg py-1 pr-2.5 pl-9 text-xs"
-									style={isActive(item, page.url.pathname)
-										? `background: color-mix(in srgb, var(--app-accent) 14%, transparent); color: var(--app-text);`
-										: `color: var(--app-text-muted);`}
-								>
-									<span class="truncate">{item.label}</span>
-								</a>
-							</li>
+							<li>{@render navRow(item)}</li>
 						{/each}
 					</ul>
 				{/if}
@@ -519,13 +508,6 @@
 	.nav-link:hover {
 		background: var(--app-glass-bg-hover) !important;
 		color: var(--app-text) !important;
-	}
-	.subteam-link {
-		transition: all 0.15s ease;
-	}
-	.subteam-link:hover {
-		background: var(--app-glass-bg-hover);
-		color: var(--app-text);
 	}
 	.nav-btn {
 		transition: background 0.15s ease;

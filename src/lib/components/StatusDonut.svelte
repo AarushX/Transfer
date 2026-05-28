@@ -66,22 +66,28 @@
 			{/if}
 		{/each}
 	</svg>
+	<!-- Center label: just the percentage, sized to a fraction of the donut so
+	     it always fits regardless of how the donut is consumed (size=64 in
+	     the subteam header, size=96 in dense grids, size=130 on hero cards). -->
 	<div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
 		{#if hoveredKey}
-			<span class="text-lg font-bold tracking-tight" style="color: {colorFor(hoveredKey)};">
+			<span
+				class="font-bold tracking-tight"
+				style="color: {colorFor(hoveredKey)}; font-size: {Math.max(11, Math.round(size * 0.18))}px; line-height: 1;"
+			>
 				{countFor(hoveredKey)}
 			</span>
 			<span
-				class="text-[8px] font-bold tracking-[0.18em] uppercase"
-				style="color: var(--app-text-muted);"
+				class="font-bold tracking-[0.16em] uppercase"
+				style="color: var(--app-text-muted); font-size: {Math.max(8, Math.round(size * 0.075))}px;"
 			>
 				{labelFor(hoveredKey)}
 			</span>
 		{:else}
-			<span class="text-3xl font-bold tracking-tight" style="color: var(--app-text);">{pct}%</span>
 			<span
-				class="text-[9px] font-bold tracking-[0.18em] uppercase"
-				style="color: var(--app-text-muted);">Complete</span
+				class="font-bold tracking-tight"
+				style="color: var(--app-text); font-size: {Math.max(11, Math.round(size * 0.2))}px; line-height: 1;"
+				>{pct}%</span
 			>
 		{/if}
 	</div>

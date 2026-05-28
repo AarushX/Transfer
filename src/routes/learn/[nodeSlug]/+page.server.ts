@@ -175,28 +175,67 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		? await locals.supabase.from('profiles').select('id,full_name,email').in('id', mentorIds)
 		: { data: [] as any[] };
 	const mentorById = new Map((mentorProfiles ?? []).map((p: any) => [String(p.id), p]));
+	// Same shape as `CatalogCourse` from /coursework so the locked-state UI
+	// can render prereqs through the shared CourseCard component.
 	let prereqPlan: Array<{
-		id: string;
+		nodeId: string;
 		title: string;
 		slug: string;
+		code: string | null;
+		proficiencyLevel: 'beginner' | 'intermediate' | 'advanced' | null;
+		description: string;
+		subteamIds: string[];
+		teamGroupIds: string[];
 		status: string;
+		isRequired: boolean;
+		href: string;
 		complexity: number;
 		isDoable: boolean;
 	}> = [];
+	let prereqTeams: Array<{ id: string; name: string; color_hex: string; team_group_id: string }> = [];
+	let prereqTeamGroups: Array<{ id: string; name: string; color_hex: string }> = [];
 	if (effectiveStatus === 'locked') {
-		const [{ data: edges }, { data: allNodes }, { data: allStatuses }] = await Promise.all([
+		const [
+			{ data: edges },
+			{ data: allNodes },
+			{ data: allStatuses },
+			{ data: nodeTeamTargets },
+			{ data: nodeTeamGroupTargets },
+			{ data: teamsRows },
+			{ data: teamGroupsRows }
+		] = await Promise.all([
 			locals.supabase.from('node_prerequisites').select('node_id,prerequisite_node_id'),
-			locals.supabase.from('nodes').select('id,title,slug'),
+			locals.supabase
+				.from('nodes')
+				.select('id,title,slug,description,subteam_id,proficiency_level,code'),
 			locals.supabase
 				.from('v_user_node_status')
 				.select('node_id,computed_status')
-				.eq('user_id', user.id)
+				.eq('user_id', user.id),
+			locals.supabase.from('node_team_targets').select('node_id,team_id'),
+			locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
+			locals.supabase.from('teams').select('id,name,color_hex,team_group_id'),
+			locals.supabase.from('team_groups').select('id,name,color_hex')
 		]);
 		const edgesList = (edges ?? []) as Array<{ node_id: string; prerequisite_node_id: string }>;
 		const nodeById = new Map((allNodes ?? []).map((n: any) => [String(n.id), n]));
 		const statusByNodeId = new Map(
 			(allStatuses ?? []).map((s: any) => [String(s.node_id), String(s.computed_status)])
 		);
+		const teamTargetsByNode = new Map<string, string[]>();
+		for (const row of nodeTeamTargets ?? []) {
+			const list = teamTargetsByNode.get(String(row.node_id)) ?? [];
+			list.push(String(row.team_id));
+			teamTargetsByNode.set(String(row.node_id), list);
+		}
+		const groupTargetsByNode = new Map<string, string[]>();
+		for (const row of nodeTeamGroupTargets ?? []) {
+			const list = groupTargetsByNode.get(String(row.node_id)) ?? [];
+			list.push(String(row.team_group_id));
+			groupTargetsByNode.set(String(row.node_id), list);
+		}
+		prereqTeams = teamsRows ?? [];
+		prereqTeamGroups = teamGroupsRows ?? [];
 		const prereqByNode = new Map<string, string[]>();
 		for (const e of edgesList) {
 			const list = prereqByNode.get(String(e.node_id)) ?? [];
@@ -219,11 +258,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 				if (!n) return null;
 				const status = statusByNodeId.get(id) ?? 'locked';
 				const complexity = (prereqByNode.get(id) ?? []).length;
+				const subteamIds = [...(teamTargetsByNode.get(id) ?? [])];
+				if (n.subteam_id && !subteamIds.includes(String(n.subteam_id)))
+					subteamIds.push(String(n.subteam_id));
 				return {
-					id,
+					nodeId: id,
 					title: String(n.title ?? ''),
 					slug: String(n.slug ?? ''),
+					code: n.code ?? null,
+					proficiencyLevel: n.proficiency_level ?? null,
+					description: String(n.description ?? ''),
+					subteamIds,
+					teamGroupIds: [...(groupTargetsByNode.get(id) ?? [])],
 					status,
+					isRequired: true,
+					href: `/learn/${n.slug}`,
 					complexity,
 					isDoable: actionable.has(status)
 				};
@@ -232,7 +281,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		prereqPlan.sort((a, b) => {
 			if (a.isDoable !== b.isDoable) return a.isDoable ? -1 : 1;
 			if (a.complexity !== b.complexity) return a.complexity - b.complexity;
-			return a.title.localeCompare(b.title);
+			return (a.code ?? a.title).localeCompare(b.code ?? b.title);
 		});
 	}
 
@@ -264,7 +313,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		blockAttempts: blockAttempts ?? [],
 		previewBypass,
 		checkoffQrDataUrl,
-		prereqPlan
+		prereqPlan,
+		prereqTeams,
+		prereqTeamGroups
 	};
 };
 

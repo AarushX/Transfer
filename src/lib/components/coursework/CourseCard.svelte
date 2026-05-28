@@ -25,11 +25,15 @@
 	let {
 		course,
 		teamsById,
-		teamGroupsById
+		teamGroupsById,
+		compact = false
 	}: {
 		course: CatalogCourse;
 		teamsById: Map<string, TeamRow>;
 		teamGroupsById: Map<string, TeamGroupRow>;
+		// `compact` shrinks the banner + body padding for dense listings like
+		// the subteam page where multiple sections compete for screen space.
+		compact?: boolean;
 	} = $props();
 
 	const isLocked = $derived(course.status === 'locked');
@@ -106,11 +110,13 @@
 	<!-- Banner: app-store-style tile head. Just the code on the left and the
 	     status pill on the right; the level label moved into the body. -->
 	<div
-		class="relative flex h-24 items-center justify-between px-4"
+		class="relative flex items-center justify-between {compact
+			? 'h-16 px-3'
+			: 'h-24 px-4'}"
 		style="background: linear-gradient(135deg, color-mix(in srgb, {accent} 70%, transparent), color-mix(in srgb, {accent} 18%, transparent));"
 	>
 		<p
-			class="mono relative z-10 text-3xl font-extrabold tracking-tight"
+			class="mono relative z-10 font-extrabold tracking-tight {compact ? 'text-2xl' : 'text-3xl'}"
 			style="color: white; text-shadow: 0 2px 14px color-mix(in srgb, {accent} 60%, transparent); line-height: 1;"
 		>
 			{course.code ?? '••'}
@@ -149,11 +155,14 @@
 
 	<!-- Body. Order: title → description → level label → subteam chips
 	     occupy the footer-left now, replacing the standalone proficiency pill. -->
-	<div class="flex flex-1 flex-col p-4">
-		<h3 class="text-base font-bold tracking-tight" style="color: var(--app-text); line-height: 1.2;">
+	<div class="flex flex-1 flex-col {compact ? 'p-3' : 'p-4'}">
+		<h3
+			class="font-bold tracking-tight {compact ? 'text-sm' : 'text-base'}"
+			style="color: var(--app-text); line-height: 1.2;"
+		>
 			{course.title}
 		</h3>
-		{#if course.description}
+		{#if course.description && !compact}
 			<p class="mt-1.5 line-clamp-2 text-[12px] leading-snug" style="color: var(--app-text-muted);">
 				{course.description}
 			</p>
@@ -161,7 +170,7 @@
 
 		{#if course.proficiencyLevel}
 			<p
-				class="mt-2 text-[10px] font-bold tracking-[0.18em] uppercase"
+				class="text-[10px] font-bold tracking-[0.18em] uppercase {compact ? 'mt-1.5' : 'mt-2'}"
 				style="color: color-mix(in srgb, {accent} 75%, var(--app-text-muted));"
 			>
 				{levelLabel(course.proficiencyLevel)}
@@ -169,7 +178,9 @@
 		{/if}
 
 		<div
-			class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs"
+			class="flex flex-wrap items-center justify-between gap-2 border-t text-xs {compact
+				? 'mt-3 pt-2'
+				: 'mt-4 pt-3'}"
 			style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent);"
 		>
 			<div class="flex min-w-0 flex-1 flex-wrap gap-1.5">

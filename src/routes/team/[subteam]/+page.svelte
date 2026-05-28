@@ -101,17 +101,13 @@
 		</div>
 	</header>
 
-	<!-- ═══════════ COURSE CATALOG (shared CourseCard) ═══════════ -->
+	<!-- ═══════════ COURSE CATALOG (shared CourseCard, compact density) ═══════════ -->
 	<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
-		<div class="flex items-center gap-2">
-			<span
-				class="h-2 w-2 rounded-full"
-				style="background: var(--app-accent); box-shadow: 0 0 8px var(--app-accent);"
-			></span>
-			<h2 class="text-sm font-bold tracking-wider uppercase" style="color: var(--app-text);">
+		<div class="section-divider">
+			<h2 class="section-divider-label">
 				Coursework
+				<span class="mono text-[11px]" style="color: var(--app-text-dim);">{total}</span>
 			</h2>
-			<span class="mono text-[11px]" style="color: var(--app-text-dim);">{total}</span>
 		</div>
 
 		{#if total === 0}
@@ -121,27 +117,25 @@
 				</p></GlassCard
 			>
 		{:else}
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 				{#each sortedCourses as course (course.nodeId)}
-					<CourseCard {course} {teamsById} {teamGroupsById} />
+					<CourseCard {course} {teamsById} {teamGroupsById} compact />
 				{/each}
 			</div>
 		{/if}
 	</div>
 
 	<!-- ═══════════ PINBOARD ═══════════ -->
-	<div class="fade-up" style="animation-delay: 0.15s;">
-		<div class="flex items-end justify-between gap-3">
-			<div>
-				<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-					Resources
-				</p>
-				<p class="text-xs" style="color: var(--app-text-dim);">
+	<div class="fade-up space-y-3" style="animation-delay: 0.15s;">
+		<div class="section-divider">
+			<h2 class="section-divider-label">
+				Resources
+				<span class="text-[11px] font-normal normal-case tracking-normal" style="color: var(--app-text-dim);">
 					{data.canManageResources
-						? 'Pin links the subteam needs — CAD files, strategy docs, trackers.'
-						: 'Links curated by subteam leads.'}
-				</p>
-			</div>
+						? 'Pin CAD files, strategy docs, trackers.'
+						: 'Curated by subteam leads.'}
+				</span>
+			</h2>
 			{#if data.canManageResources && data.userTeamId}
 				<Button variant="primary" size="sm" onclick={() => (showAddResource = !showAddResource)}>
 					{showAddResource ? 'Cancel' : '+ Add resource'}
@@ -153,7 +147,7 @@
 			<form
 				method="POST"
 				action="?/createResource"
-				class="mt-3 grid gap-3 rounded-2xl border p-4 sm:grid-cols-2"
+				class="grid gap-3 rounded-2xl border p-4 sm:grid-cols-2"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 			>
 				<input type="hidden" name="team_id" value={data.userTeamId} />
@@ -306,13 +300,12 @@
 							</a>
 							{#if data.canManageResources}
 								<div
-									class="flex items-center justify-end gap-1.5 border-t px-3 py-1.5"
+									class="flex items-center justify-end gap-1.5 border-t px-3 py-2"
 									style="border-color: color-mix(in srgb, var(--app-glass-border) 60%, transparent);"
 								>
 									<button
 										type="button"
-										class="text-[11px]"
-										style="color: var(--app-text-muted);"
+										class="resource-action"
 										onclick={() => (editingResourceId = r.id)}
 									>
 										Edit
@@ -325,7 +318,7 @@
 										}}
 									>
 										<input type="hidden" name="id" value={r.id} />
-										<button type="submit" class="text-[11px]" style="color: var(--app-danger);">
+										<button type="submit" class="resource-action resource-action--danger">
 											Remove
 										</button>
 									</form>
@@ -356,17 +349,17 @@
 
 	<!-- ═══════════ ROSTER ═══════════ -->
 	{#if data.canViewRoster && data.roster && data.roster.length > 0}
-		<div class="fade-up" style="animation-delay: 0.2s;">
-			<div>
-				<p class="text-xs tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
-					Subteam Roster
-				</p>
-				<p class="text-xs" style="color: var(--app-text-dim);">
-					{data.roster.length} member{data.roster.length !== 1 ? 's' : ''}
-				</p>
+		<div class="fade-up space-y-3" style="animation-delay: 0.2s;">
+			<div class="section-divider">
+				<h2 class="section-divider-label">
+					Subteam roster
+					<span class="text-[11px] font-normal normal-case tracking-normal" style="color: var(--app-text-dim);">
+						{data.roster.length} member{data.roster.length !== 1 ? 's' : ''}
+					</span>
+				</h2>
 			</div>
 			<div
-				class="mt-2 overflow-hidden rounded-2xl border"
+				class="overflow-hidden rounded-2xl border"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 			>
 				<table class="w-full text-sm">
@@ -428,4 +421,70 @@
 		</div>
 	{/if}
 </section>
+
+<style>
+	/* Full-width section header with a hairline that extends to the right
+	   edge of the content area. Replaces the leading-dot "● COURSEWORK"
+	   pattern with something that reads as a real section separator. */
+	.section-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+	.section-divider-label {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--app-text);
+		white-space: nowrap;
+	}
+	.section-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--app-glass-border) 90%, transparent),
+			transparent
+		);
+	}
+
+	/* Resource-card footer actions: proper pill buttons rather than bare
+	   underlined text. */
+	.resource-action {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.25rem 0.55rem;
+		border-radius: 999px;
+		border: 1px solid var(--app-glass-border);
+		background: transparent;
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: var(--app-text-muted);
+		cursor: pointer;
+		transition:
+			background 0.12s ease,
+			color 0.12s ease,
+			border-color 0.12s ease;
+	}
+	.resource-action:hover {
+		background: color-mix(in srgb, var(--app-text) 8%, transparent);
+		color: var(--app-text);
+		border-color: color-mix(in srgb, var(--app-text) 25%, var(--app-glass-border));
+	}
+	.resource-action--danger {
+		color: var(--app-danger);
+		border-color: color-mix(in srgb, var(--app-danger) 35%, var(--app-glass-border));
+	}
+	.resource-action--danger:hover {
+		background: color-mix(in srgb, var(--app-danger) 12%, transparent);
+		color: var(--app-danger);
+		border-color: color-mix(in srgb, var(--app-danger) 55%, transparent);
+	}
+</style>
 

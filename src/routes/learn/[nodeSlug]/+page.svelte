@@ -5,6 +5,10 @@
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import CourseCard, {
+		type TeamRow,
+		type TeamGroupRow
+	} from '$lib/components/coursework/CourseCard.svelte';
 
 	type BlockType = 'video' | 'quiz' | 'checkoff' | 'reading';
 	type LearnBlock = {
@@ -175,6 +179,12 @@
 	const lockedPrereqs = $derived(
 		prereqPlan.filter((row: any) => !row.isDoable && row.status !== 'completed')
 	);
+	const teamsById = $derived(
+		new Map(((data.prereqTeams ?? []) as TeamRow[]).map((t) => [String(t.id), t]))
+	);
+	const teamGroupsById = $derived(
+		new Map(((data.prereqTeamGroups ?? []) as TeamGroupRow[]).map((g) => [String(g.id), g]))
+	);
 
 	const initialSubmissionPhotos = $derived.by(() => {
 		if (
@@ -284,15 +294,15 @@
 	);
 </script>
 
-<section class="space-y-4">
-	<!-- Flush top bar — mirrors the bottom block-strip's visual language so the
-	     player feels framed top + bottom by the same chrome rather than by
-	     two stacked glass cards. -->
+<!-- Top bar: fixed to the viewport edges so it mirrors the bottom block-strip
+     instead of floating inside main's padding. Breaks out of the layout's
+     `mx-auto max-w-6xl px-6 md:px-10 py-8 md:py-10` wrapper. -->
+<div class="fixed top-0 right-0 left-0 z-20 md:left-64">
 	<header
-		class="course-topbar fade-up rounded-2xl border backdrop-blur-xl"
+		class="course-topbar border-b backdrop-blur-xl"
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 	>
-		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 md:px-6">
 			<div class="flex min-w-0 items-center gap-3">
 				<a
 					href="/dashboard"
@@ -336,18 +346,23 @@
 			</div>
 		</div>
 		{#if blocks.length > 0}
-			<div class="px-4 pb-2">
+			<div class="px-4 pb-2 md:px-6">
 				<div class="aurora-progress" style="height: 4px;">
 					<div class="aurora-progress-fill" style="width: {progressPercent}%;"></div>
 				</div>
 			</div>
 		{/if}
 		{#if data.previewBypass}
-			<p class="px-4 pb-2 text-xs" style="color: var(--app-info);">
+			<p class="px-4 pb-2 text-xs md:px-6" style="color: var(--app-info);">
 				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
 			</p>
 		{/if}
 	</header>
+</div>
+
+<!-- pt-20 reserves space for the fixed top bar (~72px including progress
+     bar + safety buffer) so the rest of the page doesn't slide under it. -->
+<section class="space-y-4 pt-20">
 
 	{#if awaitingMentor && !completed}
 		<div
@@ -423,106 +438,36 @@
 	{/if}
 
 	{#if locked}
-		<div
-			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
-			style="animation-delay: 0.06s;"
-		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-2xl"
-				style="background: var(--app-glass-shine);"
-			></div>
-			<div class="relative space-y-4 text-sm" style="color: var(--app-text-muted);">
-				<p>
-					This module is locked. Complete its prerequisites on the
-					<a style="color: var(--app-link);" href="/dashboard">dashboard</a> first.
-				</p>
-				{#if prereqPlan.length > 0}
-					<div
-						class="rounded-xl border p-4"
-						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
-					>
-						<p class="eyebrow-label mb-2">Doable prerequisites</p>
-						<div class="grid gap-2">
-							{#each doablePrereqs as row (row.id)}
-								<a
-									href={`/learn/${row.slug}`}
-									class="prereq-row flex items-center justify-between rounded-xl border px-3 py-2.5 text-xs transition-all"
-								>
-									<span class="truncate" style="color: var(--app-text);">
-										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
-											>({row.complexity} prereq)</span
-										>
-									</span>
-									<span class="chip-cyan rounded-full border px-2 py-0.5 text-[10px]">
-										Doable now
-									</span>
-								</a>
-							{:else}
-								<p class="text-xs" style="color: var(--app-text-dim);">
-									No currently doable prerequisites.
-								</p>
-							{/each}
-						</div>
-					</div>
+		<div class="fade-up space-y-6" style="animation-delay: 0.06s;">
+			<p class="text-sm" style="color: var(--app-text-muted);">
+				This module is locked. Knock out its prerequisites first — the doable
+				ones are right below. Your full plan is on the
+				<a style="color: var(--app-link);" href="/dashboard">dashboard</a>.
+			</p>
 
-					<div
-						class="rounded-xl border p-4"
-						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
-					>
-						<p class="eyebrow-label mb-2">Locked prerequisites</p>
-						<div class="grid gap-2">
-							{#each lockedPrereqs as row (row.id)}
-								<a
-									href={`/learn/${row.slug}`}
-									class="prereq-row flex items-center justify-between rounded-xl border px-3 py-2.5 text-xs transition-all"
+			{#if prereqPlan.length > 0}
+				{#each [['Doable now', doablePrereqs, 'No currently doable prerequisites.', 'var(--app-accent)'], ['Still locked', lockedPrereqs, 'No locked prerequisites.', 'var(--app-warning)'], ['Completed', completedPrereqs, 'No completed prerequisites yet.', 'var(--app-success)']] as [title, list, emptyMsg, accent]}
+					<div class="space-y-3">
+						<div class="section-divider" style="--divider-accent: {accent};">
+							<h2 class="section-divider-label">
+								{title}
+								<span class="mono text-[11px] font-semibold" style="color: var(--app-text-dim);"
+									>{(list as any[]).length}</span
 								>
-									<span class="truncate" style="color: var(--app-text);">
-										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
-											>({row.complexity} prereq)</span
-										>
-									</span>
-									<span class="chip-rose rounded-full border px-2 py-0.5 text-[10px]">
-										Locked
-									</span>
-								</a>
-							{:else}
-								<p class="text-xs" style="color: var(--app-text-dim);">No locked prerequisites.</p>
-							{/each}
+							</h2>
 						</div>
+						{#if (list as any[]).length === 0}
+							<p class="text-sm italic" style="color: var(--app-text-dim);">{emptyMsg}</p>
+						{:else}
+							<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+								{#each list as row (row.nodeId)}
+									<CourseCard course={row} {teamsById} {teamGroupsById} compact />
+								{/each}
+							</div>
+						{/if}
 					</div>
-
-					<div
-						class="rounded-xl border p-4"
-						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
-					>
-						<p class="eyebrow-label mb-2">Completed prerequisites</p>
-						<div class="grid gap-2">
-							{#each completedPrereqs as row (row.id)}
-								<a
-									href={`/learn/${row.slug}`}
-									class="prereq-row flex items-center justify-between rounded-xl border px-3 py-2.5 text-xs transition-all"
-								>
-									<span class="truncate" style="color: var(--app-text);">
-										{row.title}
-										<span class="ml-1 text-[10px]" style="color: var(--app-text-dim);"
-											>({row.complexity} prereq)</span
-										>
-									</span>
-									<span class="chip-emerald rounded-full border px-2 py-0.5 text-[10px]">
-										Completed
-									</span>
-								</a>
-							{:else}
-								<p class="text-xs" style="color: var(--app-text-dim);">
-									No completed prerequisites yet.
-								</p>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
+				{/each}
+			{/if}
 		</div>
 	{:else if blocks.length === 0}
 		<div
@@ -972,15 +917,33 @@
 		-webkit-backdrop-filter: blur(20px) saturate(140%);
 	}
 
-	.prereq-row {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
-		color: var(--app-text);
+	/* Section divider used in the locked-course prereq listing. Same pattern
+	   as the subteam / coursework pages. */
+	.section-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 	}
-	.prereq-row:hover {
-		background: var(--app-glass-bg-hover);
-		border-color: var(--app-glass-border-hover);
-		transform: translateX(2px);
+	.section-divider-label {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--app-text);
+		white-space: nowrap;
+	}
+	.section-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--divider-accent, var(--app-glass-border)) 60%, transparent),
+			transparent
+		);
 	}
 
 	.resource-link {
