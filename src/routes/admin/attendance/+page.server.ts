@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
+import { isAdmin } from '$lib/roles';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { profile } = await locals.safeGetSession();
-	if (!profile || profile.role !== 'admin') throw redirect(303, '/dashboard');
+	if (!profile || !isAdmin(profile)) throw redirect(303, '/dashboard');
 
 	const [{ data: sessions }, { data: displays }, { data: events }, { data: guestSignins }] =
 		await Promise.all([

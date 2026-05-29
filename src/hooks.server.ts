@@ -7,6 +7,23 @@ const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
 const serviceClient = createSupabaseServiceClient();
 
+// The active onboarding-step list rarely changes but is read on nearly every
+// authenticated request; cache the required ids briefly to avoid a per-request
+// round-trip. The per-user completion check stays live below.
+let cachedRequiredStepIds: string[] | null = null;
+let requiredStepsExpiresAt = 0;
+const REQUIRED_STEPS_TTL_MS = 60 * 1000;
+
+async function getRequiredStepIds(client: App.Locals['supabase']): Promise<string[]> {
+	if (cachedRequiredStepIds && Date.now() < requiredStepsExpiresAt) {
+		return cachedRequiredStepIds;
+	}
+	const { data } = await client.from('onboarding_steps').select('id').eq('is_active', true);
+	cachedRequiredStepIds = (data ?? []).map((s: any) => String(s.id));
+	requiredStepsExpiresAt = Date.now() + REQUIRED_STEPS_TTL_MS;
+	return cachedRequiredStepIds;
+}
+
 type ProfileRow = NonNullable<Awaited<ReturnType<App.Locals['safeGetSession']>>['profile']>;
 
 type SafeSessionResult = {
@@ -90,11 +107,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		path !== '/login' &&
 		path !== '/attendance'
 	) {
-		const { data: requiredSteps } = await event.locals.supabase
-			.from('onboarding_steps')
-			.select('id')
-			.eq('is_active', true);
-		const required = (requiredSteps ?? []).map((s: any) => String(s.id));
+		const required = await getRequiredStepIds(event.locals.supabase);
 		if (required.length > 0) {
 			const { data: doneSteps } = await event.locals.supabase
 				.from('onboarding_progress')

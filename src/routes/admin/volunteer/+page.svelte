@@ -90,7 +90,9 @@
 			</h1>
 			{#if data.season}
 				<p class="mt-1 text-xs tracking-wider uppercase" style="color: var(--app-text-dim);">
-					Season · <span class="mono" style="color: var(--app-text-muted);">{data.season.label}</span>
+					Season · <span class="mono" style="color: var(--app-text-muted);"
+						>{data.season.label}</span
+					>
 				</p>
 			{/if}
 		</div>
@@ -1043,7 +1045,7 @@
 							>
 								<p class="mb-2 text-sm font-semibold" style="color: var(--app-text);">{fam.name}</p>
 								<div class="flex flex-wrap gap-1.5">
-									{#each (fam as any).family_members ?? [] as member}
+									{#each (fam as any).family_members ?? [] as member (member.user_id)}
 										<span
 											class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium"
 											class:chip-violet={member.role === 'parent'}

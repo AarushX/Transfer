@@ -227,7 +227,7 @@
 			<div class="mt-3 grid gap-2 md:grid-cols-[1fr_1fr]">
 				<select class={gi} style={gs} bind:value={adminAttendeeUserId}>
 					<option value="">Select member for check-in/out...</option>
-					{#each data.members as member}
+					{#each data.members as member (member.id)}
 						<option value={member.id}>{member.label}</option>
 					{/each}
 				</select>
@@ -359,7 +359,7 @@
 				>
 			</thead>
 			<tbody>
-				{#each data.displays as row}
+				{#each data.displays as row (row.id)}
 					<tr>
 						<td class="p-2">{formatDateTime(row.created_at)}</td>
 						<td class="p-2">{row.activated_at ? formatDateTime(row.activated_at) : 'Inactive'}</td>

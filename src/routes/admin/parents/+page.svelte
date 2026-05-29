@@ -30,7 +30,7 @@
 		</p>
 	{/if}
 	<div class="fade-up space-y-3" style="animation-delay: 0.05s;">
-		{#each data.applications as app}
+		{#each data.applications as app (app.id)}
 			<div
 				class="rounded-2xl border p-4 backdrop-blur-xl"
 				style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow);"

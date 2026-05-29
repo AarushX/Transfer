@@ -57,11 +57,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from('volunteer_commitments')
 			.select('*,family:families(id,name),category:volunteer_categories(name,slug)')
 			.eq('season_id', season.id),
+		// Inner-join the opportunity and filter on its season so we only pull
+		// signups for the active season (volunteer_signups has no season_id of its
+		// own). Downstream code already skips rows without an opportunity, so the
+		// inner join is behavior-preserving while avoiding a full-table scan.
 		service
 			.from('volunteer_signups')
 			.select(
-				'*,family:families(id,name),opportunity:volunteer_opportunities(*,category:volunteer_categories(name,slug,unit)),signer:profiles!volunteer_signups_user_id_fkey(full_name,email)'
+				'*,family:families(id,name),opportunity:volunteer_opportunities!inner(*,category:volunteer_categories(name,slug,unit)),signer:profiles!volunteer_signups_user_id_fkey(full_name,email)'
 			)
+			.eq('opportunity.season_id', season.id)
 			.neq('status', 'cancelled')
 	]);
 
@@ -271,19 +276,19 @@ export const actions: Actions = {
 				.from('volunteer_categories')
 				.select('id,name')
 				.in('id', categoryIds);
-			for (const cat of cats ?? []) {
-				const slots = Math.max(1, Number(form.get(`slots_${cat.id}`) ?? 4));
-				await service.from('volunteer_opportunities').insert({
-					event_id: event.id,
-					category_id: cat.id,
-					season_id: season.id,
-					title: cat.name,
-					description: '',
-					location: location,
-					event_date: startDate,
-					slots,
-					created_by: user.id
-				});
+			const rows = (cats ?? []).map((cat) => ({
+				event_id: event.id,
+				category_id: cat.id,
+				season_id: season.id,
+				title: cat.name,
+				description: '',
+				location: location,
+				event_date: startDate,
+				slots: Math.max(1, Number(form.get(`slots_${cat.id}`) ?? 4)),
+				created_by: user.id
+			}));
+			if (rows.length > 0) {
+				await service.from('volunteer_opportunities').insert(rows);
 			}
 		}
 		return { ok: true, section: 'event' };
@@ -337,44 +342,62 @@ export const actions: Actions = {
 			existingByCategory.set(opp.category_id, { id: opp.id, is_active: opp.is_active });
 		}
 
+		// Partition the requested categories into reactivations and new inserts,
+		// then run each group as a single batched query instead of one per category.
+		const reactivateIds: string[] = [];
+		const newCategoryIds: string[] = [];
 		for (const categoryId of categoryIds) {
 			const existing = existingByCategory.get(categoryId);
-			const slots = Math.max(1, Number(form.get(`slots_${categoryId}`) ?? 4));
 			if (existing) {
-				if (!existing.is_active) {
-					await service
-						.from('volunteer_opportunities')
-						.update({ is_active: true })
-						.eq('id', existing.id);
-				}
+				if (!existing.is_active) reactivateIds.push(existing.id);
 			} else {
-				const { data: cat } = await service
-					.from('volunteer_categories')
-					.select('name')
-					.eq('id', categoryId)
-					.maybeSingle();
-				await service.from('volunteer_opportunities').insert({
-					event_id: id,
-					category_id: categoryId,
-					season_id: season.id,
-					title: cat?.name ?? 'Volunteer Need',
-					description: '',
-					location: location,
-					event_date: startDate,
-					slots,
-					created_by: user.id
-				});
+				newCategoryIds.push(categoryId);
 			}
 		}
 
+		const deactivateIds: string[] = [];
 		for (const [catId, existing] of existingByCategory) {
-			if (!categoryIds.has(catId) && existing.is_active) {
-				await service
-					.from('volunteer_opportunities')
-					.update({ is_active: false })
-					.eq('id', existing.id);
-			}
+			if (!categoryIds.has(catId) && existing.is_active) deactivateIds.push(existing.id);
 		}
+
+		// Look up names for all brand-new categories in one query.
+		let newCatNames = new Map<string, string>();
+		if (newCategoryIds.length > 0) {
+			const { data: cats } = await service
+				.from('volunteer_categories')
+				.select('id,name')
+				.in('id', newCategoryIds);
+			newCatNames = new Map((cats ?? []).map((c: any) => [String(c.id), String(c.name)]));
+		}
+		const insertRows = newCategoryIds.map((categoryId) => ({
+			event_id: id,
+			category_id: categoryId,
+			season_id: season.id,
+			title: newCatNames.get(categoryId) ?? 'Volunteer Need',
+			description: '',
+			location: location,
+			event_date: startDate,
+			slots: Math.max(1, Number(form.get(`slots_${categoryId}`) ?? 4)),
+			created_by: user.id
+		}));
+
+		await Promise.all([
+			reactivateIds.length > 0
+				? service
+						.from('volunteer_opportunities')
+						.update({ is_active: true })
+						.in('id', reactivateIds)
+				: Promise.resolve(),
+			deactivateIds.length > 0
+				? service
+						.from('volunteer_opportunities')
+						.update({ is_active: false })
+						.in('id', deactivateIds)
+				: Promise.resolve(),
+			insertRows.length > 0
+				? service.from('volunteer_opportunities').insert(insertRows)
+				: Promise.resolve()
+		]);
 
 		return { ok: true, section: 'event_update' };
 	},

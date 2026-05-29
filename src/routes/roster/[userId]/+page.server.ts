@@ -5,7 +5,7 @@ import { computeUserRanks } from '$lib/server/ranks';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { profile } = await locals.safeGetSession();
-	if (!profile || (!isMentor(profile) && profile.role !== 'admin')) {
+	if (!profile || (!isMentor(profile) && !isAdmin(profile))) {
 		throw redirect(303, '/dashboard');
 	}
 

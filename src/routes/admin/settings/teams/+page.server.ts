@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { isAdmin } from '$lib/roles';
 import type { Actions, PageServerLoad } from './$types';
 
 const slugify = (value: string) =>
@@ -25,7 +26,7 @@ const uniqueFormStrings = (form: FormData, key: string) =>
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { profile } = await locals.safeGetSession();
-	if (!profile || profile.role !== 'admin') throw redirect(303, '/dashboard');
+	if (!profile || !isAdmin(profile)) throw redirect(303, '/dashboard');
 
 	const [
 		{ data: teamGroups },
@@ -48,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.from('subteam_categories')
 			.select('slug,name,sort_order,is_required_onboarding')
 			.order('sort_order'),
-		locals.supabase.from('nodes').select('id,title,slug').order('title'),
+		locals.supabase.from('nodes').select('id,title,slug').order('title').limit(2000),
 		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
 		locals.supabase.from('team_group_subteam_links').select('team_group_id,team_id')
@@ -68,7 +69,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
 	createTeam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const name = String(form.get('team_name') ?? '').trim();
 		const slugInput = String(form.get('team_slug') ?? '').trim();
@@ -90,7 +91,7 @@ export const actions: Actions = {
 	},
 	createSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
 		const linkedTeamGroupIds = uniqueFormStrings(form, 'linked_team_group_ids');
@@ -133,7 +134,7 @@ export const actions: Actions = {
 	},
 	updateTeam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
 		const name = String(form.get('team_name') ?? '').trim();
@@ -157,7 +158,7 @@ export const actions: Actions = {
 	},
 	updateSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const subteamId = String(form.get('subteam_id') ?? '').trim();
 		const requestedTeamGroupId = String(form.get('team_group_id') ?? '').trim();
@@ -212,7 +213,7 @@ export const actions: Actions = {
 	},
 	deleteTeam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
 		if (!teamGroupId) return fail(400, { error: 'Team is required.' });
@@ -230,7 +231,7 @@ export const actions: Actions = {
 	},
 	deleteSubteam: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const subteamId = String(form.get('subteam_id') ?? '').trim();
 		if (!subteamId) return fail(400, { error: 'Subteam is required.' });
@@ -248,7 +249,7 @@ export const actions: Actions = {
 	},
 	createCategory: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const name = String(form.get('category_name') ?? '').trim();
 		const slugInput = String(form.get('category_slug') ?? '').trim();
@@ -263,7 +264,7 @@ export const actions: Actions = {
 	},
 	updateCategory: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const slug = String(form.get('category_slug') ?? '').trim();
 		const name = String(form.get('category_name') ?? '').trim();
@@ -283,7 +284,7 @@ export const actions: Actions = {
 	},
 	deleteCategory: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const slug = String(form.get('category_slug') ?? '').trim();
 		if (!slug) return fail(400, { error: 'Category is required.' });
@@ -299,7 +300,7 @@ export const actions: Actions = {
 	},
 	saveTeamCourses: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const teamGroupId = String(form.get('team_group_id') ?? '').trim();
 		if (!teamGroupId) return fail(400, { error: 'Team is required.' });
@@ -333,7 +334,7 @@ export const actions: Actions = {
 	},
 	saveSubteamCourses: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();
-		if (!profile || profile.role !== 'admin') return fail(403, { error: 'Forbidden' });
+		if (!profile || !isAdmin(profile)) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const subteamId = String(form.get('subteam_id') ?? '').trim();
 		if (!subteamId) return fail(400, { error: 'Subteam is required.' });

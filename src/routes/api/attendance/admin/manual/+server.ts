@@ -1,11 +1,12 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { ATTENDANCE_PUBLIC_DISPLAY_KEY, attendanceDayKey } from '$lib/server/attendance';
+import { isAdmin } from '$lib/roles';
 
 type ManualAction = 'activate' | 'deactivate' | 'check_in' | 'check_out';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user || !profile || profile.role !== 'admin') {
+	if (!user || !profile || !isAdmin(profile)) {
 		return json({ error: 'Only admins can perform manual attendance actions.' }, { status: 403 });
 	}
 

@@ -74,6 +74,11 @@ export const load = async ({ locals }) => {
 	let iconDataUrl = cachedIconDataUrl ?? '';
 	let needsOnboarding = false;
 
+	// Populated by the per-user Promise.all below and reused later in this load
+	// (primary team name + subteams) so we don't re-query the same rows.
+	let primaryRowData: any = null;
+	let profileTeamsRows: Array<{ team_id: any; category_slug: any; team_group_id: any }> = [];
+
 	const stale = !cachedOrgName || Date.now() > cacheExpiresAt;
 
 	if (stale || user) {
@@ -91,7 +96,7 @@ export const load = async ({ locals }) => {
 					orgPromise,
 					locals.supabase
 						.from('profile_teams')
-						.select('team_id,category_slug')
+						.select('team_id,category_slug,team_group_id')
 						.eq('user_id', user.id),
 					locals.supabase
 						.from('profile_primary_teams')
@@ -116,6 +121,8 @@ export const load = async ({ locals }) => {
 			iconDataUrl = String(org?.icon_data_url ?? '');
 
 			const currentTeams = currentResp.data ?? [];
+			primaryRowData = primaryResp.data ?? null;
+			profileTeamsRows = currentTeams as any[];
 			const selectedDesignators = new Set(
 				currentTeams.map((row: any) => String(row.category_slug ?? '')).filter(Boolean)
 			);
@@ -159,18 +166,15 @@ export const load = async ({ locals }) => {
 	let leadSubteamName: string | null = null;
 	let userSubteams: Array<{ slug: string; name: string }> = [];
 	if (user) {
-		const { data: primaryRow } = await locals.supabase
-			.from('profile_primary_teams')
-			.select('team_group_id,team_groups(name,designator)')
-			.eq('user_id', user.id)
-			.maybeSingle();
-		const pt = (primaryRow as any)?.team_groups;
+		// Reuse the rows already fetched in the per-user Promise.all above instead
+		// of re-querying profile_primary_teams / profile_teams.
+		const pt = (primaryRowData as any)?.team_groups;
 		if (pt) {
 			const des =
 				pt.designator && pt.designator.toLowerCase() !== 'general' ? ` · ${pt.designator}` : '';
 			primaryTeamName = `${pt.name}${des}`;
 		}
-		const primaryTeamGroupId = (primaryRow as any)?.team_group_id;
+		const primaryTeamGroupId = (primaryRowData as any)?.team_group_id;
 
 		// Load subteams the user is on within their primary team_group.
 		// Display the actual team name the user picked at onboarding (teams.name)
@@ -181,16 +185,12 @@ export const load = async ({ locals }) => {
 		// makes the supabase-js `teams!inner(...)` relationship hint ambiguous
 		// and returns no rows.
 		if (primaryTeamGroupId) {
-			const { data: profileTeamsRows } = await locals.supabase
-				.from('profile_teams')
-				.select('team_id,category_slug')
-				.eq('user_id', user.id)
-				.eq('team_group_id', primaryTeamGroupId);
+			const primaryGroupRows = profileTeamsRows.filter(
+				(r: any) => String(r.team_group_id ?? '') === String(primaryTeamGroupId)
+			);
 			const teamIds = Array.from(
 				new Set(
-					(profileTeamsRows ?? [])
-						.map((r: any) => (r.team_id ? String(r.team_id) : ''))
-						.filter(Boolean)
+					primaryGroupRows.map((r: any) => (r.team_id ? String(r.team_id) : '')).filter(Boolean)
 				)
 			);
 			let teamNameById = new Map<string, string>();
@@ -201,7 +201,7 @@ export const load = async ({ locals }) => {
 					.in('id', teamIds);
 				teamNameById = new Map((teamRows ?? []).map((r: any) => [String(r.id), String(r.name)]));
 			}
-			userSubteams = (profileTeamsRows ?? [])
+			userSubteams = primaryGroupRows
 				.filter(
 					(r: any) => r.category_slug && String(r.category_slug ?? '') !== 'general' && r.team_id
 				)
