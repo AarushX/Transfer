@@ -81,7 +81,7 @@
 				style="background: transparent; border-color: var(--app-glass-border); color: var(--app-text-muted);"
 				>Open full graph</a
 			>
-			{#if (data.templates ?? []).length > 0}
+			{#if data.isFullCourseAccess && (data.templates ?? []).length > 0}
 				<Button variant="ghost" onclick={() => (showTemplatePanel = !showTemplatePanel)}>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity:.7;">
 						<rect
@@ -124,7 +124,7 @@
 					Use template
 				</Button>
 			{/if}
-			<Button variant="primary" href="/mentor/courses/new">
+			<Button variant="primary" href="/courses/new">
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
 					<path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
 				</svg>
@@ -153,7 +153,7 @@
 	{/if}
 
 	<!-- Template panel (collapsible) -->
-	{#if showTemplatePanel && (data.templates ?? []).length > 0}
+	{#if data.isFullCourseAccess && showTemplatePanel && (data.templates ?? []).length > 0}
 		<div
 			class="overflow-hidden rounded-2xl border backdrop-blur-xl"
 			style="background: color-mix(in srgb, var(--app-info) 6%, var(--app-glass-bg)); border-color: color-mix(in srgb, var(--app-info) 35%, var(--app-glass-border)); box-shadow: var(--app-glass-shadow);"
@@ -322,7 +322,7 @@
 		</select>
 		<Button variant="secondary" size="sm" type="submit">Filter</Button>
 		{#if data.filter.q || data.filter.team}
-			<Button variant="ghost" size="sm" href="/mentor/courses">Clear</Button>
+			<Button variant="ghost" size="sm" href="/courses">Clear</Button>
 		{/if}
 	</form>
 
@@ -368,9 +368,9 @@
 				</p>
 			</div>
 			{#if data.filter.q || data.filter.team}
-				<Button variant="ghost" size="sm" href="/mentor/courses">Clear filters</Button>
+				<Button variant="ghost" size="sm" href="/courses">Clear filters</Button>
 			{:else}
-				<Button variant="primary" href="/mentor/courses/new">
+				<Button variant="primary" href="/courses/new">
 					<svg width="13" height="13" viewBox="0 0 16 16" fill="none">
 						<path
 							d="M8 2v12M2 8h12"
@@ -388,7 +388,7 @@
 			{#each data.nodes as node (node.id)}
 				<li>
 					<a
-						href={`/mentor/courses/${node.slug}`}
+						href={`/courses/${node.slug}`}
 						class="course-row group flex items-center gap-3 rounded-xl border p-3 transition-all"
 						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
 					>

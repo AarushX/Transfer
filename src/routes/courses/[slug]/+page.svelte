@@ -474,7 +474,7 @@
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
 			<a
-				href="/mentor/courses"
+				href="/courses"
 				class="eyebrow-label inline-flex items-center gap-1 no-underline"
 				style="color: var(--app-text-dim); text-decoration: none;"
 			>
@@ -491,19 +491,21 @@
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
 			<Button variant="secondary" href={`/learn/${data.node.slug}`}>Preview as student</Button>
-			<form method="POST" action="?/deleteNode" onsubmit={handleDeleteSubmit}>
-				<Button variant="danger" type="submit">Delete</Button>
-			</form>
-			<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
-				<input
-					class="glass-input text-xs"
-					name="template_name"
-					bind:value={templateName}
-					placeholder="Template name"
-					required
-				/>
-				<Button variant="secondary" size="sm" type="submit">Save as template</Button>
-			</form>
+			{#if data.isFullCourseAccess}
+				<form method="POST" action="?/deleteNode" onsubmit={handleDeleteSubmit}>
+					<Button variant="danger" type="submit">Delete</Button>
+				</form>
+				<form method="POST" action="?/saveTemplate" class="flex items-center gap-2">
+					<input
+						class="glass-input text-xs"
+						name="template_name"
+						bind:value={templateName}
+						placeholder="Template name"
+						required
+					/>
+					<Button variant="secondary" size="sm" type="submit">Save as template</Button>
+				</form>
+			{/if}
 		</div>
 	</div>
 
@@ -599,6 +601,12 @@
 					</fieldset>
 				{/each}
 			</div>
+			{#if (data.lockedTeamTargets ?? []).length > 0}
+				<p class="text-[11px]" style="color: var(--app-text-dim);">
+					Also shared with {(data.lockedTeamTargets ?? []).map((t) => t.name).join(', ')} — managed by
+					their leads, untouched when you save.
+				</p>
+			{/if}
 		</div>
 		<label class="flex flex-col gap-1.5 text-sm md:col-span-2">
 			<span class="eyebrow-label">Description</span>

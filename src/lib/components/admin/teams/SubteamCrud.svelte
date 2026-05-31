@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Category, Subteam, TeamGroup } from './types';
+	import type { Category, Subteam, SubteamMember, TeamGroup } from './types';
 
 	type Props = {
 		teamGroups: TeamGroup[];
@@ -7,10 +7,21 @@
 		selectedSubteam: Subteam | null;
 		linkedGroupIdsBySubteam: Map<string, Set<string>>;
 		selectedTeamId: string;
+		subteamMembers: Record<string, SubteamMember[]>;
 	};
 
-	let { teamGroups, categories, selectedSubteam, linkedGroupIdsBySubteam, selectedTeamId }: Props =
-		$props();
+	let {
+		teamGroups,
+		categories,
+		selectedSubteam,
+		linkedGroupIdsBySubteam,
+		selectedTeamId,
+		subteamMembers
+	}: Props = $props();
+
+	const leadCandidates = $derived(
+		selectedSubteam ? (subteamMembers[String(selectedSubteam.id)] ?? []) : []
+	);
 </script>
 
 <div class="grid gap-4 xl:grid-cols-3">
@@ -121,6 +132,24 @@
 				name="subteam_sort_order"
 				value={selectedSubteam.sort_order}
 			/>
+			<label class="block text-xs text-slate-400">
+				<span class="mb-1 block">Subteam lead</span>
+				<select
+					class="w-full rounded bg-slate-800 px-2 py-2 text-sm text-slate-100"
+					name="lead_user_id"
+					value={selectedSubteam.lead_user_id ?? ''}
+				>
+					<option value="">— No lead —</option>
+					{#each leadCandidates as member (member.id)}
+						<option value={member.id}>{member.name}</option>
+					{/each}
+				</select>
+				{#if leadCandidates.length === 0}
+					<span class="mt-1 block text-[11px] text-slate-500">
+						No members assigned to this subteam yet.
+					</span>
+				{/if}
+			</label>
 			<div
 				class="max-h-24 overflow-auto rounded border border-slate-800 bg-slate-950/40 p-2 text-xs"
 			>

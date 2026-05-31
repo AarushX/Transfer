@@ -446,6 +446,7 @@
 					{selectedSubteam}
 					{linkedGroupIdsBySubteam}
 					{selectedTeamId}
+					subteamMembers={data.subteamMembers ?? {}}
 				/>
 				{#if selectedSubteam}
 					<CourseMappingCard

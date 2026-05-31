@@ -14,6 +14,12 @@ export type Subteam = {
 	category_slug: string | null;
 	team_group_id: string;
 	sort_order: number;
+	lead_user_id: string | null;
+};
+
+export type SubteamMember = {
+	id: string;
+	name: string;
 };
 
 export type Category = {

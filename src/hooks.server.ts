@@ -1,7 +1,7 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import type { Session, User } from '@supabase/supabase-js';
 import { createSupabaseServerClient, createSupabaseServiceClient } from '$lib/server/supabase';
-import { isAdmin, isMentor, isParentGuardian } from '$lib/roles';
+import { isAdmin, isMentor, isParentGuardian, canManageCourses } from '$lib/roles';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/attendance']);
 const TEAM_EMAIL_DOMAIN = (process.env.TEAM_EMAIL_DOMAIN ?? '').toLowerCase();
@@ -82,8 +82,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// /mentor (exact) is reachable by non-mentors who hold course_veterans
 	// grants — the page filters its queue accordingly. All other /mentor/*
-	// subpaths (courses editor, machines, etc.) stay mentor-only.
+	// subpaths (machines, etc.) stay mentor-only.
 	if (path.startsWith('/mentor/') && profile && !isMentor(profile)) {
+		throw redirect(303, '/dashboard');
+	}
+	if (path.startsWith('/courses') && profile && !canManageCourses(profile)) {
 		throw redirect(303, '/dashboard');
 	}
 	if (path.startsWith('/roster') && profile && !isMentor(profile)) {
@@ -124,6 +127,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (profile && isParentGuardian(profile)) {
 		const parentBlockedPrefixes = [
 			'/mentor',
+			'/courses',
 			'/roster',
 			'/admin',
 			'/ranked',

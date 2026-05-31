@@ -92,16 +92,20 @@
 				<p class="eyebrow-label">
 					{data.teamGroup?.name ?? 'Team'}
 				</p>
-				<h1
-					class="text-3xl font-extrabold tracking-tighter"
-					style="letter-spacing: -0.02em;"
-				>
+				<h1 class="text-3xl font-extrabold tracking-tighter" style="letter-spacing: -0.02em;">
 					<span class="gradient-text">{subteamDisplayName}</span>
 				</h1>
 				{#if !data.userIsOnSubteam}
 					<p class="mt-1 text-sm" style="color: var(--app-warning);">
 						You're viewing this subteam but not assigned to it.
 					</p>
+				{/if}
+				{#if data.canManageResources && data.userTeamId}
+					<div class="mt-2">
+						<Button variant="secondary" size="sm" href={`/courses?team=${data.userTeamId}`}>
+							Manage courses
+						</Button>
+					</div>
 				{/if}
 			</div>
 			<!-- Progress stat — donut keeps showing the overall %; the label on
@@ -648,7 +652,9 @@
 		transform: rotate(180deg);
 	}
 	.completed-fold-chevron {
-		transition: transform 0.15s ease, color 0.15s ease;
+		transition:
+			transform 0.15s ease,
+			color 0.15s ease;
 	}
 
 	/* "Pin a new resource" form — keep inputs consistent with the rest of
@@ -667,7 +673,9 @@
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 20%, transparent);
 	}
 	.resource-empty {
-		transition: border-color 0.18s ease, background 0.18s ease;
+		transition:
+			border-color 0.18s ease,
+			background 0.18s ease;
 	}
 	.resource-empty:hover {
 		border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-glass-border));
@@ -708,4 +716,3 @@
 		border-color: color-mix(in srgb, var(--app-danger) 55%, transparent);
 	}
 </style>
-

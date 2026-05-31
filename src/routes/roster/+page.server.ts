@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		service.from('profile_teams').select('user_id,team_id,category_slug,team_group_id'),
 		service
 			.from('teams')
-			.select('id,name,slug,category_slug,team_group_id,sort_order')
+			.select('id,name,slug,category_slug,team_group_id,sort_order,lead_user_id')
 			.order('sort_order'),
 		service
 			.from('subteam_categories')
@@ -71,6 +71,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			String(t.id),
 			String(t.name)
 		])
+	);
+	// Which user currently leads each subteam (teams.lead_user_id).
+	const leadUserByTeamId = new Map<string, string>(
+		((teamsList ?? []) as Array<{ id: string; lead_user_id: string | null }>)
+			.filter((t) => t.lead_user_id)
+			.map((t) => [String(t.id), String(t.lead_user_id)])
 	);
 	const teamRowsByUser = new Map<
 		string,
@@ -140,6 +146,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 		const currentPrimaryTeamGroupId = primaryTeamGroupByUser.get(String(profile.id)) ?? '';
 
+		// The member's subteams with a flag for which they currently lead — drives
+		// the per-subteam "Lead" toggles in the admin controls.
+		const subteamLeadOptions = Array.from(new Set(ptRows.map((r) => r.team_id)))
+			.filter((teamId): teamId is string => !!teamId)
+			.map((teamId) => ({
+				teamId,
+				name: teamNameById.get(teamId) ?? 'Subteam',
+				isLead: leadUserByTeamId.get(teamId) === String(profile.id)
+			}));
+
 		return {
 			...profile,
 			progressPercent: Math.round((agg.completed / total) * 100),
@@ -148,7 +164,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			subteamIds,
 			primarySubteamName,
 			currentTeamIdByCategory,
-			currentPrimaryTeamGroupId
+			currentPrimaryTeamGroupId,
+			subteamLeadOptions
 		};
 	});
 
@@ -174,6 +191,59 @@ export const actions: Actions = {
 		});
 		if ('ok' in result) return { ok: true };
 		return fail(result.status, { error: result.error });
+	},
+	// Set which of a member's subteams they lead. Only the member's own subteams
+	// are touched; profiles.is_lead is kept in sync by a DB trigger.
+	setMemberSubteamLeads: async ({ locals, request }) => {
+		const { profile } = await locals.safeGetSession();
+		if (!isAdmin(profile)) return fail(403, { error: 'Forbidden' });
+		const service = createSupabaseServiceClient();
+		const form = await request.formData();
+		const userId = String(form.get('user_id') ?? '').trim();
+		if (!userId) return fail(400, { error: 'Missing user_id' });
+		const checked = new Set(
+			form
+				.getAll('lead_team_ids')
+				.map((v) => String(v))
+				.filter(Boolean)
+		);
+
+		const { data: ptRows } = await service
+			.from('profile_teams')
+			.select('team_id')
+			.eq('user_id', userId);
+		const memberTeamIds = Array.from(
+			new Set((ptRows ?? []).map((r: any) => String(r.team_id)).filter(Boolean))
+		);
+		if (memberTeamIds.length === 0) return { ok: true };
+
+		const { data: teamRows } = await service
+			.from('teams')
+			.select('id,lead_user_id')
+			.in('id', memberTeamIds);
+		const toAssign: string[] = [];
+		const toClear: string[] = [];
+		for (const t of teamRows ?? []) {
+			const id = String(t.id);
+			const currentlyLead = String((t as any).lead_user_id ?? '') === userId;
+			if (checked.has(id) && !currentlyLead) toAssign.push(id);
+			if (!checked.has(id) && currentlyLead) toClear.push(id);
+		}
+		if (toAssign.length > 0) {
+			const { error } = await service
+				.from('teams')
+				.update({ lead_user_id: userId })
+				.in('id', toAssign);
+			if (error) return fail(400, { error: error.message });
+		}
+		if (toClear.length > 0) {
+			const { error } = await service
+				.from('teams')
+				.update({ lead_user_id: null })
+				.in('id', toClear);
+			if (error) return fail(400, { error: error.message });
+		}
+		return { ok: true };
 	},
 	setUserTeams: async ({ locals, request }) => {
 		const { profile } = await locals.safeGetSession();

@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.eq('user_id', user.id),
 		locals.supabase.from('node_team_targets').select('node_id,team_id'),
 		locals.supabase.from('node_team_group_targets').select('node_id,team_group_id'),
-		locals.supabase.from('teams').select('id,name,color_hex,team_group_id'),
+		locals.supabase.from('teams').select('id,name,color_hex,team_group_id,lead_user_id'),
 		locals.supabase.from('team_groups').select('id,name,color_hex')
 	]);
 
@@ -123,15 +123,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			};
 		});
 
-	let isLeadOfSubteam = false;
+	// Subteam lead lives on the user's own subteam row (teams.lead_user_id).
+	const userSubteamRow = (teams ?? []).find((t: any) => String(t.id) === String(userTeamId));
+	const isLeadOfSubteam = !!userTeamId && (userSubteamRow as any)?.lead_user_id === user.id;
 	let isLeadOfTeam = false;
 	try {
 		const { data: leadFields } = await locals.supabase
 			.from('profiles')
-			.select('lead_subteam_id,lead_team_group_id')
+			.select('lead_team_group_id')
 			.eq('id', user.id)
 			.maybeSingle();
-		isLeadOfSubteam = (leadFields as any)?.lead_subteam_id === subteam?.id;
 		isLeadOfTeam = (leadFields as any)?.lead_team_group_id === primaryTeamGroupId;
 	} catch {
 		// migration not applied

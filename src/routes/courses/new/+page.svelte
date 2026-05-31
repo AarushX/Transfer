@@ -24,7 +24,7 @@
 <section class="fade-up space-y-5">
 	<div>
 		<a
-			href="/mentor/courses"
+			href="/courses"
 			class="eyebrow-label inline-flex items-center gap-1 no-underline"
 			style="color: var(--app-text-dim); text-decoration: none;"
 		>
@@ -75,7 +75,7 @@
 				<textarea class="glass-input" name="description" rows="3">{v('description')}</textarea>
 			</label>
 			<div class="flex justify-end gap-2 md:col-span-2">
-				<Button variant="ghost" href="/mentor/courses">Cancel</Button>
+				<Button variant="ghost" href="/courses">Cancel</Button>
 				<Button variant="primary" type="submit">Create course</Button>
 			</div>
 		</form>

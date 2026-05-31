@@ -4,7 +4,13 @@
 	import { page } from '$app/state';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import SidebarIcons from '$lib/components/SidebarIcons.svelte';
-	import { isAdmin, isMentor, isParentGuardian, roleBadgeParts } from '$lib/roles';
+	import {
+		isAdmin,
+		isMentor,
+		isParentGuardian,
+		canManageCourses,
+		roleBadgeParts
+	} from '$lib/roles';
 	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 
 	injectSpeedInsights();
@@ -13,6 +19,8 @@
 	const canMentor = $derived(isMentor(data.profile));
 	const canAdmin = $derived(isAdmin(data.profile));
 	const canParent = $derived(isParentGuardian(data.profile));
+	// Course studio is capability-gated (mentor / admin / subteam lead), not a /mentor route.
+	const canCourseStudio = $derived(canManageCourses(data.profile));
 	const roleLabel = $derived(roleBadgeParts(data.profile).join(' · '));
 
 	let mobileOpen = $state(false);
@@ -70,14 +78,17 @@
 		})
 	);
 
+	const courseStudioNav: NavItem[] = [
+		{
+			href: '/courses',
+			label: 'Course studio',
+			icon: 'courses',
+			match: (p) => p.startsWith('/courses')
+		}
+	];
+
 	const mentorNav: NavItem[] = [
 		{ href: '/mentor', label: 'Checkoffs', icon: 'checkoffs', match: (p) => p === '/mentor' },
-		{
-			href: '/mentor/courses',
-			label: 'Courses',
-			icon: 'courses',
-			match: (p) => p.startsWith('/mentor/courses')
-		},
 		{
 			href: '/mentor/machines',
 			label: 'Machines',
@@ -224,10 +235,7 @@
 				{#if data.orgIconDataUrl}
 					<img src={data.orgIconDataUrl} alt="" class="h-6 w-6 rounded" />
 				{:else}
-					<div
-						class="h-6 w-6 rounded"
-						style="background: var(--app-accent);"
-					></div>
+					<div class="h-6 w-6 rounded" style="background: var(--app-accent);"></div>
 				{/if}
 				<div class="min-w-0 flex-1 leading-tight">
 					<p
@@ -315,6 +323,15 @@
 							<li>{@render navRow(item)}</li>
 						{/each}
 						{#each subteamLinks as item (item.href)}
+							<li>{@render navRow(item)}</li>
+						{/each}
+					</ul>
+				{/if}
+
+				{#if canCourseStudio}
+					{@render sectionLabel('Courses')}
+					<ul class="space-y-0.5">
+						{#each courseStudioNav as item (item.href)}
 							<li>{@render navRow(item)}</li>
 						{/each}
 					</ul>

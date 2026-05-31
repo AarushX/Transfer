@@ -1,6 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { isMentor } from '$lib/roles';
+import { resolveCourseScope } from '$lib/server/course-access';
 import { fetchCourseAggregates } from '$lib/server/course-aggregates';
 
 const slugify = (value: string) =>
@@ -12,7 +12,8 @@ const slugify = (value: string) =>
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+	const scope = await resolveCourseScope(locals.supabase, user, profile);
+	if (!scope.canManage) throw redirect(303, '/dashboard');
 
 	const teamFilter = url.searchParams.get('team') ?? '';
 	const q = url.searchParams.get('q') ?? '';
@@ -66,14 +67,28 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		set.add(String(row.team_id));
 		teamIdsByNode.set(String(row.node_id), set);
 	}
+	// Subteam leads only see courses targeted at the subteams they lead, and the
+	// team picker is restricted to those subteams. Mentors/admins see everything.
+	const ledSet = scope.isFull ? null : new Set(scope.ledTeamIds);
+	const visibleTeams = ledSet
+		? (teams ?? []).filter((t: any) => ledSet.has(String(t.id)))
+		: (teams ?? []);
+	const baseNodes = ledSet
+		? (nodes ?? []).filter((node: any) => {
+				const set = teamIdsByNode.get(String(node.id));
+				if (!set) return false;
+				for (const id of set) if (ledSet.has(id)) return true;
+				return false;
+			})
+		: (nodes ?? []);
 	const filteredNodes =
 		teamFilter && teamFilter.trim()
-			? (nodes ?? []).filter(
+			? baseNodes.filter(
 					(node: any) =>
 						teamIdsByNode.get(String(node.id))?.has(teamFilter) ||
 						String(node.subteam_id ?? '') === String(teamFilter)
 				)
-			: (nodes ?? []);
+			: baseNodes;
 
 	const nodeIds = (filteredNodes ?? []).map((n: any) => String(n.id));
 	const [aggregates, { data: prereqEdges }] = await Promise.all([
@@ -82,9 +97,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	]);
 
 	return {
-		teams: teams ?? [],
+		teams: visibleTeams,
 		teamGroups: teamGroups ?? [],
 		nodes: filteredNodes,
+		isFullCourseAccess: scope.isFull,
 		nodeTargets: nodeTargets ?? [],
 		nodeGroupTargets: nodeGroupTargets ?? [],
 		templates: templates ?? [],
@@ -97,7 +113,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
 	createFromTemplate: async ({ locals, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile)) return fail(403, { error: 'Forbidden' });
+		// Templates are global and can target any team, so creating from a template
+		// stays mentor/admin only. Subteam leads use the scoped "new course" flow.
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.isFull) return fail(403, { error: 'Forbidden' });
 		const form = await request.formData();
 		const templateId = String(form.get('template_id') ?? '').trim();
 		const title = String(form.get('title') ?? '').trim();
@@ -216,6 +235,6 @@ export const actions: Actions = {
 			if (assessmentErr) return fail(400, { error: assessmentErr.message });
 		}
 
-		throw redirect(303, `/mentor/courses/${node.slug}`);
+		throw redirect(303, `/courses/${node.slug}`);
 	}
 };

@@ -256,8 +256,9 @@
 								<td class="p-3">
 									<span
 										class="mono"
-										style="color: {row.hoursTotal ? 'var(--app-text-muted)' : 'var(--app-text-dim)'};"
-										>{row.hoursTotal ?? '—'}</span
+										style="color: {row.hoursTotal
+											? 'var(--app-text-muted)'
+											: 'var(--app-text-dim)'};">{row.hoursTotal ?? '—'}</span
 									>
 								</td>
 								<td class="p-3 text-right">
@@ -368,24 +369,6 @@
 																	{/each}
 																</select>
 															</label>
-															<label class="block">
-																<span
-																	class="text-[10px] tracking-wider uppercase"
-																	style="color: var(--app-text-muted);">Lead of subteam</span
-																>
-																<select
-																	name="lead_subteam_id"
-																	class="mt-1 w-full rounded-lg border px-2 py-1 text-xs"
-																	style="background: var(--app-input-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-																>
-																	<option value="">— none —</option>
-																	{#each data.subteams as st (st.id)}
-																		<option value={st.id} selected={row.lead_subteam_id === st.id}
-																			>{st.name}</option
-																		>
-																	{/each}
-																</select>
-															</label>
 															<div>
 																<span
 																	class="text-[10px] tracking-wider uppercase"
@@ -403,18 +386,46 @@
 																		/>
 																		Mentor
 																	</label>
-																	<label
-																		class="inline-flex items-center gap-1 text-xs"
-																		style="color: var(--app-text-muted);"
-																	>
-																		<input type="checkbox" name="is_lead" checked={!!row.is_lead} />
-																		Lead
-																	</label>
 																</div>
 															</div>
 														</div>
 														<Button variant="primary" size="sm" type="submit">Save changes</Button>
 													</form>
+
+													<!-- Subteam leads — which of the member's subteams they lead. -->
+													{#if (row.subteamLeadOptions ?? []).length > 0}
+														<form
+															method="POST"
+															action="?/setMemberSubteamLeads"
+															class="mt-5 space-y-2 border-t pt-4"
+															style="border-color: var(--app-glass-border);"
+														>
+															<input type="hidden" name="user_id" value={row.id} />
+															<span
+																class="text-[10px] tracking-wider uppercase"
+																style="color: var(--app-text-muted);">Leads which subteams</span
+															>
+															<div class="flex flex-col gap-1">
+																{#each row.subteamLeadOptions as opt (opt.teamId)}
+																	<label
+																		class="inline-flex items-center gap-2 text-xs"
+																		style="color: var(--app-text-muted);"
+																	>
+																		<input
+																			type="checkbox"
+																			name="lead_team_ids"
+																			value={opt.teamId}
+																			checked={opt.isLead}
+																		/>
+																		{opt.name}
+																	</label>
+																{/each}
+															</div>
+															<Button variant="secondary" size="sm" type="submit"
+																>Save subteam leads</Button
+															>
+														</form>
+													{/if}
 
 													<!-- Team assignments — moved here from /roster/[userId] so admins
 													     can edit onboarded subteams inline without leaving the table. -->

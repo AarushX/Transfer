@@ -207,7 +207,7 @@
 				<span class="text-xs font-medium" style="color: var(--app-text-muted);">Live</span>
 			</div>
 			<Button variant="secondary" href="/scan">Scan hub</Button>
-			<Button variant="secondary" href="/mentor/courses">Manage courses</Button>
+			<Button variant="secondary" href="/courses">Manage courses</Button>
 		</div>
 	</PageHeader>
 

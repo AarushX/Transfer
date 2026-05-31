@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.order('sort_order'),
 		locals.supabase
 			.from('teams')
-			.select('id,name,slug,color_hex,category_slug,team_group_id,sort_order')
+			.select('id,name,slug,color_hex,category_slug,team_group_id,sort_order,lead_user_id')
 			.order('sort_order'),
 		locals.supabase
 			.from('subteam_categories')
@@ -55,6 +55,38 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		locals.supabase.from('team_group_subteam_links').select('team_group_id,team_id')
 	]);
 
+	// Candidate leads per subteam: the members assigned to that subteam. Used to
+	// populate the per-subteam "Lead" picker without listing the whole org.
+	const [{ data: profileTeams }, { data: members }] = await Promise.all([
+		locals.supabase.from('profile_teams').select('team_id,user_id'),
+		locals.supabase.from('profiles').select('id,full_name,email').order('full_name')
+	]);
+	const memberById = new Map(
+		(members ?? []).map((m: any) => [
+			String(m.id),
+			{ id: String(m.id), name: String(m.full_name || m.email || 'Member') }
+		])
+	);
+	const subteamMembers: Record<string, { id: string; name: string }[]> = {};
+	for (const row of profileTeams ?? []) {
+		const teamId = String(row.team_id);
+		const member = memberById.get(String(row.user_id));
+		if (!member) continue;
+		(subteamMembers[teamId] ??= []).push(member);
+	}
+	// Make sure each subteam's current lead is always a selectable option, even if
+	// they aren't (or are no longer) on the subteam roster — avoids silently
+	// clearing the lead when the edit form is saved.
+	for (const team of subteams ?? []) {
+		const leadId = (team as any).lead_user_id ? String((team as any).lead_user_id) : '';
+		if (!leadId) continue;
+		const list = (subteamMembers[String(team.id)] ??= []);
+		if (!list.some((m) => m.id === leadId)) {
+			const lead = memberById.get(leadId);
+			if (lead) list.unshift(lead);
+		}
+	}
+
 	return {
 		teamGroups: teamGroups ?? [],
 		subteams: subteams ?? [],
@@ -62,7 +94,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		nodes: nodes ?? [],
 		groupTargets: groupTargets ?? [],
 		subteamTargets: subteamTargets ?? [],
-		subteamLinks: subteamLinks ?? []
+		subteamLinks: subteamLinks ?? [],
+		subteamMembers
 	};
 };
 
@@ -168,6 +201,7 @@ export const actions: Actions = {
 		const colorHex = String(form.get('subteam_color_hex') ?? '#334155').trim();
 		const categorySlug = String(form.get('subteam_category_slug') ?? '').trim();
 		const sortOrder = numberFrom(form.get('subteam_sort_order'));
+		const leadUserId = String(form.get('lead_user_id') ?? '').trim();
 		const linkedTeamGroupIds = uniqueFormStrings(form, 'linked_team_group_ids');
 		if (!subteamId) return fail(400, { error: 'Subteam is required.' });
 		if (!name || !slug) return fail(400, { error: 'Subteam name is required.' });
@@ -193,7 +227,8 @@ export const actions: Actions = {
 				slug,
 				color_hex: colorOr(colorHex, '#334155'),
 				category_slug: categorySlug || null,
-				sort_order: sortOrder
+				sort_order: sortOrder,
+				lead_user_id: leadUserId || null
 			})
 			.eq('id', subteamId);
 		if (error) return fail(400, { error: error.message });

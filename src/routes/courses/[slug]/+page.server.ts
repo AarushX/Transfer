@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { isMentor } from '$lib/roles';
+import { resolveCourseScope } from '$lib/server/course-access';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
 
 const slugify = (value: string) =>
 	value
@@ -280,9 +281,26 @@ function normalizeReadingConfig(raw: any) {
 	return { title, content, resource_links };
 }
 
+// Whether the actor may edit this specific course. Mentors/admins always can;
+// a subteam lead only if the course targets one of the subteams they lead.
+async function leadCanEditNode(
+	locals: App.Locals,
+	scope: Awaited<ReturnType<typeof resolveCourseScope>>,
+	nodeId: string
+): Promise<boolean> {
+	if (scope.isFull) return true;
+	const ledSet = new Set(scope.ledTeamIds);
+	const { data } = await locals.supabase
+		.from('node_team_targets')
+		.select('team_id')
+		.eq('node_id', nodeId);
+	return (data ?? []).some((r: any) => ledSet.has(String(r.team_id)));
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { user, profile } = await locals.safeGetSession();
-	if (!user || !profile || !isMentor(profile)) throw redirect(303, '/dashboard');
+	const scope = await resolveCourseScope(locals.supabase, user, profile);
+	if (!scope.canManage) throw redirect(303, '/dashboard');
 
 	const { data: node, error: nodeErr } = await locals.supabase
 		.from('nodes')
@@ -323,6 +341,23 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		locals.supabase.from('node_team_targets').select('team_id').eq('node_id', node.id)
 	]);
 
+	const allTeams = teamsResp.data ?? [];
+	const nodeTeamIds = (nodeTeamTargetsResp.data ?? []).map((row: any) => String(row.team_id));
+
+	// Subteam leads may only open courses that target one of their subteams, and
+	// only their own subteams are editable targets. Targets on other subteams are
+	// preserved and shown read-only.
+	const ledSet = scope.isFull ? null : new Set(scope.ledTeamIds);
+	if (ledSet && !nodeTeamIds.some((id: string) => ledSet.has(id))) {
+		throw redirect(303, '/courses');
+	}
+	const visibleTeams = ledSet ? allTeams.filter((t: any) => ledSet.has(String(t.id))) : allTeams;
+	const lockedTeamTargets = ledSet
+		? allTeams
+				.filter((t: any) => nodeTeamIds.includes(String(t.id)) && !ledSet.has(String(t.id)))
+				.map((t: any) => ({ id: String(t.id), name: String(t.name) }))
+		: [];
+
 	return {
 		node,
 		prereqIds: (prereqsResp.data ?? []).map(
@@ -332,16 +367,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		blocks: blocksResp.data ?? [],
 		trainingCategories: trainingCategoriesResp.data ?? [],
 		nodeCategoryIds: (nodeCategoriesResp.data ?? []).map((row: any) => String(row.category_id)),
-		teams: teamsResp.data ?? [],
-		nodeTeamIds: (nodeTeamTargetsResp.data ?? []).map((row: any) => String(row.team_id))
+		teams: visibleTeams,
+		nodeTeamIds,
+		isFullCourseAccess: scope.isFull,
+		lockedTeamTargets
 	};
 };
 
 export const actions: Actions = {
 	saveTemplate: async ({ locals, params, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile))
-			return fail(403, { error: 'Forbidden', section: 'details' });
+		// Templates are global, so saving one stays mentor/admin only.
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.isFull) return fail(403, { error: 'Forbidden', section: 'details' });
 		const form = await request.formData();
 		const templateName = String(form.get('template_name') ?? '').trim();
 		if (!templateName)
@@ -384,8 +422,8 @@ export const actions: Actions = {
 	},
 	updateNode: async ({ locals, params, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile))
-			return fail(403, { error: 'Forbidden', section: 'details' });
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.canManage) return fail(403, { error: 'Forbidden', section: 'details' });
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const rawSlug = String(form.get('slug') ?? '').trim();
@@ -412,7 +450,29 @@ export const actions: Actions = {
 			return fail(400, { error: 'Title and slug are required.', section: 'details' });
 		}
 
-		const { error: err } = await locals.supabase
+		// Authorize a subteam lead against the course's current targets, and confirm
+		// any submitted targets are within the subteams they lead.
+		const { data: existingNode } = await locals.supabase
+			.from('nodes')
+			.select('id')
+			.eq('slug', params.slug)
+			.single();
+		if (!existingNode?.id) return fail(404, { error: 'Course not found', section: 'details' });
+		const ledSet = scope.isFull ? null : new Set(scope.ledTeamIds);
+		if (ledSet) {
+			if (!(await leadCanEditNode(locals, scope, String(existingNode.id))))
+				return fail(403, { error: 'Forbidden', section: 'details' });
+			if (teamIds.some((id) => !ledSet.has(id)))
+				return fail(403, {
+					error: 'You can only target the subteams you lead.',
+					section: 'details'
+				});
+		}
+		// Lead writes bypass mentor/admin RLS via the service client after the
+		// authorization above; mentors/admins keep the RLS-bound client.
+		const db = scope.isFull ? locals.supabase : createSupabaseServiceClient();
+
+		const { error: err } = await db
 			.from('nodes')
 			.update({
 				title,
@@ -426,34 +486,60 @@ export const actions: Actions = {
 
 		if (err) return fail(400, { error: err.message, section: 'details' });
 
-		const { data: currentNode } = await locals.supabase
-			.from('nodes')
-			.select('id')
-			.eq('slug', slug)
-			.single();
+		const { data: currentNode } = await db.from('nodes').select('id').eq('slug', slug).single();
 		if (currentNode?.id) {
-			const { error: deleteTeamsErr } = await locals.supabase
-				.from('node_team_targets')
-				.delete()
-				.eq('node_id', currentNode.id);
-			if (deleteTeamsErr) return fail(400, { error: deleteTeamsErr.message, section: 'details' });
-			if (teamIds.length > 0) {
-				const { error: insertTeamsErr } = await locals.supabase.from('node_team_targets').insert(
-					teamIds.map((teamId) => ({
-						node_id: currentNode.id,
-						team_id: teamId
-					}))
-				);
-				if (insertTeamsErr) return fail(400, { error: insertTeamsErr.message, section: 'details' });
+			if (ledSet) {
+				// Merge: only toggle targets for the subteams this lead controls,
+				// leaving other subteams' targets on the course untouched.
+				const { data: existingTargets } = await db
+					.from('node_team_targets')
+					.select('team_id')
+					.eq('node_id', currentNode.id);
+				const existingLed = (existingTargets ?? [])
+					.map((r: any) => String(r.team_id))
+					.filter((id: string) => ledSet.has(id));
+				const desiredLed = teamIds.filter((id) => ledSet.has(id));
+				const toRemove = existingLed.filter((id: string) => !desiredLed.includes(id));
+				const toAdd = desiredLed.filter((id) => !existingLed.includes(id));
+				if (toRemove.length > 0) {
+					const { error: removeErr } = await db
+						.from('node_team_targets')
+						.delete()
+						.eq('node_id', currentNode.id)
+						.in('team_id', toRemove);
+					if (removeErr) return fail(400, { error: removeErr.message, section: 'details' });
+				}
+				if (toAdd.length > 0) {
+					const { error: addErr } = await db
+						.from('node_team_targets')
+						.insert(toAdd.map((teamId) => ({ node_id: currentNode.id, team_id: teamId })));
+					if (addErr) return fail(400, { error: addErr.message, section: 'details' });
+				}
+			} else {
+				const { error: deleteTeamsErr } = await db
+					.from('node_team_targets')
+					.delete()
+					.eq('node_id', currentNode.id);
+				if (deleteTeamsErr) return fail(400, { error: deleteTeamsErr.message, section: 'details' });
+				if (teamIds.length > 0) {
+					const { error: insertTeamsErr } = await db.from('node_team_targets').insert(
+						teamIds.map((teamId) => ({
+							node_id: currentNode.id,
+							team_id: teamId
+						}))
+					);
+					if (insertTeamsErr)
+						return fail(400, { error: insertTeamsErr.message, section: 'details' });
+				}
 			}
-			const { error: deleteCategoriesErr } = await locals.supabase
+			const { error: deleteCategoriesErr } = await db
 				.from('node_categories')
 				.delete()
 				.eq('node_id', currentNode.id);
 			if (deleteCategoriesErr)
 				return fail(400, { error: deleteCategoriesErr.message, section: 'details' });
 			if (categoryIds.length > 0) {
-				const { error: insertCategoriesErr } = await locals.supabase.from('node_categories').insert(
+				const { error: insertCategoriesErr } = await db.from('node_categories').insert(
 					categoryIds.map((categoryId) => ({
 						node_id: currentNode.id,
 						category_id: categoryId
@@ -464,14 +550,14 @@ export const actions: Actions = {
 			}
 		}
 
-		if (slug !== params.slug) throw redirect(303, `/mentor/courses/${slug}`);
+		if (slug !== params.slug) throw redirect(303, `/courses/${slug}`);
 		return { ok: true, section: 'details' };
 	},
 
 	saveBlocks: async ({ locals, params, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile))
-			return fail(403, { error: 'Forbidden', section: 'blocks' });
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.canManage) return fail(403, { error: 'Forbidden', section: 'blocks' });
 		const form = await request.formData();
 		const rawBlocksJson = String(form.get('blocks_json') ?? '[]');
 		let draftBlocks: BlockDraft[] = [];
@@ -504,6 +590,11 @@ export const actions: Actions = {
 				blocks_json: rawBlocksJson
 			});
 		}
+		if (!(await leadCanEditNode(locals, scope, String(nodeRow.id)))) {
+			return fail(403, { error: 'Forbidden', section: 'blocks', blocks_json: rawBlocksJson });
+		}
+		// Lead writes go through the service client after the authorization above.
+		const db = scope.isFull ? locals.supabase : createSupabaseServiceClient();
 
 		const rows: Array<{
 			id?: string;
@@ -696,7 +787,7 @@ export const actions: Actions = {
 			(id) => !rows.some((r) => r.id && String(r.id) === id)
 		);
 		if (deleteIds.length > 0) {
-			const { error: deleteErr } = await locals.supabase
+			const { error: deleteErr } = await db
 				.from('node_blocks')
 				.delete()
 				.eq('node_id', nodeRow.id)
@@ -714,7 +805,7 @@ export const actions: Actions = {
 			.filter((b: any) => !deleteIds.includes(String(b.id)))
 			.sort((a: any, b: any) => Number(b.position) - Number(a.position));
 		for (let i = 0; i < survivingBlocks.length; i++) {
-			const { error: shiftErr } = await locals.supabase
+			const { error: shiftErr } = await db
 				.from('node_blocks')
 				.update({ position: 1000000 + i })
 				.eq('id', String(survivingBlocks[i].id))
@@ -732,7 +823,7 @@ export const actions: Actions = {
 		for (const row of rows) {
 			const persistedId = row.id ? String(row.id) : '';
 			if (persistedId && existingIds.has(persistedId)) {
-				const { data: updated, error: updateErr } = await locals.supabase
+				const { data: updated, error: updateErr } = await db
 					.from('node_blocks')
 					.update({
 						position: row.position,
@@ -753,7 +844,7 @@ export const actions: Actions = {
 				}
 				if (updated?.id) keepIds.push(String(updated.id));
 			} else {
-				const { data: inserted, error: insertErr } = await locals.supabase
+				const { data: inserted, error: insertErr } = await db
 					.from('node_blocks')
 					.insert({
 						node_id: row.node_id,
@@ -776,10 +867,7 @@ export const actions: Actions = {
 		}
 
 		if (rows.length === 0) {
-			const { error: clearErr } = await locals.supabase
-				.from('node_blocks')
-				.delete()
-				.eq('node_id', nodeRow.id);
+			const { error: clearErr } = await db.from('node_blocks').delete().eq('node_id', nodeRow.id);
 			if (clearErr) {
 				return fail(400, {
 					error: clearErr.message,
@@ -792,34 +880,30 @@ export const actions: Actions = {
 		const checkoffBlock = rows.find((r) => r.type === 'checkoff');
 		if (checkoffBlock) {
 			const cfg = checkoffBlock.config as ReturnType<typeof normalizeCheckoffConfig>;
-			const { error: checkoffErr } = await locals.supabase
-				.from('node_checkoff_requirements')
-				.upsert(
-					{
-						node_id: nodeRow.id,
-						title: cfg.title,
-						directions: cfg.directions,
-						mentor_checklist: cfg.mentor_checklist,
-						resource_links: cfg.resource_links,
-						evidence_mode: cfg.evidence_mode
-					},
-					{ onConflict: 'node_id' }
-				);
+			const { error: checkoffErr } = await db.from('node_checkoff_requirements').upsert(
+				{
+					node_id: nodeRow.id,
+					title: cfg.title,
+					directions: cfg.directions,
+					mentor_checklist: cfg.mentor_checklist,
+					resource_links: cfg.resource_links,
+					evidence_mode: cfg.evidence_mode
+				},
+				{ onConflict: 'node_id' }
+			);
 			if (checkoffErr) return fail(400, { error: checkoffErr.message, section: 'blocks' });
 		} else {
-			const { error: resetCheckoffErr } = await locals.supabase
-				.from('node_checkoff_requirements')
-				.upsert(
-					{
-						node_id: nodeRow.id,
-						title: 'Skills Check',
-						directions: '',
-						mentor_checklist: [],
-						resource_links: [],
-						evidence_mode: 'none'
-					},
-					{ onConflict: 'node_id' }
-				);
+			const { error: resetCheckoffErr } = await db.from('node_checkoff_requirements').upsert(
+				{
+					node_id: nodeRow.id,
+					title: 'Skills Check',
+					directions: '',
+					mentor_checklist: [],
+					resource_links: [],
+					evidence_mode: 'none'
+				},
+				{ onConflict: 'node_id' }
+			);
 			if (resetCheckoffErr)
 				return fail(400, { error: resetCheckoffErr.message, section: 'blocks' });
 		}
@@ -827,7 +911,7 @@ export const actions: Actions = {
 		const quizBlocks = rows.filter((r) => r.type === 'quiz');
 		const firstQuiz = quizBlocks[0]?.config as ReturnType<typeof normalizeQuizConfig> | undefined;
 		if (firstQuiz) {
-			const { error: assessmentErr } = await locals.supabase.from('assessments').upsert(
+			const { error: assessmentErr } = await db.from('assessments').upsert(
 				{
 					node_id: nodeRow.id,
 					passing_score: firstQuiz.passing_score,
@@ -848,8 +932,8 @@ export const actions: Actions = {
 
 	savePrereqs: async ({ locals, params, request }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile))
-			return fail(403, { error: 'Forbidden', section: 'prereqs' });
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.canManage) return fail(403, { error: 'Forbidden', section: 'prereqs' });
 		const form = await request.formData();
 		const ids = form
 			.getAll('prereq_ids')
@@ -862,8 +946,11 @@ export const actions: Actions = {
 			.eq('slug', params.slug)
 			.single();
 		if (!nodeRow) return fail(404, { error: 'Course not found', section: 'prereqs' });
+		if (!(await leadCanEditNode(locals, scope, String(nodeRow.id))))
+			return fail(403, { error: 'Forbidden', section: 'prereqs' });
+		const db = scope.isFull ? locals.supabase : createSupabaseServiceClient();
 
-		const { error: delErr } = await locals.supabase
+		const { error: delErr } = await db
 			.from('node_prerequisites')
 			.delete()
 			.eq('node_id', nodeRow.id);
@@ -874,9 +961,7 @@ export const actions: Actions = {
 				.filter((id) => id !== nodeRow.id)
 				.map((id) => ({ node_id: nodeRow.id, prerequisite_node_id: id }));
 			if (insertRows.length) {
-				const { error: insErr } = await locals.supabase
-					.from('node_prerequisites')
-					.insert(insertRows);
+				const { error: insErr } = await db.from('node_prerequisites').insert(insertRows);
 				if (insErr) return fail(400, { error: insErr.message, section: 'prereqs' });
 			}
 		}
@@ -885,10 +970,11 @@ export const actions: Actions = {
 
 	deleteNode: async ({ locals, params }) => {
 		const { user, profile } = await locals.safeGetSession();
-		if (!user || !profile || !isMentor(profile))
-			return fail(403, { error: 'Forbidden', section: 'delete' });
+		// Deleting a course stays mentor/admin only.
+		const scope = await resolveCourseScope(locals.supabase, user, profile);
+		if (!scope.isFull) return fail(403, { error: 'Forbidden', section: 'delete' });
 		const { error: err } = await locals.supabase.from('nodes').delete().eq('slug', params.slug);
 		if (err) return fail(400, { error: err.message, section: 'delete' });
-		throw redirect(303, '/mentor/courses');
+		throw redirect(303, '/courses');
 	}
 };
