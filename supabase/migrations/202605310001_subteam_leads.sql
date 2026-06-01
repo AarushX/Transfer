@@ -94,22 +94,34 @@ and not exists (select 1 from public.teams t where t.lead_user_id = p.id);
 
 -- 3. Re-key the subteam-lead team_notes policies onto the new model so a
 -- subteam lead can edit the notes for the subteam they actually lead.
-drop policy if exists "team_notes_subteam_lead_write" on public.team_notes;
-drop policy if exists "team_notes_subteam_lead_update" on public.team_notes;
+-- Guarded: team_notes may not exist in every environment yet.
+do $$
+begin
+	if to_regclass('public.team_notes') is null then
+		return;
+	end if;
 
-create policy "team_notes_subteam_lead_write" on public.team_notes for insert with check (
-	exists (
-		select 1 from public.teams t
-		where t.lead_user_id = auth.uid()
-			and t.team_group_id = team_notes.team_group_id
-			and t.category_slug = team_notes.subteam_category_slug
-	)
-);
-create policy "team_notes_subteam_lead_update" on public.team_notes for update using (
-	exists (
-		select 1 from public.teams t
-		where t.lead_user_id = auth.uid()
-			and t.team_group_id = team_notes.team_group_id
-			and t.category_slug = team_notes.subteam_category_slug
-	)
-);
+	execute 'drop policy if exists "team_notes_subteam_lead_write" on public.team_notes';
+	execute 'drop policy if exists "team_notes_subteam_lead_update" on public.team_notes';
+
+	execute $p$
+		create policy "team_notes_subteam_lead_write" on public.team_notes for insert with check (
+			exists (
+				select 1 from public.teams t
+				where t.lead_user_id = auth.uid()
+					and t.team_group_id = team_notes.team_group_id
+					and t.category_slug = team_notes.subteam_category_slug
+			)
+		)
+	$p$;
+	execute $p$
+		create policy "team_notes_subteam_lead_update" on public.team_notes for update using (
+			exists (
+				select 1 from public.teams t
+				where t.lead_user_id = auth.uid()
+					and t.team_group_id = team_notes.team_group_id
+					and t.category_slug = team_notes.subteam_category_slug
+			)
+		)
+	$p$;
+end $$;
