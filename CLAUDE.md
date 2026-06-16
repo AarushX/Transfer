@@ -21,7 +21,7 @@ Install note from README: `npm install --force` may be required on non-LTS Node.
 
 ## Required env (`.env`)
 
-`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TEAM_EMAIL_DOMAIN` (gates non-parent logins), `PASSPORT_QR_SECRET` (HS256 secret for passport JWTs), `ATTENDANCE_TIMEZONE`. Email blasts additionally need `GMAIL_USER` / `GMAIL_APP_PASSWORD`.
+`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TEAM_EMAIL_DOMAIN` (gates non-parent logins), `PASSPORT_QR_SECRET` (HS256 secret for passport JWTs), `ATTENDANCE_TIMEZONE`. Email blasts and checkoff notification emails additionally need `GMAIL_USER` / `GMAIL_APP_PASSWORD`. The ClickUp avatar link needs `CLICKUP_CLIENT_ID` / `CLICKUP_CLIENT_SECRET` (ClickUp OAuth app with redirect URI `<origin>/auth/clickup/callback`).
 
 ## Architecture
 
@@ -64,7 +64,7 @@ Passport QR codes are HS256-signed JWTs (`{ user_id, qr_version }`) built in `sr
 
 ### Theming
 
-The portal supports 25+ runtime-configurable color variables exposed as CSS custom properties (managed in `/admin/settings`). UI code must read theme colors via those variables — do not hardcode hex values in components.
+The theme is a fixed token set: all colors are CSS custom properties (`--app-*`) defined once in `src/routes/layout.css` `:root`. There is no runtime/admin-configurable theming (the old `/admin/settings` color pickers and `org_settings.color_*` columns were removed). UI code must read colors via those variables — never hardcode hex values in components — so a future site-wide retheme stays a one-file change. Token values are tuned for WCAG AA contrast on the dark background; keep text tokens at ≥4.5:1.
 
 ## Conventions to preserve
 

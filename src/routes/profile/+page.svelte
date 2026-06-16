@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Avatar from '$lib/components/Avatar.svelte';
+	import { page } from '$app/state';
 	import { roleBadgeParts } from '$lib/roles';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -15,12 +16,13 @@
 
 	let fullName = $state('');
 	let bio = $state('');
-	let avatarUrl = $state('');
 	$effect(() => {
 		fullName = data.profile?.full_name ?? '';
 		bio = data.profile?.bio ?? '';
-		avatarUrl = data.profile?.avatar_url ?? '';
 	});
+
+	const clickupStatus = $derived(page.url.searchParams.get('clickup') ?? '');
+	const clickupErrorReason = $derived(page.url.searchParams.get('reason') ?? 'unknown');
 
 	const refreshOnSuccess = () => {
 		return async ({ result }: { result: { type: string } }) => {
@@ -95,7 +97,7 @@
 						<Avatar
 							name={fullName || data.profile?.email}
 							email={data.profile?.email}
-							url={avatarUrl}
+							url={data.profile?.avatar_url}
 							size="xl"
 						/>
 					</div>
@@ -138,21 +140,6 @@
 				</label>
 
 				<label class="block space-y-1.5">
-					<span class="eyebrow-label">Avatar URL</span>
-					<input
-						name="avatar_url"
-						bind:value={avatarUrl}
-						type="url"
-						class="block w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
-						style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
-						placeholder="https://…"
-					/>
-					<span class="text-[11px]" style="color: var(--app-text-dim);">
-						Optional. Leave blank to use initials. Square images look best.
-					</span>
-				</label>
-
-				<label class="block space-y-1.5">
 					<span class="eyebrow-label">Bio</span>
 					<textarea
 						name="bio"
@@ -169,6 +156,93 @@
 					<Button variant="primary" type="submit">Save profile</Button>
 				</div>
 			</form>
+
+			<!-- Profile picture: ClickUp link is the primary source; upload is the fallback. -->
+			<div class="relative space-y-3 border-t p-5" style="border-color: var(--app-glass-border);">
+				<div>
+					<span class="eyebrow-label">Profile picture</span>
+					<p class="mt-1 text-xs" style="color: var(--app-text-muted);">
+						Link your ClickUp account to use your ClickUp picture. If ClickUp isn't linked, an
+						uploaded photo is used; otherwise your initials.
+					</p>
+				</div>
+
+				{#if clickupStatus === 'linked'}
+					<p
+						class="rounded-xl border p-2 text-xs"
+						style="border-color: color-mix(in srgb, var(--app-success) 40%, transparent); background: color-mix(in srgb, var(--app-success) 10%, transparent); color: color-mix(in srgb, var(--app-success) 70%, white);"
+					>
+						ClickUp linked — your ClickUp picture is now in use.
+					</p>
+				{:else if clickupStatus === 'error'}
+					<p
+						class="rounded-xl border p-2 text-xs"
+						style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);"
+					>
+						ClickUp link failed ({clickupErrorReason}). Try again.
+					</p>
+				{/if}
+
+				<div class="flex flex-wrap items-center gap-2">
+					{#if data.clickupLinked}
+						<span
+							class="chip-violet inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
+							>ClickUp linked</span
+						>
+						<form method="POST" action="/auth/clickup">
+							<Button variant="secondary" type="submit">Re-sync picture</Button>
+						</form>
+						<form method="POST" action="?/unlinkClickup" use:enhance={refreshOnSuccess}>
+							<Button variant="secondary" type="submit">Unlink ClickUp</Button>
+						</form>
+					{:else}
+						<form method="POST" action="/auth/clickup">
+							<Button variant="primary" type="submit">Link ClickUp account</Button>
+						</form>
+					{/if}
+				</div>
+
+				<form
+					method="POST"
+					action="?/uploadAvatar"
+					enctype="multipart/form-data"
+					use:enhance={refreshOnSuccess}
+					class="space-y-2"
+				>
+					<label class="block space-y-1.5">
+						<span class="eyebrow-label"
+							>Upload a photo{data.clickupLinked ? ' (fallback)' : ''}</span
+						>
+						<input
+							name="avatar"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							required
+							class="block w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm"
+							style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-input-text);"
+						/>
+						<span class="text-[11px]" style="color: var(--app-text-dim);">
+							JPEG, PNG, or WebP up to 2 MB. Square images look best.
+							{#if data.clickupLinked}
+								Shown only if you unlink ClickUp.
+							{/if}
+						</span>
+					</label>
+					<div class="flex justify-end">
+						<Button variant="secondary" type="submit">Upload</Button>
+					</div>
+				</form>
+				{#if data.uploadedAvatarPath}
+					<form
+						method="POST"
+						action="?/removeUploadedAvatar"
+						use:enhance={refreshOnSuccess}
+						class="flex justify-end"
+					>
+						<Button variant="secondary" type="submit">Remove uploaded photo</Button>
+					</form>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -229,7 +303,9 @@
 		>
 			<div class="mb-3 flex items-baseline justify-between gap-3">
 				<div>
-					<h2 class="text-base font-semibold" style="color: var(--app-text);">Mentor checkoff teams</h2>
+					<h2 class="text-base font-semibold" style="color: var(--app-text);">
+						Mentor checkoff teams
+					</h2>
 					<p class="mt-0.5 text-xs" style="color: var(--app-text-muted);">
 						Which teams to show in your mentor queue when filtering to "My teams".
 					</p>
@@ -365,8 +441,8 @@
 						class="mt-2 rounded-lg border px-2.5 py-1.5 text-[11px]"
 						style="border-color: color-mix(in srgb, var(--app-warning) 45%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);"
 					>
-						Anyone holding this blob can act as your account until the tokens expire. Don't paste
-						it into chat, screenshots, or anywhere persistent.
+						Anyone holding this blob can act as your account until the tokens expire. Don't paste it
+						into chat, screenshots, or anywhere persistent.
 					</p>
 				</div>
 

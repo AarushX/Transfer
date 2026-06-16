@@ -4,88 +4,6 @@
 	let iconDataUrl = $state(String(data.iconDataUrl ?? ''));
 	let settingsForm = $state<HTMLFormElement | null>(null);
 
-	const defaults = {
-		name: 'Workspace',
-		color_background: '#0b1220',
-		color_surface: '#121a2b',
-		color_surface_alt: '#1a2438',
-		color_border: '#2a3754',
-		color_text: '#e6edf7',
-		color_text_muted: '#9fb0cc',
-		color_accent: '#8b5cf6',
-		color_accent_text: '#ffffff',
-		color_success: '#22c55e',
-		color_warning: '#f59e0b',
-		color_danger: '#f43f5e',
-		color_info: '#06b6d4',
-		color_link: '#60a5fa',
-		color_link_hover: '#3b82f6',
-		color_input_bg: '#111a2e',
-		color_input_text: '#e6edf7',
-		color_table_header_bg: '#1a2438',
-		color_table_row_hover: '#182136',
-		color_overlay_scrim: '#020617',
-		color_focus_ring: '#a78bfa',
-		color_button_secondary_bg: '#1a2438',
-		color_button_secondary_text: '#d6e2f5',
-		color_button_secondary_border: '#334766'
-	};
-
-	const colorFields: Array<{ label: string; name: keyof typeof defaults; value: string }> = [
-		{ label: 'Background', name: 'color_background', value: data.colorBackground },
-		{ label: 'Surface', name: 'color_surface', value: data.colorSurface },
-		{ label: 'Surface Alt', name: 'color_surface_alt', value: data.colorSurfaceAlt },
-		{ label: 'Border', name: 'color_border', value: data.colorBorder },
-		{ label: 'Text', name: 'color_text', value: data.colorText },
-		{ label: 'Muted Text', name: 'color_text_muted', value: data.colorTextMuted },
-		{ label: 'Accent', name: 'color_accent', value: data.colorAccent },
-		{ label: 'Accent Text', name: 'color_accent_text', value: data.colorAccentText },
-		{ label: 'Success', name: 'color_success', value: data.colorSuccess },
-		{ label: 'Warning', name: 'color_warning', value: data.colorWarning },
-		{ label: 'Danger', name: 'color_danger', value: data.colorDanger },
-		{ label: 'Info', name: 'color_info', value: data.colorInfo },
-		{ label: 'Link', name: 'color_link', value: data.colorLink },
-		{ label: 'Link Hover', name: 'color_link_hover', value: data.colorLinkHover },
-		{ label: 'Input Background', name: 'color_input_bg', value: data.colorInputBg },
-		{ label: 'Input Text', name: 'color_input_text', value: data.colorInputText },
-		{ label: 'Table Header', name: 'color_table_header_bg', value: data.colorTableHeaderBg },
-		{ label: 'Table Row Hover', name: 'color_table_row_hover', value: data.colorTableRowHover },
-		{ label: 'Overlay Scrim', name: 'color_overlay_scrim', value: data.colorOverlayScrim },
-		{ label: 'Focus Ring', name: 'color_focus_ring', value: data.colorFocusRing },
-		{
-			label: 'Secondary Button Bg',
-			name: 'color_button_secondary_bg',
-			value: data.colorButtonSecondaryBg
-		},
-		{
-			label: 'Secondary Button Text',
-			name: 'color_button_secondary_text',
-			value: data.colorButtonSecondaryText
-		},
-		{
-			label: 'Secondary Button Border',
-			name: 'color_button_secondary_border',
-			value: data.colorButtonSecondaryBorder
-		}
-	];
-
-	const setFieldValue = (name: string, value: string) => {
-		const el = settingsForm?.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
-		if (el) el.value = value;
-	};
-	const resetField = (name: keyof typeof defaults) => {
-		setFieldValue(name, defaults[name]);
-	};
-	const resetAllDefaults = () => {
-		setFieldValue('name', defaults.name);
-		for (const field of colorFields) setFieldValue(field.name, defaults[field.name]);
-		iconDataUrl = '';
-		const clearIconEl = settingsForm?.querySelector(
-			'[name="clear_icon"]'
-		) as HTMLInputElement | null;
-		if (clearIconEl) clearIconEl.checked = true;
-	};
-
 	const fileToImageDataUrl = (file: File) =>
 		new Promise<string>((resolve, reject) => {
 			const reader = new FileReader();
@@ -138,7 +56,7 @@
 			<span class="gradient-text">Workspace Settings</span>
 		</h1>
 		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
-			Controls workspace name plus global app theme colors.
+			Controls the workspace name and icon.
 		</p>
 	</div>
 
@@ -167,46 +85,9 @@
 		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); animation-delay: 0.05s;"
 	>
 		<label class="flex flex-col gap-1 text-sm">
-			<span class="flex items-center justify-between" style="color: var(--app-text);">
-				<span>Organization name</span>
-				<button
-					type="button"
-					class="glass-reset-btn rounded-lg border px-1.5 py-0.5 text-[11px]"
-					style="border-color: var(--app-glass-border); color: var(--app-text);"
-					onclick={() => resetField('name')}
-					title="Reset to default">↺</button
-				>
-			</span>
+			<span style="color: var(--app-text);">Organization name</span>
 			<input class={gi} style={gs} name="name" required value={data.orgName} />
 		</label>
-		<div class="flex justify-end">
-			<button
-				type="button"
-				class="glass-reset-btn rounded-lg border px-3 py-1 text-xs"
-				style="border-color: var(--app-glass-border); color: var(--app-text);"
-				onclick={resetAllDefaults}>Reset all defaults</button
-			>
-		</div>
-		<div class="grid gap-3 md:grid-cols-2">
-			{#each colorFields as field}
-				<label
-					class="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
-					style="border-color: var(--app-glass-border); background: var(--app-surface-alt); color: var(--app-text);"
-				>
-					<span>{field.label}</span>
-					<div class="flex items-center gap-2">
-						<input type="color" name={field.name} value={field.value} />
-						<button
-							type="button"
-							class="glass-reset-btn rounded-lg border px-1.5 py-0.5 text-[11px]"
-							style="border-color: var(--app-glass-border); color: var(--app-text);"
-							onclick={() => resetField(field.name)}
-							title="Reset to default">↺</button
-						>
-					</div>
-				</label>
-			{/each}
-		</div>
 		<div
 			class="space-y-2 rounded-lg border p-3"
 			style="border-color: var(--app-glass-border); background: var(--app-surface-alt);"

@@ -11,6 +11,8 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	// Nested session worktrees are separate checkouts — never lint them here.
+	{ ignores: ['.claude/'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,
@@ -30,6 +32,9 @@ export default defineConfig(
 		languageOptions: {
 			parserOptions: {
 				projectService: true,
+				// Pin the root so typescript-eslint doesn't get confused by
+				// nested checkouts (e.g. .claude/worktrees/*) with their own tsconfig.
+				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser,
 				svelteConfig

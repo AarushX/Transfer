@@ -263,10 +263,7 @@
 										// Optimistic UI: enable the checkbox the instant the link is
 										// clicked, before the round trip finishes. The server write +
 										// invalidateAll() keep the persisted state correct.
-										locallyClickedStepIds = new Set([
-											...locallyClickedStepIds,
-											stepIdForLink
-										]);
+										locallyClickedStepIds = new Set([...locallyClickedStepIds, stepIdForLink]);
 										const body = new FormData();
 										body.set('step_id', stepIdForLink);
 										try {

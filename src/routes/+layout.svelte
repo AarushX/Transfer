@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import NotificationsBell from '$lib/components/NotificationsBell.svelte';
 	import SidebarIcons from '$lib/components/SidebarIcons.svelte';
 	import {
 		isAdmin,
@@ -41,16 +42,6 @@
 				{ href: '/media', label: 'Media', icon: 'image', match: (p) => p.startsWith('/media') }
 			]
 		: [
-				...(data.needsOnboarding
-					? [
-							{
-								href: '/onboarding',
-								label: 'Onboarding',
-								icon: 'shieldcheck',
-								match: (p: string) => p.startsWith('/onboarding')
-							}
-						]
-					: []),
 				{ href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
 				{
 					href: '/coursework',
@@ -131,30 +122,10 @@
 	const isAttendanceKiosk = $derived(page.url.pathname === '/attendance');
 	const isLoggedOut = $derived(!data.user);
 	const isLoginPage = $derived(page.url.pathname === '/login');
-	const themeVars = $derived(
-		`--app-bg:${data.orgTheme?.background ?? '#0b1220'};` +
-			`--app-surface:${data.orgTheme?.surface ?? '#121a2b'};` +
-			`--app-surface-alt:${data.orgTheme?.surfaceAlt ?? '#1a2438'};` +
-			`--app-border:${data.orgTheme?.border ?? '#2a3754'};` +
-			`--app-text:${data.orgTheme?.text ?? '#e6edf7'};` +
-			`--app-text-muted:${data.orgTheme?.textMuted ?? '#9fb0cc'};` +
-			`--app-accent:${data.orgTheme?.accent ?? '#8b5cf6'};` +
-			`--app-accent-text:${data.orgTheme?.accentText ?? '#ffffff'};` +
-			`--app-success:${data.orgTheme?.success ?? '#22c55e'};` +
-			`--app-warning:${data.orgTheme?.warning ?? '#f59e0b'};` +
-			`--app-danger:${data.orgTheme?.danger ?? '#f43f5e'};` +
-			`--app-info:${data.orgTheme?.info ?? '#06b6d4'};` +
-			`--app-link:${data.orgTheme?.link ?? '#60a5fa'};` +
-			`--app-link-hover:${data.orgTheme?.linkHover ?? '#3b82f6'};` +
-			`--app-input-bg:${data.orgTheme?.inputBg ?? '#111a2e'};` +
-			`--app-input-text:${data.orgTheme?.inputText ?? '#e6edf7'};` +
-			`--app-table-header-bg:${data.orgTheme?.tableHeaderBg ?? '#1a2438'};` +
-			`--app-table-row-hover:${data.orgTheme?.tableRowHover ?? '#182136'};` +
-			`--app-overlay-scrim:${data.orgTheme?.overlayScrim ?? '#020617'};` +
-			`--app-focus-ring:${data.orgTheme?.focusRing ?? '#a78bfa'};` +
-			`--app-button-secondary-bg:${data.orgTheme?.buttonSecondaryBg ?? '#1a2438'};` +
-			`--app-button-secondary-text:${data.orgTheme?.buttonSecondaryText ?? '#d6e2f5'};` +
-			`--app-button-secondary-border:${data.orgTheme?.buttonSecondaryBorder ?? '#334766'};`
+	// Users mid-onboarding can't navigate anywhere else (hooks.server.ts redirects
+	// them back), so hide the sidebar entirely until onboarding completes.
+	const onboardingFocus = $derived(
+		Boolean(data.user) && !canParent && Boolean(data.needsOnboarding)
 	);
 
 	const handleInstallClick = async () => {
@@ -213,14 +184,73 @@
 {#if isAttendanceKiosk || isLoggedOut || isLoginPage}
 	<main
 		class="flex min-h-dvh items-center justify-center"
-		style="{themeVars} background: var(--app-bg); color: var(--app-text);"
+		style="background: var(--app-bg); color: var(--app-text);"
 	>
 		{@render children()}
 	</main>
+{:else if onboardingFocus}
+	<div
+		class="mesh-bg flex min-h-dvh flex-col"
+		style="background: var(--app-bg); color: var(--app-text);"
+	>
+		<header
+			class="relative z-[1] flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl md:px-8"
+			style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+		>
+			<div class="flex min-w-0 items-center gap-2.5">
+				{#if data.orgIconDataUrl}
+					<img src={data.orgIconDataUrl} alt="" class="h-6 w-6 rounded" />
+				{:else}
+					<div class="h-6 w-6 rounded" style="background: var(--app-accent);"></div>
+				{/if}
+				<div class="min-w-0 leading-tight">
+					<p
+						class="text-[9px] font-bold tracking-[0.18em] uppercase"
+						style="color: var(--app-text-muted);"
+					>
+						Transfer
+					</p>
+					<p class="truncate text-[13px] font-semibold" style="color: var(--app-text);">
+						{data.orgName}
+					</p>
+				</div>
+			</div>
+			<div class="flex shrink-0 items-center gap-3">
+				{#if data.profile}
+					<Avatar
+						name={data.profile.full_name}
+						email={data.profile.email}
+						url={data.profile.avatar_url}
+						size="sm"
+					/>
+				{/if}
+				<form method="POST" action="/auth/signout">
+					<button
+						type="submit"
+						class="rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+						style="border-color: var(--app-glass-border); color: var(--app-text-muted); background: transparent;"
+						onmouseenter={(e) => {
+							e.currentTarget.style.background = 'var(--app-glass-bg-hover)';
+						}}
+						onmouseleave={(e) => {
+							e.currentTarget.style.background = 'transparent';
+						}}
+					>
+						Sign out
+					</button>
+				</form>
+			</div>
+		</header>
+		<main class="relative z-[1] flex-1 px-6 py-8 md:px-10 md:py-10" style="color: var(--app-text);">
+			<div class="mx-auto w-full max-w-4xl">
+				{@render children()}
+			</div>
+		</main>
+	</div>
 {:else}
 	<div
 		class="mesh-bg flex min-h-dvh md:h-screen md:overflow-hidden"
-		style={`${themeVars} background: var(--app-bg); color: var(--app-text);`}
+		style="background: var(--app-bg); color: var(--app-text);"
 	>
 		<!-- Sidebar -->
 		<aside
@@ -385,31 +415,39 @@
 							</div>
 						</div>
 					{:else}
-						<a
-							href="/profile"
-							onclick={() => (mobileOpen = false)}
-							class="nav-btn flex touch-manipulation items-center gap-3 rounded-lg p-2"
-						>
-							<Avatar
-								name={data.profile.full_name}
-								email={data.profile.email}
-								url={data.profile.avatar_url}
-								size="md"
-								ring={isMentor(data.profile)}
-								ringClass="ring-sky-400"
+						<div class="flex items-center gap-1">
+							<a
+								href="/profile"
+								onclick={() => (mobileOpen = false)}
+								class="nav-btn flex min-w-0 flex-1 touch-manipulation items-center gap-3 rounded-lg p-2"
+							>
+								<Avatar
+									name={data.profile.full_name}
+									email={data.profile.email}
+									url={data.profile.avatar_url}
+									size="md"
+									ring={isMentor(data.profile)}
+									ringClass="ring-sky-400"
+								/>
+								<div class="min-w-0 flex-1 leading-tight">
+									<p class="truncate text-sm font-medium" style="color: var(--app-text);">
+										{data.profile.full_name || data.profile.email}
+									</p>
+									<p
+										class="truncate text-[11px] tracking-wider uppercase"
+										style="color: var(--app-text-muted);"
+									>
+										{roleLabel}
+									</p>
+								</div>
+							</a>
+							<NotificationsBell
+								userId={data.user.id}
+								initialUnread={data.unreadNotificationCount ?? 0}
+								align="right"
+								drop="up"
 							/>
-							<div class="min-w-0 flex-1 leading-tight">
-								<p class="truncate text-sm font-medium" style="color: var(--app-text);">
-									{data.profile.full_name || data.profile.email}
-								</p>
-								<p
-									class="truncate text-[11px] tracking-wider uppercase"
-									style="color: var(--app-text-muted);"
-								>
-									{roleLabel}
-								</p>
-							</div>
-						</a>
+						</div>
 					{/if}
 					<form method="POST" action="/auth/signout" class="mt-2">
 						<button
@@ -468,17 +506,26 @@
 					Transfer · {data.orgName}
 				</p>
 				{#if data.profile}
-					<a
-						href={canParent ? '/dashboard' : '/profile'}
-						class="shrink-0 touch-manipulation rounded p-0.5"
-					>
-						<Avatar
-							name={data.profile.full_name}
-							email={data.profile.email}
-							url={data.profile.avatar_url}
-							size="sm"
-						/>
-					</a>
+					<div class="flex shrink-0 items-center gap-2">
+						{#if data.user && !canParent}
+							<NotificationsBell
+								userId={data.user.id}
+								initialUnread={data.unreadNotificationCount ?? 0}
+								align="right"
+							/>
+						{/if}
+						<a
+							href={canParent ? '/dashboard' : '/profile'}
+							class="shrink-0 touch-manipulation rounded p-0.5"
+						>
+							<Avatar
+								name={data.profile.full_name}
+								email={data.profile.email}
+								url={data.profile.avatar_url}
+								size="sm"
+							/>
+						</a>
+					</div>
 				{:else}
 					<span class="w-8"></span>
 				{/if}

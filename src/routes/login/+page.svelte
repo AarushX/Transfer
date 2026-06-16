@@ -79,12 +79,7 @@
 					</div>
 				{/if}
 
-				<form
-					bind:this={googleFormEl}
-					method="POST"
-					action="/auth/google"
-					class="relative"
-				>
+				<form bind:this={googleFormEl} method="POST" action="/auth/google" class="relative">
 					<Button
 						variant="primary"
 						type="submit"

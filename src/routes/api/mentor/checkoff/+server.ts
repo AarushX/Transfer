@@ -1,6 +1,63 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { jwtVerify } from 'jose';
 import { isMentor, isAdmin } from '$lib/roles';
+import { createNotification, type NotificationType } from '$lib/server/notifications';
+import { createSupabaseServiceClient } from '$lib/server/supabase';
+
+// Best-effort student notification for a checkoff outcome. Never throws —
+// notification failure must not fail the review itself.
+const notifyStudentOfOutcome = async (opts: {
+	studentId: string;
+	nodeId: string;
+	type: NotificationType;
+	withEmail: boolean;
+}) => {
+	try {
+		const service = createSupabaseServiceClient();
+		const [{ data: node }, { data: student }] = await Promise.all([
+			service.from('nodes').select('title,slug').eq('id', opts.nodeId).maybeSingle(),
+			service.from('profiles').select('email').eq('id', opts.studentId).maybeSingle()
+		]);
+		const nodeTitle = String(node?.title ?? 'a course');
+		const href = node?.slug ? `/learn/${node.slug}` : '/coursework';
+		const copy: Record<string, { title: string; body: string }> = {
+			checkoff_approved: {
+				title: `Checkoff approved — ${nodeTitle}`,
+				body: 'A mentor approved your checkoff. Nice work!'
+			},
+			checkoff_needs_review: {
+				title: `Checkoff needs another try — ${nodeTitle}`,
+				body: 'A mentor reviewed your checkoff and asked for changes.'
+			},
+			checkoff_blocked: {
+				title: `Checkoff blocked — ${nodeTitle}`,
+				body: 'A mentor blocked this checkoff. Check the mentor notes.'
+			},
+			quiz_reset: {
+				title: `Quiz reset — ${nodeTitle}`,
+				body: 'A mentor reset your quiz so you can retake it.'
+			}
+		};
+		const text = copy[opts.type] ?? { title: `Update — ${nodeTitle}`, body: '' };
+		await createNotification({
+			userId: opts.studentId,
+			type: opts.type,
+			title: text.title,
+			body: text.body,
+			href,
+			email:
+				opts.withEmail && student?.email
+					? {
+							to: String(student.email),
+							subject: text.title,
+							text: `${text.body}\n\nOpen it here: ${href}`
+						}
+					: undefined
+		});
+	} catch (err) {
+		console.error('[checkoff] notify failed', err instanceof Error ? err.message : String(err));
+	}
+};
 
 const encoder = new TextEncoder();
 const extractJwtCandidate = (value: string) => {
@@ -329,6 +386,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					return json({ error: error.message }, { status: 400 });
 				}
 			}
+			await notifyStudentOfOutcome({
+				studentId: resolvedUserId,
+				nodeId: resolvedNodeId,
+				type: 'checkoff_approved',
+				withEmail: true
+			});
 			return json({ ok: true, nodeId: resolvedNodeId, userId: resolvedUserId });
 		}
 
@@ -338,6 +401,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				logCheckoffError('upsert_review_retry', reviewErr, ctx);
 				return json({ error: reviewErr.message }, { status: 400 });
 			}
+			await notifyStudentOfOutcome({
+				studentId: resolvedUserId,
+				nodeId: resolvedNodeId,
+				type: 'checkoff_needs_review',
+				withEmail: true
+			});
 			return json({ ok: true, status: 'needs_review' });
 		}
 
@@ -349,6 +418,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: reviewErr.message }, { status: 400 });
 		}
 
+		await notifyStudentOfOutcome({
+			studentId: resolvedUserId,
+			nodeId: resolvedNodeId,
+			type: normalizedAction === 'block_checkoff' ? 'checkoff_blocked' : 'quiz_reset',
+			withEmail: normalizedAction === 'block_checkoff'
+		});
 		return json({ ok: true });
 	} catch (err) {
 		logCheckoffError('unhandled', err, ctx);

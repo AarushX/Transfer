@@ -4,10 +4,10 @@
 	--app-bg: #0a0f1c;
 	--app-surface: #121a2b;
 	--app-surface-alt: #1a2438;
-	--app-border: #2a3754;
+	--app-border: #36456a;
 	--app-text: #e6edf7;
-	--app-text-muted: #9fb0cc;
-	--app-text-dim: #6a7a98;
+	--app-text-muted: #aab9d6;
+	--app-text-dim: #8693b3;
 	--app-accent: #8b5cf6;
 	--app-accent-text: #ffffff;
 	--app-success: #34d399;
@@ -30,7 +30,7 @@
 	/* Glass tokens */
 	--app-glass-bg: color-mix(in srgb, var(--app-surface) 55%, transparent);
 	--app-glass-bg-hover: color-mix(in srgb, var(--app-surface) 75%, transparent);
-	--app-glass-border: color-mix(in srgb, var(--app-text) 9%, transparent);
+	--app-glass-border: color-mix(in srgb, var(--app-text) 14%, transparent);
 	--app-glass-border-hover: color-mix(in srgb, var(--app-text) 22%, transparent);
 	--app-glass-shine: linear-gradient(
 		135deg,

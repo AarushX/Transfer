@@ -38,6 +38,8 @@ export type GalleryPhoto = {
 	name: string;
 	width: number | null;
 	height: number | null;
+	createdTime: string | null;
+	uploader: string | null;
 	thumb: string;
 	full: string;
 };
@@ -65,6 +67,8 @@ const fetchGallery = async (folderId: string): Promise<GalleryData> => {
 		name: p.name,
 		width: p.width,
 		height: p.height,
+		createdTime: p.createdTime,
+		uploader: p.uploader,
 		thumb: buildProxyThumbnailUrl(p.id, 600),
 		full: buildProxyThumbnailUrl(p.id, 1600)
 	}));

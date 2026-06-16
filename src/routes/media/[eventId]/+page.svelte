@@ -49,6 +49,15 @@
 	const aspectFor = (w: number | null, h: number | null) =>
 		w && h && w > 0 && h > 0 ? `${w} / ${h}` : '4 / 3';
 
+	const photoTimeFormat = new Intl.DateTimeFormat(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short'
+	});
+	const formatPhotoTime = (iso: string) => {
+		const date = new Date(iso);
+		return Number.isNaN(date.getTime()) ? '' : photoTimeFormat.format(date);
+	};
+
 	// Compact numbered pagination — always shows first, last, neighbors,
 	// with "…" gaps. ['‹', 1, '…', 4, 5, 6, '…', 12, '›']
 	const pageNumbers = $derived.by(() => {
@@ -387,7 +396,6 @@
 
 {#if activePhoto}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="lightbox"
 		role="dialog"
@@ -442,7 +450,18 @@
 				class="lightbox-image"
 			/>
 			<figcaption class="lightbox-caption">
-				<span class="truncate">{activePhoto.name}</span>
+				<div class="lightbox-meta">
+					<span class="truncate font-medium">{activePhoto.name}</span>
+					<span class="lightbox-meta-row">
+						<span>Uploaded by {activePhoto.uploader ?? 'Unknown'}</span>
+						{#if activePhoto.createdTime}
+							<span aria-hidden="true">·</span>
+							<span>{formatPhotoTime(activePhoto.createdTime)}</span>
+						{/if}
+						<span aria-hidden="true">·</span>
+						<span class="truncate">{data.eventName}</span>
+					</span>
+				</div>
 				<span class="opacity-60">
 					{(lightboxIndex ?? 0) + 1} / {photos.length}
 				</span>
@@ -586,9 +605,23 @@
 		max-width: min(95vw, 1400px);
 		width: 100%;
 		justify-content: space-between;
+		align-items: flex-end;
 		gap: 1rem;
 		font-size: 0.75rem;
 		color: rgba(255, 255, 255, 0.78);
+	}
+	.lightbox-meta {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+	.lightbox-meta-row {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		color: rgba(255, 255, 255, 0.6);
 	}
 	.lightbox-arrow {
 		display: grid;

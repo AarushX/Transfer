@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { isAdmin, isMentor, isParentGuardian } from '$lib/roles';
 import { buildPassportQrDataUrl } from '$lib/server/passport-qr';
 import { computeUserRanks } from '$lib/server/ranks';
+import { resolveAvatarUrl } from '$lib/avatar-resolution';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user, profile } = await locals.safeGetSession();
@@ -128,7 +129,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const { data: qrProfile } = await locals.supabase
 		.from('profiles')
-		.select('passport_qr_version')
+		.select('passport_qr_version,clickup_user_id,clickup_avatar_url,uploaded_avatar_path')
 		.eq('id', user.id)
 		.single();
 	const qrVersion = Number(qrProfile?.passport_qr_version ?? 0);
@@ -155,7 +156,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			parent: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : (row.profiles ?? null)
 		})),
 		activeParentLinkCode: parentCodes?.[0] ?? null,
-		isAdmin: isAdmin(profile)
+		isAdmin: isAdmin(profile),
+		clickupLinked: Boolean(qrProfile?.clickup_user_id),
+		uploadedAvatarPath: String(qrProfile?.uploaded_avatar_path ?? '')
 	};
 };
 
@@ -189,18 +192,114 @@ export const actions: Actions = {
 		const bio = String(form.get('bio') ?? '')
 			.trim()
 			.slice(0, 500);
-		let avatarUrl = String(form.get('avatar_url') ?? '')
-			.trim()
-			.slice(0, 2048);
 
 		if (!fullName) return fail(400, { error: 'Display name is required.' });
-		if (avatarUrl && !/^https?:\/\//i.test(avatarUrl)) {
-			return fail(400, { error: 'Avatar URL must start with http(s)://' });
-		}
 
 		const { error } = await locals.supabase
 			.from('profiles')
-			.update({ full_name: fullName, bio, avatar_url: avatarUrl })
+			.update({ full_name: fullName, bio })
+			.eq('id', user.id);
+		if (error) return fail(400, { error: error.message });
+
+		return { ok: true };
+	},
+
+	uploadAvatar: async ({ locals, request }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Unauthorized' });
+
+		const form = await request.formData();
+		const file = form.get('avatar');
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { error: 'Choose an image to upload.' });
+		}
+		const extByMime: Record<string, string> = {
+			'image/jpeg': 'jpg',
+			'image/png': 'png',
+			'image/webp': 'webp'
+		};
+		const ext = extByMime[file.type];
+		if (!ext) return fail(400, { error: 'Avatar must be a JPEG, PNG, or WebP image.' });
+		if (file.size > 2 * 1024 * 1024) {
+			return fail(400, { error: 'Avatar must be 2 MB or smaller.' });
+		}
+
+		const { data: current } = await locals.supabase
+			.from('profiles')
+			.select('clickup_avatar_url,uploaded_avatar_path')
+			.eq('id', user.id)
+			.maybeSingle();
+
+		// Timestamped filename doubles as cache busting for the public URL.
+		const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+		const { error: uploadErr } = await locals.supabase.storage
+			.from('avatars')
+			.upload(path, file, { contentType: file.type });
+		if (uploadErr) return fail(400, { error: uploadErr.message });
+
+		const previousPath = String(current?.uploaded_avatar_path ?? '');
+		if (previousPath && previousPath !== path) {
+			await locals.supabase.storage.from('avatars').remove([previousPath]);
+		}
+
+		const publicUrl = locals.supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+		const { error } = await locals.supabase
+			.from('profiles')
+			.update({
+				uploaded_avatar_path: path,
+				avatar_url: resolveAvatarUrl(current?.clickup_avatar_url, publicUrl)
+			})
+			.eq('id', user.id);
+		if (error) return fail(400, { error: error.message });
+
+		return { ok: true };
+	},
+
+	removeUploadedAvatar: async ({ locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Unauthorized' });
+
+		const { data: current } = await locals.supabase
+			.from('profiles')
+			.select('clickup_avatar_url,uploaded_avatar_path')
+			.eq('id', user.id)
+			.maybeSingle();
+		const path = String(current?.uploaded_avatar_path ?? '');
+		if (path) {
+			await locals.supabase.storage.from('avatars').remove([path]);
+		}
+		const { error } = await locals.supabase
+			.from('profiles')
+			.update({
+				uploaded_avatar_path: null,
+				avatar_url: resolveAvatarUrl(current?.clickup_avatar_url, '')
+			})
+			.eq('id', user.id);
+		if (error) return fail(400, { error: error.message });
+
+		return { ok: true };
+	},
+
+	unlinkClickup: async ({ locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Unauthorized' });
+
+		const { data: current } = await locals.supabase
+			.from('profiles')
+			.select('uploaded_avatar_path')
+			.eq('id', user.id)
+			.maybeSingle();
+		const uploadedPath = String(current?.uploaded_avatar_path ?? '');
+		const uploadedPublicUrl = uploadedPath
+			? locals.supabase.storage.from('avatars').getPublicUrl(uploadedPath).data.publicUrl
+			: '';
+		const { error } = await locals.supabase
+			.from('profiles')
+			.update({
+				clickup_user_id: null,
+				clickup_avatar_url: null,
+				avatar_url: resolveAvatarUrl('', uploadedPublicUrl)
+			})
 			.eq('id', user.id);
 		if (error) return fail(400, { error: error.message });
 

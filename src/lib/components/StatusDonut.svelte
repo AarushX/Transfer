@@ -39,8 +39,7 @@
 					: key === 'blocked'
 						? 'Blocked'
 						: 'Locked';
-	const countFor = (key: string): number =>
-		(counts as Record<string, number>)[key] ?? 0;
+	const countFor = (key: string): number => (counts as Record<string, number>)[key] ?? 0;
 
 	let hoveredKey = $state<string | null>(null);
 	function setHover(key: string | null) {
@@ -87,8 +86,10 @@
 	<div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
 		<span
 			class="font-bold tracking-tight"
-			style="color: var(--app-text); font-size: {Math.max(11, Math.round(size * 0.2))}px; line-height: 1;"
-			>{pct}%</span
+			style="color: var(--app-text); font-size: {Math.max(
+				11,
+				Math.round(size * 0.2)
+			)}px; line-height: 1;">{pct}%</span
 		>
 	</div>
 </div>

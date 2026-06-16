@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Nested session worktrees (separate checkouts)
+.claude/

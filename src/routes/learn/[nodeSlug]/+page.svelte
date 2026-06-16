@@ -333,10 +333,7 @@
 					style="width: 1px; background: color-mix(in srgb, var(--app-glass-border) 55%, transparent);"
 					aria-hidden="true"
 				></span>
-				<h1
-					class="truncate text-base font-semibold tracking-tight"
-					style="color: var(--app-text);"
-				>
+				<h1 class="truncate text-base font-semibold tracking-tight" style="color: var(--app-text);">
 					{data.node.title}
 				</h1>
 			</div>
@@ -380,7 +377,6 @@
      padding, so first-child y ≈ 32 (main) + 48 (section pt) = 80px from
      viewport top — bar bottom is at ~60, giving a clean ~20px gap. -->
 <section class="space-y-4 pt-12">
-
 	{#if awaitingMentor && !completed}
 		<div
 			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
@@ -457,8 +453,8 @@
 	{#if locked}
 		<div class="fade-up space-y-6" style="animation-delay: 0.06s;">
 			<p class="text-sm" style="color: var(--app-text-muted);">
-				This module is locked. Knock out its prerequisites first — the doable
-				ones are right below. Your full plan is on the
+				This module is locked. Knock out its prerequisites first — the doable ones are right below.
+				Your full plan is on the
 				<a style="color: var(--app-link);" href="/dashboard">dashboard</a>.
 			</p>
 
@@ -524,7 +520,6 @@
 					</div>
 					<!-- Body of the active block follows. -->
 					<div class="space-y-3">
-
 						{#if activeBlock.type === 'video'}
 							{@const vid = extractVideoId(activeBlock.config.video_url)}
 							{#if vid}

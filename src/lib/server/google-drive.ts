@@ -12,7 +12,14 @@ export type DrivePhoto = {
 	width: number | null;
 	height: number | null;
 	mimeType: string;
+	createdTime: string | null;
+	uploader: string | null;
 };
+
+// Shared Drive files have no `owners` (the drive owns them), so fall back to
+// the last modifying user for the "uploaded by" attribution.
+const fileUploader = (file: drive_v3.Schema$File): string | null =>
+	file.owners?.[0]?.displayName ?? file.lastModifyingUser?.displayName ?? null;
 
 const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
@@ -104,7 +111,7 @@ const listImagesIn = async (folderId: string): Promise<DrivePhoto[]> => {
 			...sharedDriveOptions,
 			q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
 			fields:
-				'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height), createdTime)',
+				'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height), createdTime, owners(displayName), lastModifyingUser(displayName))',
 			orderBy: 'createdTime desc, name',
 			pageSize: 1000,
 			pageToken
@@ -116,7 +123,9 @@ const listImagesIn = async (folderId: string): Promise<DrivePhoto[]> => {
 				name: file.name,
 				width: file.imageMediaMetadata?.width ?? null,
 				height: file.imageMediaMetadata?.height ?? null,
-				mimeType: file.mimeType ?? 'image/jpeg'
+				mimeType: file.mimeType ?? 'image/jpeg',
+				createdTime: file.createdTime ?? null,
+				uploader: fileUploader(file)
 			});
 		}
 		pageToken = data.nextPageToken ?? undefined;
@@ -186,7 +195,8 @@ export const folderSummary = async (
 	const { data } = await drive.files.list({
 		...sharedDriveOptions,
 		q: `mimeType contains 'image/' and '${safeFolder}' in parents and trashed = false`,
-		fields: 'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height))',
+		fields:
+			'nextPageToken, files(id, name, mimeType, imageMediaMetadata(width, height), createdTime, owners(displayName), lastModifyingUser(displayName))',
 		orderBy: 'createdTime, name',
 		pageSize: 200
 	});
@@ -197,7 +207,9 @@ export const folderSummary = async (
 				name: String(files[0].name),
 				width: files[0].imageMediaMetadata?.width ?? null,
 				height: files[0].imageMediaMetadata?.height ?? null,
-				mimeType: files[0].mimeType ?? 'image/jpeg'
+				mimeType: files[0].mimeType ?? 'image/jpeg',
+				createdTime: files[0].createdTime ?? null,
+				uploader: fileUploader(files[0])
 			}
 		: null;
 	return {
@@ -374,7 +386,7 @@ export const getMediaEventsSummary = async (): Promise<MediaEventSummary[]> => {
 			...sharedDriveOptions,
 			q: `mimeType contains 'image/' and trashed = false`,
 			fields:
-				'nextPageToken, files(id, name, mimeType, parents, imageMediaMetadata(width, height), createdTime)',
+				'nextPageToken, files(id, name, mimeType, parents, imageMediaMetadata(width, height), createdTime, owners(displayName), lastModifyingUser(displayName))',
 			orderBy: 'createdTime desc, name',
 			pageSize: 1000,
 			pageToken: imagePageToken
@@ -395,7 +407,9 @@ export const getMediaEventsSummary = async (): Promise<MediaEventSummary[]> => {
 			name: file.name,
 			width: file.imageMediaMetadata?.width ? Number(file.imageMediaMetadata.width) : null,
 			height: file.imageMediaMetadata?.height ? Number(file.imageMediaMetadata.height) : null,
-			mimeType: file.mimeType ?? 'image/jpeg'
+			mimeType: file.mimeType ?? 'image/jpeg',
+			createdTime: file.createdTime ?? null,
+			uploader: fileUploader(file)
 		};
 		for (const parentId of parents) {
 			if (!folderIdToImages.has(parentId)) {

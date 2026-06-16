@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { SignJWT } from 'jose';
 import QRCode from 'qrcode';
+import { notifyMentorsForNode } from '$lib/server/notifications';
 import type { Actions, PageServerLoad } from './$types';
 
 const encoder = new TextEncoder();
@@ -192,7 +193,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		complexity: number;
 		isDoable: boolean;
 	}> = [];
-	let prereqTeams: Array<{ id: string; name: string; color_hex: string; team_group_id: string }> = [];
+	let prereqTeams: Array<{ id: string; name: string; color_hex: string; team_group_id: string }> =
+		[];
 	let prereqTeamGroups: Array<{ id: string; name: string; color_hex: string }> = [];
 	if (effectiveStatus === 'locked') {
 		const [
@@ -326,7 +328,7 @@ export const actions: Actions = {
 
 		const { data: node } = await locals.supabase
 			.from('nodes')
-			.select('id')
+			.select('id,title')
 			.eq('slug', params.nodeSlug)
 			.single();
 		if (!node) return fail(404, { error: 'Module not found' });
@@ -400,6 +402,25 @@ export const actions: Actions = {
 			p_new_status: 'mentor_checkoff_pending',
 			p_target_user_id: user.id
 		});
+
+		// Best-effort mentor fan-out — never block the submission on it.
+		try {
+			const { data: requester } = await locals.supabase
+				.from('profiles')
+				.select('full_name,email')
+				.eq('id', user.id)
+				.maybeSingle();
+			const studentName = String(requester?.full_name || requester?.email || 'A student');
+			await notifyMentorsForNode(node.id, {
+				title: `${studentName} requested a checkoff: ${String(node.title ?? params.nodeSlug)}`,
+				href: '/mentor'
+			});
+		} catch (err) {
+			console.error(
+				'[checkoff] mentor notify failed',
+				err instanceof Error ? err.message : String(err)
+			);
+		}
 
 		return { ok: true, section: 'checkoff' };
 	}

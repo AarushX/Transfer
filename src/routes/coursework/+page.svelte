@@ -46,9 +46,7 @@
 	}
 
 	const requiredAll = $derived(catalog.filter((c) => c.isRequired && c.status !== 'completed'));
-	const availableAll = $derived(
-		catalog.filter((c) => !c.isRequired && c.status !== 'completed')
-	);
+	const availableAll = $derived(catalog.filter((c) => !c.isRequired && c.status !== 'completed'));
 	const completedAll = $derived(catalog.filter((c) => c.status === 'completed'));
 
 	const required = $derived(requiredAll.filter((c) => matchesQuery(c) && matchesLevel(c)));
@@ -60,8 +58,7 @@
 		required: requiredAll.length,
 		available: availableAll.length,
 		completed: completedAll.length,
-		progressPct:
-			catalog.length === 0 ? 0 : Math.round((completedAll.length / catalog.length) * 100)
+		progressPct: catalog.length === 0 ? 0 : Math.round((completedAll.length / catalog.length) * 100)
 	});
 
 	function levelLabel(level: string | null) {
@@ -120,7 +117,10 @@
 					</span>
 				</div>
 				<div>
-					<p class="text-[10px] font-bold tracking-[0.18em] uppercase" style="color: var(--app-text-muted);">
+					<p
+						class="text-[10px] font-bold tracking-[0.18em] uppercase"
+						style="color: var(--app-text-muted);"
+					>
 						Catalog progress
 					</p>
 					<p class="text-sm" style="color: var(--app-text);">
@@ -324,7 +324,11 @@
 		font-size: 11px;
 		font-weight: 600;
 		letter-spacing: 0.04em;
-		transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+		transition:
+			background 0.12s ease,
+			color 0.12s ease,
+			border-color 0.12s ease,
+			transform 0.12s ease;
 		cursor: pointer;
 	}
 	.cw-pill:hover {
