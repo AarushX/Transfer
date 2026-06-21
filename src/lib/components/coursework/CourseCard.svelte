@@ -40,6 +40,9 @@
 	const isCompleted = $derived(course.status === 'completed');
 
 	function primaryAccent(c: CatalogCourse): string {
+		if (c.proficiencyLevel === 'beginner') return '#1e9e4c';
+		if (c.proficiencyLevel === 'intermediate') return '#2563eb';
+		if (c.proficiencyLevel === 'advanced') return '#18181b';
 		for (const id of c.subteamIds) {
 			const team = teamsById.get(id);
 			if (team?.color_hex) return team.color_hex;
@@ -48,13 +51,7 @@
 			const group = teamGroupsById.get(id);
 			if (group?.color_hex) return group.color_hex;
 		}
-		return c.proficiencyLevel === 'advanced'
-			? '#a855f7'
-			: c.proficiencyLevel === 'intermediate'
-				? '#06b6d4'
-				: c.proficiencyLevel === 'beginner'
-					? '#22c55e'
-					: '#475569';
+		return '#475569';
 	}
 
 	function subteamChips(c: CatalogCourse): Array<{ label: string; color: string }> {
@@ -178,7 +175,7 @@
 		{#if course.proficiencyLevel}
 			<p
 				class="text-[10px] font-bold tracking-[0.18em] uppercase {compact ? 'mt-1.5' : 'mt-2'}"
-				style="color: var(--app-text-dim);"
+				style="color: {accent};"
 			>
 				{levelLabel(course.proficiencyLevel)}
 			</p>

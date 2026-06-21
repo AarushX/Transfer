@@ -25,7 +25,9 @@
 		blockId = null,
 		passingScore = 80,
 		allowSubmit = true,
-		lockedMessage = ''
+		lockedMessage = '',
+		attemptCount = 0,
+		maxAttempts = 3
 	}: {
 		questions: Question[];
 		nodeId: string;
@@ -34,6 +36,8 @@
 		passingScore?: number;
 		allowSubmit?: boolean;
 		lockedMessage?: string;
+		attemptCount?: number;
+		maxAttempts?: number;
 	} = $props();
 
 	let answers = $state<
@@ -206,11 +210,23 @@
 	</div>
 {:else}
 	<!-- Header -->
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-3 flex items-center justify-between">
 		<p class="eyebrow-label">Knowledge check</p>
 		<span class="mono text-[12px]" style="color: var(--app-text-muted);">
 			Q {currentStep + 1} OF {questions.length} · PASS ≥ {passingScore}%
 		</span>
+	</div>
+
+	<!-- Segmented progress bar -->
+	<div class="mb-4 flex gap-1">
+		{#each questions as _, qi}
+			{@const isAnswered = qi < currentStep || (qi === currentStep && currentAnswered)}
+			{@const isCurrent = qi === currentStep && !isAnswered}
+			<div
+				class="h-1.5 flex-1 rounded-full transition-colors"
+				style="background: {isAnswered ? 'var(--app-success)' : isCurrent ? 'var(--app-warning)' : 'var(--app-border)'};"
+			></div>
+		{/each}
 	</div>
 
 	{#if result && !result.passed}
@@ -246,18 +262,16 @@
 						{@const selected = answers[q.id] === option}
 						<button
 							type="button"
-							class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] transition-all"
-							style="background: {selected ? 'color-mix(in srgb, var(--app-accent) 10%, white)' : 'var(--app-surface)'}; border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; color: {selected ? 'var(--app-accent)' : 'var(--app-text)'}; font-weight: {selected ? '600' : '400'}; cursor: {submitting || !allowSubmit ? 'not-allowed' : 'pointer'}; opacity: {submitting || !allowSubmit ? 0.6 : 1};"
+							class="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-[14px] transition-all"
+							style="background: {selected ? 'color-mix(in srgb, var(--app-accent) 8%, var(--app-surface))' : 'var(--app-surface)'}; border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; color: var(--app-text); font-weight: {selected ? '600' : '400'}; cursor: {submitting || !allowSubmit ? 'not-allowed' : 'pointer'}; opacity: {submitting || !allowSubmit ? 0.6 : 1};"
 							onclick={() => { if (!submitting && allowSubmit) answers[q.id] = option; }}
 							disabled={submitting || !allowSubmit}
 						>
 							<span
-								class="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2"
-								style="border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; background: {selected ? 'var(--app-accent)' : 'transparent'};"
+								class="grid h-7 w-7 shrink-0 place-items-center rounded text-[11px] font-bold"
+								style="background: {selected ? 'var(--app-accent)' : 'var(--app-surface-alt)'}; color: {selected ? 'white' : 'var(--app-text-muted)'}; border: 1px solid {selected ? 'var(--app-accent)' : 'var(--app-border)'};"
 							>
-								{#if selected}
-									<span class="h-2 w-2 rounded-full" style="background: white;"></span>
-								{/if}
+								{String.fromCharCode(65 + oi)}
 							</span>
 							{option}
 						</button>
@@ -275,8 +289,8 @@
 						{@const disabled = submitting || !allowSubmit || isMsOptionDisabled(q, option)}
 						<button
 							type="button"
-							class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] transition-all"
-							style="background: {checked ? 'color-mix(in srgb, var(--app-accent) 10%, white)' : 'var(--app-surface)'}; border-color: {checked ? 'var(--app-accent)' : 'var(--app-border)'}; color: {checked ? 'var(--app-accent)' : 'var(--app-text)'}; font-weight: {checked ? '600' : '400'}; cursor: {disabled ? 'not-allowed' : 'pointer'}; opacity: {disabled && !checked ? 0.45 : 1};"
+							class="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-[14px] transition-all"
+							style="background: {checked ? 'color-mix(in srgb, var(--app-accent) 8%, var(--app-surface))' : 'var(--app-surface)'}; border-color: {checked ? 'var(--app-accent)' : 'var(--app-border)'}; color: var(--app-text); font-weight: {checked ? '600' : '400'}; cursor: {disabled ? 'not-allowed' : 'pointer'}; opacity: {disabled && !checked ? 0.45 : 1};"
 							onclick={() => {
 								if (disabled && !checked) return;
 								if (submitting || !allowSubmit) return;
@@ -285,12 +299,10 @@
 							}}
 						>
 							<span
-								class="grid h-5 w-5 shrink-0 place-items-center rounded"
-								style="border: 2px solid {checked ? 'var(--app-accent)' : 'var(--app-border)'}; background: {checked ? 'var(--app-accent)' : 'transparent'};"
+								class="grid h-7 w-7 shrink-0 place-items-center rounded text-[11px] font-bold"
+								style="background: {checked ? 'var(--app-accent)' : 'var(--app-surface-alt)'}; color: {checked ? 'white' : 'var(--app-text-muted)'}; border: 1px solid {checked ? 'var(--app-accent)' : 'var(--app-border)'};"
 							>
-								{#if checked}
-									<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><polyline points="4 12 10 18 20 6" /></svg>
-								{/if}
+								{String.fromCharCode(65 + oi)}
 							</span>
 							{option}
 						</button>
@@ -407,7 +419,7 @@
 		</div>
 
 		<!-- Step navigation -->
-		<div class="mt-4 flex items-center justify-between gap-3">
+		<div class="mt-4 flex items-center gap-3">
 			<button
 				type="button"
 				class="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
@@ -417,25 +429,30 @@
 			>
 				← Back
 			</button>
-			{#if !allowSubmit}
-				<span class="text-xs" style="color: var(--app-text-dim);">{lockedMessage || 'Quiz already passed.'}</span>
-			{:else}
-				<button
-					type="button"
-					class="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
-					style="background: {currentAnswered ? 'var(--app-accent)' : 'var(--app-border)'}; color: {currentAnswered ? 'white' : 'var(--app-text-dim)'}; border: none; cursor: {currentAnswered && !submitting ? 'pointer' : 'not-allowed'};"
-					onclick={handleNext}
-					disabled={!currentAnswered || submitting}
-				>
-					{#if submitting}
-						Grading…
-					{:else if isLastStep}
-						Submit quiz →
-					{:else}
-						Record answer →
-					{/if}
-				</button>
-			{/if}
+			<div class="flex flex-1 items-center justify-end gap-4">
+				{#if !allowSubmit}
+					<span class="text-xs" style="color: var(--app-text-dim);">{lockedMessage || 'Quiz already passed.'}</span>
+				{:else}
+					<button
+						type="button"
+						class="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
+						style="background: {currentAnswered ? 'var(--app-accent)' : 'var(--app-border)'}; color: {currentAnswered ? 'white' : 'var(--app-text-dim)'}; border: none; cursor: {currentAnswered && !submitting ? 'pointer' : 'not-allowed'};"
+						onclick={handleNext}
+						disabled={!currentAnswered || submitting}
+					>
+						{#if submitting}
+							Grading…
+						{:else if isLastStep}
+							Submit quiz →
+						{:else}
+							Record answer →
+						{/if}
+					</button>
+				{/if}
+				<span class="mono shrink-0 text-[11px]" style="color: var(--app-text-dim);">
+					ATTEMPT {attemptCount + 1} OF {maxAttempts}
+				</span>
+			</div>
 		</div>
 
 		{#if result && !result.passed}

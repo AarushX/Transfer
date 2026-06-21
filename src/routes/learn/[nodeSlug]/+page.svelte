@@ -149,13 +149,13 @@
 	}
 
 	const statusLabels: Record<string, { label: string; tone: string }> = {
-		locked: { label: 'Locked — finish prerequisites first', tone: 'slate' },
+		locked: { label: 'Locked', tone: 'slate' },
 		available: { label: 'Available', tone: 'slate' },
-		video_pending: { label: 'In progress', tone: 'slate' },
-		quiz_pending: { label: 'In progress', tone: 'yellow' },
-		mentor_checkoff_pending: { label: 'Awaiting mentor checkoff', tone: 'sky' },
-		checkoff_needs_review: { label: 'Action required: redo checkoff', tone: 'yellow' },
-		checkoff_blocked: { label: 'Blocked by mentor', tone: 'red' },
+		video_pending: { label: 'In Progress', tone: 'slate' },
+		quiz_pending: { label: 'In Progress', tone: 'yellow' },
+		mentor_checkoff_pending: { label: 'Awaiting Checkoff', tone: 'sky' },
+		checkoff_needs_review: { label: 'Action Required', tone: 'yellow' },
+		checkoff_blocked: { label: 'Blocked', tone: 'red' },
 		completed: { label: 'Completed', tone: 'emerald' }
 	};
 	const statusInfo = $derived(
@@ -253,45 +253,13 @@
 	let photoInputEl = $state<HTMLInputElement | null>(null);
 	const openPhotoPicker = () => photoInputEl?.click();
 
-	function blockTypeChip(type: BlockType): string {
-		if (type === 'video') return 'chip-cyan';
-		if (type === 'quiz') return 'chip-amber';
-		if (type === 'reading') return 'chip-violet';
-		return 'chip-emerald';
-	}
-
-	function blockTypeIcon(type: BlockType): string {
-		if (type === 'video') return '▶';
-		if (type === 'quiz') return '?';
-		if (type === 'reading') return '📖';
-		return '✓';
-	}
-
 	function blockTypeLabel(type: BlockType): string {
-		if (type === 'video') return 'Video';
-		if (type === 'quiz') return 'Quiz';
-		if (type === 'reading') return 'Reading';
-		return 'Skills Check';
+		if (type === 'video') return 'VIDEO';
+		if (type === 'quiz') return 'QUIZ';
+		if (type === 'reading') return 'READING';
+		return 'CHECKOFF';
 	}
 
-	function blockSummary(block: LearnBlock): string {
-		const cfg = block.config;
-		if (block.type === 'video') return String(cfg.title ?? 'Video');
-		if (block.type === 'quiz') {
-			const count = Array.isArray(cfg.questions) ? cfg.questions.length : 0;
-			return `${cfg.title || 'Quiz'} · ${count} question${count === 1 ? '' : 's'}`;
-		}
-		if (block.type === 'reading') {
-			const count = Array.isArray(cfg.resource_links) ? cfg.resource_links.length : 0;
-			return `${cfg.title || 'Reading'} · ${count} resource${count === 1 ? '' : 's'}`;
-		}
-		return String(cfg.title ?? 'Skills Check');
-	}
-
-	// Same as blockSummary but no "· N questions/resources" suffix and no
-	// fallback "Quiz" / "Reading" label — used by the inline step heading in
-	// the body so the title reads as a real heading instead of a breadcrumb.
-	// The bottom block-strip still uses blockSummary() for the full label.
 	function blockTitle(block: LearnBlock): string {
 		const cfg = block.config;
 		const raw = String(cfg.title ?? '').trim();
@@ -302,152 +270,111 @@
 		return 'Skills Check';
 	}
 
-	const completedBlockCount = $derived(blocks.filter((b) => isBlockCompleted(b)).length);
-	const progressPercent = $derived(
-		blocks.length > 0 ? Math.round((completedBlockCount / blocks.length) * 100) : 0
+	// Sidebar: mentor sign-off panel
+	const checkoffBlock = $derived(blocks.find((b) => b.type === 'checkoff') ?? null);
+	const checkoffChecklist = $derived(
+		Array.isArray(checkoffBlock?.config?.mentor_checklist)
+			? (checkoffBlock.config.mentor_checklist as string[])
+			: []
 	);
+
+	// Attempt counter for Quiz component
+	const quizAttemptCount = $derived.by(() => {
+		if (!activeBlock || activeBlock.type !== 'quiz') return 0;
+		const bid = activeBlock.id;
+		return ((data.blockAttempts ?? []) as any[]).filter(
+			(a: any) => String(a.block_id) === bid
+		).length;
+	});
+
 </script>
 
-<!-- Work-order card header -->
-<div class="mb-6">
+<!-- Breadcrumb -->
+<div class="mb-3 flex items-center gap-1.5 text-[12px]" style="color: var(--app-text-dim);">
 	<a
-		href="/dashboard"
-		class="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors"
+		href="/coursework"
+		class="transition-colors hover:underline"
 		style="color: var(--app-text-dim);"
-	>
-		<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
-		Dashboard
-	</a>
-	<div
-		class="rounded-2xl border"
-		style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow);"
-	>
-		<!-- Title row -->
-		<div class="border-b px-5 py-4" style="border-color: var(--app-border);">
-			<div class="flex flex-wrap items-center justify-between gap-3">
-				<h1 class="text-lg font-bold tracking-tight" style="color: var(--app-text);">{data.node.title}</h1>
-				<StatusChip label={statusInfo.label} tone={statusTone} />
-			</div>
-			{#if data.previewBypass}
-				<p class="mt-1 text-xs" style="color: var(--app-info);">Preview mode: prerequisite locks are bypassed.</p>
-			{/if}
-		</div>
-		<!-- Metadata columns -->
-		<div class="grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0" style="border-color: var(--app-border);">
-			{#each [
-				{ key: 'CODE', val: (data.node as any).code ?? '—' },
-				{ key: 'BLOCKS', val: blocks.length > 0 ? `${completedBlockCount} / ${blocks.length}` : '—' },
-				{ key: 'PREREQS', val: prereqPlan.length > 0 ? `${completedPrereqs.length} / ${prereqPlan.length}` : 'None' },
-				{ key: 'PROGRESS', val: blocks.length > 0 ? `${progressPercent}%` : '—' }
-			] as col}
-				<div class="px-4 py-3">
-					<p class="eyebrow-label mb-1">{col.key}</p>
-					<p class="mono text-[15px] font-bold" style="color: var(--app-text);">{col.val}</p>
-				</div>
-			{/each}
-		</div>
-		<!-- Step tracker -->
-		{#if blocks.length > 0}
-			<div class="border-t px-5 py-3" style="border-color: var(--app-border);">
-				<div class="flex items-center gap-2 overflow-x-auto pb-0.5">
-					{#each blocks as block, i (block.id)}
-						{@const done = isBlockCompleted(block)}
-						{@const current = i === activeBlockIndex && !done}
-						{@const accessible = allBlocksComplete || i <= activeBlockIndex}
-						<button
-							type="button"
-							onclick={() => {
-								if (!accessible) return;
-								hasManualBlockSelection = true;
-								selectedBlockIndex = i;
-							}}
-							disabled={!accessible}
-							class="step-btn flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-bold transition-all"
-							style="background: {done ? 'color-mix(in srgb,var(--app-success) 10%,transparent)' : current ? 'color-mix(in srgb,var(--app-accent) 10%,transparent)' : 'var(--app-surface-alt)'}; border-color: {done ? 'color-mix(in srgb,var(--app-success) 40%,transparent)' : current ? 'var(--app-accent)' : 'var(--app-border)'}; color: {done ? 'var(--app-success)' : current ? 'var(--app-accent)' : 'var(--app-text-muted)'}; opacity: {accessible ? 1 : 0.4}; cursor: {accessible ? 'pointer' : 'not-allowed'};"
-						>
-							{#if done}
-								<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
-							{:else}
-								<span class="mono text-[10px]">{i + 1}</span>
-							{/if}
-							{blockTypeLabel(block.type)}
-						</button>
-						{#if i < blocks.length - 1}
-							<span class="shrink-0 text-[10px]" style="color: var(--app-border);">—</span>
-						{/if}
-					{/each}
-				</div>
-			</div>
-		{/if}
-	</div>
+	>Coursework</a>
+	<span>/</span>
+	<span style="color: var(--app-text);">{data.node.title}</span>
 </div>
 
-<section class="space-y-4">
-	{#if awaitingMentor && !completed}
-		<div
-			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
-			style="animation-delay: 0.06s;"
-		>
-			<div class="relative">
-				<p class="eyebrow-label mb-2">Mentor Review</p>
-				<h2 class="text-lg font-semibold" style="color: var(--app-text);">
-					Awaiting mentor checkoff
-				</h2>
-				<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
-					Your checkoff submission is ready for mentor review.
-				</p>
-				{#if data.reviewMentor}
-					<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
-						Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
-					</p>
-				{/if}
-				{#if data.checkoffQrDataUrl}
-					<div
-						class="mt-4 rounded-xl border p-4"
-						style="background: var(--app-surface); border-color: var(--app-border);"
-					>
-						<p class="text-xs" style="color: var(--app-text-muted);">
-							Show this QR to a mentor. Scanning it approves this submitted checkoff directly.
-						</p>
-						<img
-							src={data.checkoffQrDataUrl}
-							alt="Checkoff approval QR"
-							class="mt-3 h-36 w-36 rounded-lg bg-white p-2"
-						/>
-					</div>
-				{/if}
-			</div>
-		</div>
-	{/if}
-
-	{#if completed || allBlocksComplete}
-		<div
-			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
-			style="animation-delay: 0.06s;"
-		>
-			<div class="relative">
-				<div class="mb-2 flex items-center gap-2">
-					<span
-						class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs"
-						style="background: color-mix(in srgb, var(--app-success) 20%, transparent); color: var(--app-success);"
-						>✓</span
-					>
-					<h2 class="text-lg font-semibold" style="color: var(--app-text);">Completed</h2>
+<!-- Work-order card -->
+<div
+	class="mb-6 overflow-hidden rounded-2xl border"
+	style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow);"
+>
+	<!-- Label + title row with SUBTEAM and STATUS on the right -->
+	<div class="border-b px-5 py-4" style="border-color: var(--app-border);">
+		<p class="eyebrow-label mb-1.5" style="color: var(--app-text-dim);">WORK ORDER · MODULE</p>
+		<div class="flex flex-wrap items-center justify-between gap-4">
+			<h1 class="text-2xl font-bold tracking-tight" style="color: var(--app-text);">{data.node.title}</h1>
+			<div class="flex items-center gap-6">
+				<div>
+					<p class="eyebrow-label mb-0.5">SUBTEAM</p>
+					<p class="mono text-[14px] font-bold" style="color: var(--app-text);">{(data.subteamName as string) ?? '—'}</p>
 				</div>
-				<p class="text-sm" style="color: var(--app-text-muted);">
-					You've finished this module{data.cert?.approved_at
-						? ` on ${new Date(data.cert.approved_at).toLocaleDateString()}`
-						: ''}.
-				</p>
-				{#if data.certMentor}
-					<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
-						Approved by {data.certMentor.full_name || data.certMentor.email}.
-					</p>
-				{/if}
+				<div>
+					<p class="eyebrow-label mb-0.5">STATUS</p>
+					<StatusChip label={statusInfo.label} tone={statusTone} />
+				</div>
 			</div>
 		</div>
-	{/if}
+		{#if data.previewBypass}
+			<p class="mt-1 text-xs" style="color: var(--app-info);">Preview mode: prerequisite locks are bypassed.</p>
+		{/if}
+	</div>
 
+	<!-- Step tracker -->
+	{#if blocks.length > 0}
+		<div class="step-tracker-row flex overflow-x-auto">
+			{#each blocks as block, i (block.id)}
+				{@const done = isBlockCompleted(block)}
+				{@const current = i === activeBlockIndex && !done}
+				{@const accessible = allBlocksComplete || i <= activeBlockIndex}
+				{@const isSelected = i === selectedBlockIndex}
+				<button
+					type="button"
+					onclick={() => {
+						if (!accessible) return;
+						hasManualBlockSelection = true;
+						selectedBlockIndex = i;
+					}}
+					disabled={!accessible}
+					class="step-tracker-btn flex min-w-[140px] flex-1 flex-col gap-1.5 px-4 py-3 text-left transition-colors"
+					style="opacity: {accessible ? 1 : 0.4}; cursor: {accessible ? 'pointer' : 'not-allowed'}; background: {isSelected ? 'color-mix(in srgb, var(--app-accent) 5%, var(--app-surface))' : 'var(--app-surface)'};"
+				>
+					<div class="flex flex-wrap items-center gap-2">
+						<span
+							class="grid h-4 w-4 shrink-0 place-items-center rounded-sm border"
+							style="border-color: {done ? 'var(--app-success)' : current ? 'var(--app-accent)' : 'var(--app-border)'}; background: {done ? 'var(--app-success)' : 'transparent'};"
+						>
+							{#if done}
+								<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-2.5 w-2.5"><polyline points="4 12 10 18 20 6"/></svg>
+							{/if}
+						</span>
+						<span class="mono text-[10px] font-bold" style="color: {done ? 'var(--app-success)' : current ? 'var(--app-accent)' : 'var(--app-text-dim)'};">
+							{i + 1}.0 {blockTypeLabel(block.type)}
+						</span>
+						{#if current}
+							<span class="text-[10px] font-semibold" style="color: var(--app-accent);">← YOU ARE HERE</span>
+						{/if}
+					</div>
+					<p
+						class="truncate text-[11px]"
+						style="padding-left: 1.5rem; color: {done ? 'var(--app-text-muted)' : current ? 'var(--app-text)' : 'var(--app-text-dim)'};"
+					>
+						{blockTitle(block)}
+					</p>
+				</button>
+			{/each}
+		</div>
+	{/if}
+</div>
+
+<!-- Page body -->
+<section>
 	{#if locked}
 		<div class="fade-up space-y-6" style="animation-delay: 0.06s;">
 			<p class="text-sm" style="color: var(--app-text-muted);">
@@ -482,40 +409,65 @@
 		</div>
 	{:else if blocks.length === 0}
 		<div
-			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 text-sm backdrop-blur-xl"
-			style="animation-delay: 0.06s;"
+			class="fade-up rounded-2xl border p-5 text-sm"
+			style="animation-delay: 0.06s; background: var(--app-surface); border-color: var(--app-border);"
 		>
-			<p class="relative" style="color: var(--app-text-muted);">
+			<p style="color: var(--app-text-muted);">
 				No blocks have been added to this module yet. Ask a mentor to configure the course.
 			</p>
 		</div>
 	{:else}
-		<div class="space-y-4 pb-24">
-			{#if activeBlock}
-				{@const icon = blockTypeIcon(activeBlock.type)}
-				<div class="fade-up space-y-3" style="animation-delay: 0.08s;">
-					<!-- Step heading: icon + clean title only. The "2. Quiz · 7 questions"
-					     breadcrumb-style label still lives in the bottom block-strip; up
-					     here we want the title to read as a real heading. -->
-					<div class="flex flex-wrap items-center gap-2.5">
-						<h2
-							class="flex min-w-0 flex-1 items-center gap-2 text-lg font-semibold"
-							style="color: var(--app-text);"
-						>
-							<span aria-hidden="true" style="color: var(--app-accent);">{icon}</span>
-							<span class="truncate">{blockTitle(activeBlock)}</span>
-						</h2>
-						{#if isBlockCompleted(activeBlock)}
-							<span
-								class="chip-emerald inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium"
-								>✓ Done</span
-							>
+		<!-- Two-column layout: main content + mentor sidebar -->
+		<div class="flex items-start gap-6 pb-12">
+			<!-- Main column -->
+			<div class="fade-up min-w-0 flex-1 space-y-4" style="animation-delay: 0.06s;">
+				{#if awaitingMentor && !completed}
+					<div
+						class="rounded-2xl border p-5"
+						style="background: color-mix(in srgb, var(--app-info) 6%, var(--app-surface)); border-color: color-mix(in srgb, var(--app-info) 30%, transparent);"
+					>
+						<p class="eyebrow-label mb-1">Mentor Review</p>
+						<h2 class="text-base font-semibold" style="color: var(--app-text);">Awaiting mentor checkoff</h2>
+						<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
+							Your checkoff submission is ready for mentor review.
+						</p>
+						{#if data.reviewMentor}
+							<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
+								Last reviewed by {data.reviewMentor.full_name || data.reviewMentor.email}.
+							</p>
 						{/if}
 					</div>
-					<!-- Body of the active block follows. -->
-					<div class="space-y-3">
-						{#if activeBlock.type === 'video'}
-							{@const vid = extractVideoId(activeBlock.config.video_url)}
+				{/if}
+
+				{#if completed || allBlocksComplete}
+					<div
+						class="rounded-2xl border p-5"
+						style="background: color-mix(in srgb, var(--app-success) 6%, var(--app-surface)); border-color: color-mix(in srgb, var(--app-success) 30%, transparent);"
+					>
+						<div class="mb-1 flex items-center gap-2">
+							<span
+								class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+								style="background: color-mix(in srgb, var(--app-success) 20%, transparent); color: var(--app-success);"
+							>✓</span>
+							<h2 class="text-base font-semibold" style="color: var(--app-text);">Completed</h2>
+						</div>
+						<p class="text-sm" style="color: var(--app-text-muted);">
+							You've finished this module{data.cert?.approved_at
+								? ` on ${new Date(data.cert.approved_at).toLocaleDateString()}`
+								: ''}.
+						</p>
+						{#if data.certMentor}
+							<p class="mt-1 text-xs" style="color: var(--app-text-dim);">
+								Approved by {data.certMentor.full_name || data.certMentor.email}.
+							</p>
+						{/if}
+					</div>
+				{/if}
+
+				{#if activeBlock}
+					{#if activeBlock.type === 'video'}
+						{@const vid = extractVideoId(activeBlock.config.video_url)}
+						<div class="space-y-3">
 							{#if vid}
 								<VideoPlayer
 									videoId={vid}
@@ -543,7 +495,7 @@
 							{/if}
 							<div
 								class="flex flex-wrap items-center gap-3 border-t pt-4"
-								style="border-color: var(--app-glass-border);"
+								style="border-color: var(--app-border);"
 							>
 								{#if viewingCurrentStep}
 									<Button
@@ -565,359 +517,328 @@
 									</span>
 								{/if}
 							</div>
-						{:else if activeBlock.type === 'quiz'}
-							{#if (activeBlock.config.questions ?? []).length === 0}
-								<p class="text-sm" style="color: var(--app-text-muted);">
-									No quiz questions configured yet. Ask a mentor to add some.
-								</p>
-							{:else}
-								<Quiz
-									questions={activeBlock.config.questions}
-									nodeId={data.node.id}
-									blockId={activeBlock.id}
-									passingScore={activeBlock.config.passing_score ?? 80}
-									allowSubmit={true}
-									lockedMessage=""
-								/>
-							{/if}
-						{:else if activeBlock.type === 'reading'}
-							{@const c = activeBlock.config}
-							<div class="space-y-4">
-								{#if c.content}
-									<div
-										class="rounded-xl border p-4 text-sm whitespace-pre-wrap"
-										style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
-									>
-										{c.content}
-									</div>
-								{/if}
-								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-									<div
-										class="rounded-xl border p-4"
-										style="background: var(--app-surface); border-color: var(--app-border);"
-									>
-										<p class="eyebrow-label mb-2">Resources</p>
-										<ul class="space-y-2 text-sm">
-											{#each c.resource_links as link}
-												<li>
-													<a
-														href={link}
-														class="resource-link inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
-														target="_blank"
-														rel="noopener noreferrer"
-													>
-														<span style="color: var(--app-link);">↗</span>
-														<span class="truncate" style="color: var(--app-link);">{link}</span>
-													</a>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-								<div
-									class="flex flex-wrap items-center gap-3 border-t pt-4"
-									style="border-color: var(--app-glass-border);"
-								>
-									{#if viewingCurrentStep}
-										<Button
-											variant="primary"
-											onclick={() => markBlockVideoDone(activeBlock)}
-											disabled={marking}
-										>
-											{marking ? 'Marking…' : 'I finished this reading'}
-										</Button>
-										<span class="text-xs" style="color: var(--app-text-dim);">
-											Marks this reading complete and unlocks the next block.
-										</span>
-										{#if videoActionMessage}
-											<p class="text-xs" style="color: var(--app-danger);">{videoActionMessage}</p>
-										{/if}
-									{:else}
-										<span class="text-xs" style="color: var(--app-text-dim);">
-											Viewing a completed step. Return to the current step to continue progress.
-										</span>
-									{/if}
-								</div>
-							</div>
+						</div>
+
+					{:else if activeBlock.type === 'quiz'}
+						{#if (activeBlock.config.questions ?? []).length === 0}
+							<p class="text-sm" style="color: var(--app-text-muted);">
+								No quiz questions configured yet. Ask a mentor to add some.
+							</p>
 						{:else}
-							{@const c = activeBlock.config}
-							<div class="space-y-4">
-								{#if c.directions}
-									<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text-muted);">
-										{c.directions}
-									</p>
-								{/if}
-								{#if c.show_mentor_checklist_to_students && Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
-									<div
-										class="rounded-xl border p-4"
-										style="background: var(--app-surface); border-color: var(--app-border);"
-									>
-										<p class="eyebrow-label mb-2">Mentor checklist</p>
-										<ul class="space-y-1.5 text-sm" style="color: var(--app-text);">
-											{#each c.mentor_checklist as item}
-												<li class="flex items-start gap-2">
-													<span
-														class="mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-														style="background: var(--app-text-dim);"
-													></span>
-													{item}
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
-									<div
-										class="rounded-xl border p-4"
-										style="background: var(--app-surface); border-color: var(--app-border);"
-									>
-										<p class="eyebrow-label mb-2">Resources</p>
-										<ul class="space-y-2 text-sm">
-											{#each c.resource_links as link}
-												<li>
-													<a
-														href={link}
-														class="resource-link inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
-														target="_blank"
-														rel="noopener noreferrer"
-													>
-														<span style="color: var(--app-link);">↗</span>
-														<span class="truncate" style="color: var(--app-link);">{link}</span>
-													</a>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-								<form
-									method="POST"
-									action="?/saveSubmission"
-									use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') {
-												checkoffMessage = 'Submission saved. A mentor will review soon.';
-												await invalidateAll();
-											}
-											if (result.type === 'failure') {
-												checkoffMessage =
-													(result.data?.error as string) ?? 'Could not save submission.';
-											}
-										};
-									}}
-									class="space-y-4 rounded-xl border p-4"
+							<Quiz
+								questions={activeBlock.config.questions}
+								nodeId={data.node.id}
+								blockId={activeBlock.id}
+								passingScore={activeBlock.config.passing_score ?? 80}
+								allowSubmit={true}
+								lockedMessage=""
+								attemptCount={quizAttemptCount}
+								maxAttempts={3}
+							/>
+						{/if}
+
+					{:else if activeBlock.type === 'reading'}
+						{@const c = activeBlock.config}
+						<div class="space-y-4">
+							{#if c.content}
+								<div
+									class="rounded-xl border p-4 text-sm whitespace-pre-wrap"
+									style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
+								>
+									{c.content}
+								</div>
+							{/if}
+							{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
+								<div
+									class="rounded-xl border p-4"
 									style="background: var(--app-surface); border-color: var(--app-border);"
 								>
-									<p class="eyebrow-label">Submission</p>
-									<input type="hidden" name="block_id" value={activeBlock.id} />
-									{#if blockedByMentor}
-										<div
-											class="rounded-lg border p-3 text-xs"
-											style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
-										>
-											This checkoff is blocked by a mentor. Resolve the feedback before further
-											review.
-										</div>
-									{/if}
-									<label class="flex flex-col gap-1.5 text-sm">
-										<span style="color: var(--app-text-muted);">What did you complete?</span>
-										<textarea
-											name="notes"
-											rows="3"
-											class="rounded-xl px-3 py-2.5"
-											style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
-											placeholder="Describe what you built/demonstrated, tools used, and any issues."
-											disabled={blockedByMentor}>{data.submission?.notes ?? ''}</textarea
-										>
-									</label>
-									<label class="flex flex-col gap-1.5 text-sm">
-										<input
-											bind:this={photoInputEl}
-											type="file"
-											accept="image/*"
-											capture="environment"
-											multiple
-											onchange={onPhotoSelected}
-											disabled={blockedByMentor}
-											class="hidden"
-										/>
-										<div class="flex flex-wrap items-center gap-3">
-											<button
-												type="button"
-												onclick={openPhotoPicker}
-												disabled={blockedByMentor}
-												class="upload-btn inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-50"
-											>
-												<span>📷</span>
-												Upload Photo or File
-											</button>
-											<span class="text-xs" style="color: var(--app-text-dim);">
-												{uploadPreviews.length > 0
-													? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
-													: 'PNG/JPG, up to 4 files'}
-											</span>
-										</div>
-										<input
-											type="hidden"
-											name="photo_data_urls_json"
-											value={JSON.stringify(uploadPreviews)}
-										/>
-									</label>
-									{#if uploadPreviews.length}
-										<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-											{#each uploadPreviews as photo, idx}
-												<div
-													class="photo-preview group relative overflow-hidden rounded-xl border"
-													style="border-color: var(--app-glass-border);"
+									<p class="eyebrow-label mb-2">Resources</p>
+									<ul class="space-y-2 text-sm">
+										{#each c.resource_links as link}
+											<li>
+												<a
+													href={link}
+													class="resource-link inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
+													target="_blank"
+													rel="noopener noreferrer"
 												>
-													<img
-														src={photo}
-														alt="Checkoff submission preview"
-														class="h-24 w-full object-cover"
-													/>
-													<button
-														type="button"
-														onclick={() => removePhoto(idx)}
-														class="absolute top-1.5 right-1.5 rounded-lg px-2 py-0.5 text-[11px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
-														style="background: color-mix(in srgb, var(--app-danger) 80%, transparent); color: white; backdrop-filter: blur(8px);"
-													>
-														Remove
-													</button>
-												</div>
-											{/each}
-										</div>
-									{/if}
-									{#if checkoffMessage}
-										<p class="text-xs" style="color: var(--app-text-muted);">{checkoffMessage}</p>
-									{/if}
-									<Button variant="primary" type="submit" disabled={blockedByMentor}>
-										{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
-									</Button>
-								</form>
-								{#if data.review}
-									<div
-										class="rounded-xl border p-4 text-sm"
-										style="background: var(--app-surface); border-color: var(--app-border);"
+													<span style="color: var(--app-link);">↗</span>
+													<span class="truncate" style="color: var(--app-link);">{link}</span>
+												</a>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+							<div
+								class="flex flex-wrap items-center gap-3 border-t pt-4"
+								style="border-color: var(--app-border);"
+							>
+								{#if viewingCurrentStep}
+									<Button
+										variant="primary"
+										onclick={() => markBlockVideoDone(activeBlock)}
+										disabled={marking}
 									>
-										<div
-											class="pointer-events-none absolute inset-0 rounded-xl"
-											style="background: var(--app-glass-shine);"
-										></div>
-										<p class="eyebrow-label mb-2">Latest mentor feedback</p>
-										{#if data.reviewMentor}
-											<p class="text-xs" style="color: var(--app-text-dim);">
-												By {data.reviewMentor.full_name || data.reviewMentor.email}
-											</p>
-										{/if}
-										<p class="mt-2 whitespace-pre-wrap" style="color: var(--app-text-muted);">
-											{data.review.mentor_notes || 'No notes yet.'}
-										</p>
-										{#if data.review.status === 'needs_review'}
-											<div
-												class="mt-3 rounded-lg border p-2.5 text-xs"
-												style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 8%, transparent); color: color-mix(in srgb, var(--app-warning) 70%, white);"
-											>
-												Mentor requested updates. Your current submission stays saved; update
-												notes/photos and save again.
-											</div>
-										{/if}
-										{#if data.review.status === 'blocked'}
-											<div
-												class="mt-3 rounded-lg border p-2.5 text-xs"
-												style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 8%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);"
-											>
-												Mentor has blocked this checkoff pending safety/compliance resolution.
-											</div>
-										{/if}
-										{#if (data.review.checklist_results ?? []).length > 0}
-											<ul class="mt-3 space-y-1 text-xs" style="color: var(--app-text-muted);">
-												{#each data.review.checklist_results as row}
-													<li class="flex items-center gap-2">
-														<span
-															class="inline-block h-1.5 w-1.5 rounded-full"
-															style={row.passed
-																? 'background: var(--app-success);'
-																: 'background: var(--app-danger);'}
-														></span>
-														{row.item}: {row.passed ? 'passed' : 'needs work'}
-													</li>
-												{/each}
-											</ul>
-										{/if}
-									</div>
+										{marking ? 'Marking…' : 'I finished this reading'}
+									</Button>
+									<span class="text-xs" style="color: var(--app-text-dim);">
+										Marks this reading complete and unlocks the next block.
+									</span>
+									{#if videoActionMessage}
+										<p class="text-xs" style="color: var(--app-danger);">{videoActionMessage}</p>
+									{/if}
+								{:else}
+									<span class="text-xs" style="color: var(--app-text-dim);">
+										Viewing a completed step. Return to the current step to continue progress.
+									</span>
 								{/if}
 							</div>
+						</div>
+
+					{:else}
+						<!-- Checkoff block -->
+						{@const c = activeBlock.config}
+						<div class="space-y-4">
+							{#if c.directions}
+								<p class="text-sm whitespace-pre-wrap" style="color: var(--app-text-muted);">
+									{c.directions}
+								</p>
+							{/if}
+							{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
+								<div
+									class="rounded-xl border p-4"
+									style="background: var(--app-surface); border-color: var(--app-border);"
+								>
+									<p class="eyebrow-label mb-2">Resources</p>
+									<ul class="space-y-2 text-sm">
+										{#each c.resource_links as link}
+											<li>
+												<a
+													href={link}
+													class="resource-link inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													<span style="color: var(--app-link);">↗</span>
+													<span class="truncate" style="color: var(--app-link);">{link}</span>
+												</a>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+							<form
+								method="POST"
+								action="?/saveSubmission"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'success') {
+											checkoffMessage = 'Submission saved. A mentor will review soon.';
+											await invalidateAll();
+										}
+										if (result.type === 'failure') {
+											checkoffMessage =
+												(result.data?.error as string) ?? 'Could not save submission.';
+										}
+									};
+								}}
+								class="space-y-4 rounded-xl border p-4"
+								style="background: var(--app-surface); border-color: var(--app-border);"
+							>
+								<p class="eyebrow-label">Submission</p>
+								<input type="hidden" name="block_id" value={activeBlock.id} />
+								{#if blockedByMentor}
+									<div
+										class="rounded-lg border p-3 text-xs"
+										style="border-color: color-mix(in srgb, var(--app-danger) 60%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
+									>
+										This checkoff is blocked by a mentor. Resolve the feedback before further review.
+									</div>
+								{/if}
+								<label class="flex flex-col gap-1.5 text-sm">
+									<span style="color: var(--app-text-muted);">What did you complete?</span>
+									<textarea
+										name="notes"
+										rows="3"
+										class="rounded-xl px-3 py-2.5"
+										style="background: var(--app-input-bg); color: var(--app-input-text); border: 1px solid var(--app-glass-border);"
+										placeholder="Describe what you built/demonstrated, tools used, and any issues."
+										disabled={blockedByMentor}>{data.submission?.notes ?? ''}</textarea
+									>
+								</label>
+								<label class="flex flex-col gap-1.5 text-sm">
+									<input
+										bind:this={photoInputEl}
+										type="file"
+										accept="image/*"
+										capture="environment"
+										multiple
+										onchange={onPhotoSelected}
+										disabled={blockedByMentor}
+										class="hidden"
+									/>
+									<div class="flex flex-wrap items-center gap-3">
+										<button
+											type="button"
+											onclick={openPhotoPicker}
+											disabled={blockedByMentor}
+											class="upload-btn inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-50"
+										>
+											<span>📷</span>
+											Upload Photo or File
+										</button>
+										<span class="text-xs" style="color: var(--app-text-dim);">
+											{uploadPreviews.length > 0
+												? `${uploadPreviews.length} file${uploadPreviews.length === 1 ? '' : 's'} selected`
+												: 'PNG/JPG, up to 4 files'}
+										</span>
+									</div>
+									<input
+										type="hidden"
+										name="photo_data_urls_json"
+										value={JSON.stringify(uploadPreviews)}
+									/>
+								</label>
+								{#if uploadPreviews.length}
+									<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+										{#each uploadPreviews as photo, idx}
+											<div
+												class="photo-preview group relative overflow-hidden rounded-xl border"
+												style="border-color: var(--app-glass-border);"
+											>
+												<img
+													src={photo}
+													alt="Checkoff submission preview"
+													class="h-24 w-full object-cover"
+												/>
+												<button
+													type="button"
+													onclick={() => removePhoto(idx)}
+													class="absolute top-1.5 right-1.5 rounded-lg px-2 py-0.5 text-[11px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
+													style="background: color-mix(in srgb, var(--app-danger) 80%, transparent); color: white; backdrop-filter: blur(8px);"
+												>
+													Remove
+												</button>
+											</div>
+										{/each}
+									</div>
+								{/if}
+								{#if checkoffMessage}
+									<p class="text-xs" style="color: var(--app-text-muted);">{checkoffMessage}</p>
+								{/if}
+								<Button variant="primary" type="submit" disabled={blockedByMentor}>
+									{blockedByMentor ? 'Blocked by mentor' : 'Save checkoff submission'}
+								</Button>
+							</form>
+							{#if data.review}
+								<div
+									class="rounded-xl border p-4 text-sm"
+									style="background: var(--app-surface); border-color: var(--app-border);"
+								>
+									<p class="eyebrow-label mb-2">Latest mentor feedback</p>
+									{#if data.reviewMentor}
+										<p class="text-xs" style="color: var(--app-text-dim);">
+											By {data.reviewMentor.full_name || data.reviewMentor.email}
+										</p>
+									{/if}
+									<p class="mt-2 whitespace-pre-wrap" style="color: var(--app-text-muted);">
+										{data.review.mentor_notes || 'No notes yet.'}
+									</p>
+									{#if data.review.status === 'needs_review'}
+										<div
+											class="mt-3 rounded-lg border p-2.5 text-xs"
+											style="border-color: color-mix(in srgb, var(--app-warning) 40%, transparent); background: color-mix(in srgb, var(--app-warning) 8%, transparent); color: color-mix(in srgb, var(--app-warning) 70%, white);"
+										>
+											Mentor requested updates. Your current submission stays saved; update
+											notes/photos and save again.
+										</div>
+									{/if}
+									{#if data.review.status === 'blocked'}
+										<div
+											class="mt-3 rounded-lg border p-2.5 text-xs"
+											style="border-color: color-mix(in srgb, var(--app-danger) 40%, transparent); background: color-mix(in srgb, var(--app-danger) 8%, transparent); color: color-mix(in srgb, var(--app-danger) 70%, white);"
+										>
+											Mentor has blocked this checkoff pending safety/compliance resolution.
+										</div>
+									{/if}
+									{#if (data.review.checklist_results ?? []).length > 0}
+										<ul class="mt-3 space-y-1 text-xs" style="color: var(--app-text-muted);">
+											{#each data.review.checklist_results as row}
+												<li class="flex items-center gap-2">
+													<span
+														class="inline-block h-1.5 w-1.5 rounded-full"
+														style={row.passed
+															? 'background: var(--app-success);'
+															: 'background: var(--app-danger);'}
+													></span>
+													{row.item}: {row.passed ? 'passed' : 'needs work'}
+												</li>
+											{/each}
+										</ul>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				{/if}
+			</div>
+
+			<!-- Sidebar: Mentor sign-off (shown whenever a checkoff block exists) -->
+			{#if checkoffBlock}
+				<div class="w-72 shrink-0">
+					<div
+						class="sticky top-6 rounded-2xl border p-4"
+						style="background: var(--app-surface); border-color: var(--app-border);"
+					>
+						<p class="eyebrow-label mb-4">MENTOR SIGN-OFF</p>
+
+						{#if checkoffChecklist.length > 0}
+							<p class="sub-eyebrow mb-3">CHECKLIST — DEMONSTRATE TO MENTOR</p>
+							<ul class="mb-4 space-y-2.5">
+								{#each checkoffChecklist as item}
+									<li class="flex items-start gap-2.5">
+										<span
+											class="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-sm border"
+											style="border-color: var(--app-border);"
+										></span>
+										<span class="text-[13px] leading-snug" style="color: var(--app-text-muted);">{item}</span>
+									</li>
+								{/each}
+							</ul>
 						{/if}
+
+						<div class="border-t pt-3" style="border-color: var(--app-border);">
+							<p class="sub-eyebrow mb-2.5">MENTOR SIGNATURE — SCAN STUDENT PASSPORT</p>
+							{#if completed}
+								<StatusChip label="Approved ✓" tone="success" />
+							{:else if awaitingMentor}
+								<StatusChip label="Awaiting review" tone="info" />
+							{:else}
+								<StatusChip label="Awaiting demo" tone="warning" />
+							{/if}
+							{#if data.checkoffQrDataUrl && awaitingMentor}
+								<div class="mt-3">
+									<p class="mb-2 text-[11px]" style="color: var(--app-text-dim);">
+										Show to mentor to approve directly.
+									</p>
+									<img
+										src={data.checkoffQrDataUrl}
+										alt="Checkoff approval QR"
+										class="h-28 w-28 rounded-lg bg-white p-1.5"
+									/>
+								</div>
+							{/if}
+						</div>
 					</div>
 				</div>
 			{/if}
-
-			<div class="fixed right-0 bottom-0 left-0 z-30 md:left-64">
-				<div class="block-strip overflow-x-auto border-t px-3 py-2.5 backdrop-blur-xl">
-					<div class="flex min-w-max items-stretch gap-2">
-						{#each blocks as block, i (block.id)}
-							{@const done = isBlockCompleted(block)}
-							{@const current = i === activeBlockIndex && !done}
-							{@const chipClass = blockTypeChip(block.type)}
-							{@const icon = blockTypeIcon(block.type)}
-							{@const accessible = allBlocksComplete || i <= activeBlockIndex}
-							{@const selected = i === selectedBlockIndex}
-							<button
-								type="button"
-								onclick={() => {
-									if (!accessible) return;
-									hasManualBlockSelection = true;
-									selectedBlockIndex = i;
-								}}
-								disabled={!accessible}
-								class="strip-block min-w-[180px] rounded-xl border px-3 py-2.5 text-left text-xs transition-all"
-								class:strip-done={done}
-								class:strip-current={current && !done}
-								class:strip-selected={selected}
-								class:strip-locked={!accessible}
-							>
-								<div class="flex items-center gap-1.5">
-									<span class="text-sm">{icon}</span>
-									<p class="truncate font-semibold" style="color: var(--app-text);">
-										{i + 1}. {blockSummary(block)}
-									</p>
-								</div>
-								<div class="mt-1.5 flex items-center gap-2">
-									<span
-										class={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${chipClass}`}
-										>{blockTypeLabel(block.type)}</span
-									>
-									{#if done}
-										<span
-											class="chip-emerald inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
-											>✓ Done</span
-										>
-									{:else if current}
-										<span
-											class="chip-amber inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
-											>Current</span
-										>
-									{:else}
-										<span class="text-[10px]" style="color: var(--app-text-dim);">Upcoming</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</div>
 		</div>
 	{/if}
 </section>
 
 <style>
-	.glass-card {
-		background: var(--app-surface);
-		border-color: var(--app-border);
-		box-shadow: var(--app-glass-shadow);
-	}
-
-	/* Section divider used in the locked-course prereq listing. Same pattern
-	   as the subteam / coursework pages. */
 	.section-divider {
 		display: flex;
 		align-items: center;
@@ -968,40 +889,22 @@
 		background: var(--app-surface-alt);
 	}
 
-	.block-strip {
-		border-color: var(--app-border);
-		background: var(--app-surface);
-		box-shadow: 0 -1px 4px rgba(26, 33, 28, 0.06);
+	.step-tracker-row > .step-tracker-btn + .step-tracker-btn {
+		border-left: 1px solid var(--app-border);
+	}
+	.step-tracker-btn:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface)) !important;
+	}
+	.step-tracker-btn:focus-visible {
+		outline: 2px solid var(--app-accent);
+		outline-offset: -2px;
 	}
 
-	.strip-block {
-		background: var(--app-surface-alt);
-		border-color: var(--app-border);
-		cursor: pointer;
-	}
-	.strip-block:hover:not(:disabled) {
-		background: var(--app-table-row-hover);
-		border-color: color-mix(in srgb, var(--app-accent) 30%, transparent);
-	}
-	.strip-done {
-		border-color: color-mix(in srgb, var(--app-success) 40%, transparent);
-		background: color-mix(in srgb, var(--app-success) 6%, transparent);
-	}
-	.strip-current {
-		border-color: color-mix(in srgb, var(--app-warning) 50%, transparent);
-		background: color-mix(in srgb, var(--app-warning) 8%, transparent);
-	}
-	.strip-selected {
-		box-shadow:
-			0 0 0 1px color-mix(in srgb, var(--app-accent) 50%, transparent),
-			0 0 12px -2px color-mix(in srgb, var(--app-accent) 25%, transparent);
-	}
-	.strip-locked {
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
-	.step-btn:focus-visible {
-		outline: 2px solid var(--app-accent);
-		outline-offset: 2px;
+	.sub-eyebrow {
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--app-text-dim);
 	}
 </style>

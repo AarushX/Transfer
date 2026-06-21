@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const { data: node } = await locals.supabase
 		.from('nodes')
-		.select('id,title,description,video_url')
+		.select('id,title,description,video_url,code')
 		.eq('slug', params.nodeSlug)
 		.single();
 
@@ -92,7 +92,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		{ data: review },
 		{ data: blocks },
 		{ data: blockProgress },
-		{ data: blockAttempts }
+		{ data: blockAttempts },
+		{ data: nodeTargetGroup },
+		{ count: prereqCount }
 	] = await Promise.all([
 		locals.supabase
 			.from('assessments')
@@ -148,7 +150,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			.eq('node_id', node.id)
 			.eq('user_id', user.id)
 			.order('created_at', { ascending: false })
-			.limit(50)
+			.limit(50),
+		locals.supabase
+			.from('node_team_group_targets')
+			.select('team_group_id, team_groups!inner(name)')
+			.eq('node_id', node.id)
+			.limit(1)
+			.maybeSingle(),
+		locals.supabase
+			.from('node_prerequisites')
+			.select('*', { count: 'exact', head: true })
+			.eq('node_id', node.id)
 	]);
 
 	const computedStatus = statusRow?.computed_status ?? cert?.status ?? 'locked';
@@ -289,6 +301,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	return {
 		node,
+		subteamName: (nodeTargetGroup as any)?.team_groups?.name ?? null,
+		prereqCount: prereqCount ?? 0,
 		questions: assessment?.questions ?? [],
 		passingScore: assessment?.passing_score ?? 80,
 		certStatus: effectiveStatus,
