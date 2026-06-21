@@ -178,7 +178,7 @@
 		{#if course.proficiencyLevel}
 			<p
 				class="text-[10px] font-bold tracking-[0.18em] uppercase {compact ? 'mt-1.5' : 'mt-2'}"
-				style="color: color-mix(in srgb, {accent} 75%, var(--app-text-muted));"
+				style="color: var(--app-text-dim);"
 			>
 				{levelLabel(course.proficiencyLevel)}
 			</p>

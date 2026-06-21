@@ -1,6 +1,6 @@
 <script lang="ts">
 	let { qrDataUrl, compact = false }: { qrDataUrl: string; compact?: boolean } = $props();
-	let currentQrDataUrl = $state('');
+	let currentQrDataUrl = $state(qrDataUrl);
 	let refreshing = $state(false);
 	let error = $state('');
 
@@ -27,7 +27,7 @@
 		<img
 			src={currentQrDataUrl}
 			alt="Student ID code"
-			class="block aspect-square w-full rounded bg-slate-900 p-2"
+			class="block aspect-square w-full rounded"
 		/>
 	{/if}
 {:else}

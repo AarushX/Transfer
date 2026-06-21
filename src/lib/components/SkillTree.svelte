@@ -28,9 +28,7 @@
 
 	const filtered = $derived.by(() => filterByScope(nodes, prerequisites, scopeSet));
 
-	const hasGraphData = $derived(
-		(filtered.nodes?.length ?? 0) > 0 && (filtered.prerequisites?.length ?? 0) > 0
-	);
+	const hasGraphData = $derived((filtered.nodes?.length ?? 0) > 0);
 
 	let legendMinimized = $state(true);
 
@@ -41,12 +39,12 @@
 
 	const STATE_COLOR: Record<string, string> = {
 		completed: '#1e9e4c',
-		in_progress: '#3e7a8c',
+		in_progress: '#1e9e4c',
 		mentor_checkoff_pending: '#c95f00',
 		checkoff_needs_review: '#c95f00',
 		checkoff_blocked: '#d93025',
-		video_pending: '#3e7a8c',
-		quiz_pending: '#3e7a8c',
+		video_pending: '#1e9e4c',
+		quiz_pending: '#1e9e4c',
 		available: '#5c6b60',
 		locked: '#c8d2c9'
 	};
@@ -67,7 +65,7 @@
 		) {
 			return teamColor;
 		}
-		return STATE_COLOR[node.state] ?? '#475569';
+		return STATE_COLOR[node.state] ?? '#5c6b60';
 	}
 
 	const statusMap = $derived(new Map(statuses.map((s) => [s.node_id, s.computed_status])));
@@ -152,14 +150,20 @@
 
 	const allNodeTitleById = $derived(new Map(nodes.map((n) => [n.id, n.title])));
 
-	function prereqTitlesFor(nodeId: string): Array<{ title: string; satisfied: boolean }> {
-		const out: Array<{ title: string; satisfied: boolean }> = [];
+	function prereqTitlesFor(nodeId: string): Array<{ title: string; satisfied: boolean; id: string; slug: string }> {
+		const out: Array<{ title: string; satisfied: boolean; id: string; slug: string }> = [];
 		for (const edge of prerequisites) {
 			if (edge.node_id !== nodeId) continue;
-			const title = allNodeTitleById.get(edge.prerequisite_node_id);
+			const prereqNode = filtered.nodes.find(n => n.id === edge.prerequisite_node_id);
+			const title = prereqNode?.title ?? allNodeTitleById.get(edge.prerequisite_node_id);
 			if (!title) continue;
 			const status = statusMap.get(edge.prerequisite_node_id);
-			out.push({ title, satisfied: status === 'completed' });
+			out.push({
+				title,
+				satisfied: status === 'completed',
+				id: edge.prerequisite_node_id,
+				slug: prereqNode?.slug ?? ''
+			});
 		}
 		return out;
 	}
@@ -769,40 +773,49 @@
 							<p class="eyebrow-label" style="margin-bottom: 4px;">Unlocks after</p>
 							<ul class="space-y-1">
 								{#each prereqs as p}
-									<li class="flex items-center gap-2 text-xs" style="color: var(--app-text-muted);">
-										<span
-											class="grid h-4 w-4 place-items-center rounded-full"
-											style="background: {p.satisfied
-												? 'color-mix(in srgb, var(--app-success) 25%, transparent)'
-												: 'color-mix(in srgb, var(--app-text-dim) 14%, transparent)'}; color: {p.satisfied
-												? 'var(--app-success)'
-												: 'var(--app-text-dim)'};"
+									<li>
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-xs text-left"
+											style="color: var(--app-text-muted); background: transparent; border: none; cursor: pointer; transition: background 0.12s ease, color 0.12s ease;"
+											onmouseenter={(e) => { e.currentTarget.style.background = 'var(--app-glass-bg-hover)'; e.currentTarget.style.color = 'var(--app-text)'; }}
+											onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--app-text-muted)'; }}
+											onclick={() => commitNodeClick(p.id)}
 										>
-											{#if p.satisfied}
-												<svg
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="3"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													class="h-2.5 w-2.5"><polyline points="4 12 10 18 20 6" /></svg
-												>
-											{:else}
-												<svg
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-													class="h-2.5 w-2.5"
-													><rect x="5" y="11" width="14" height="10" rx="2" /><path
-														d="M8 11V8a4 4 0 0 1 8 0v3"
-													/></svg
-												>
-											{/if}
-										</span>
-										<span class:line-through={p.satisfied}>{p.title}</span>
+											<span
+												class="grid h-4 w-4 shrink-0 place-items-center rounded-full"
+												style="background: {p.satisfied
+													? 'color-mix(in srgb, var(--app-success) 25%, transparent)'
+													: 'color-mix(in srgb, var(--app-text-dim) 14%, transparent)'}; color: {p.satisfied
+													? 'var(--app-success)'
+													: 'var(--app-text-dim)'};"
+											>
+												{#if p.satisfied}
+													<svg
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="3"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														class="h-2.5 w-2.5"><polyline points="4 12 10 18 20 6" /></svg
+													>
+												{:else}
+													<svg
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														class="h-2.5 w-2.5"
+														><rect x="5" y="11" width="14" height="10" rx="2" /><path
+															d="M8 11V8a4 4 0 0 1 8 0v3"
+														/></svg
+													>
+												{/if}
+											</span>
+											<span class:line-through={p.satisfied}>{p.title}</span>
+										</button>
 									</li>
 								{/each}
 							</ul>

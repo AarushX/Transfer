@@ -50,6 +50,7 @@
 	let result = $state<null | { passed: boolean; score: number }>(null);
 	let errorMsg = $state('');
 	let randomizeEpoch = $state(0);
+	let currentStep = $state(0);
 
 	function hashSeed(input: string): number {
 		let h = 2166136261;
@@ -85,18 +86,11 @@
 		}
 		return map;
 	});
-	const hasRandomizableQuestions = $derived(
-		questions.some(
-			(q) =>
-				(q.type === 'mc' || q.type === 'ms') && q.randomize_options && (q.options?.length ?? 0) > 1
-		)
-	);
+
 	const getMaxSelect = (question: Question): number | null => {
 		const value = Number(question.max_select);
 		return Number.isFinite(value) && value > 0 ? Math.trunc(value) : null;
 	};
-	const getSelectedCount = (questionId: string): number =>
-		Array.isArray(answers[questionId]) ? (answers[questionId] as string[]).length : 0;
 	const isMsOptionDisabled = (question: Question, option: string): boolean => {
 		const maxSelect = getMaxSelect(question);
 		if (maxSelect == null) return false;
@@ -105,52 +99,41 @@
 		return selected.length >= maxSelect;
 	};
 
-	const unanswered = $derived(
-		questions.filter((q) => {
-			if (q.type === 'ms') {
-				const selected = answers[q.id];
-				return !Array.isArray(selected) || selected.length === 0;
-			}
-			if (q.type === 'matrix') {
-				const rows = Array.isArray(q.rows)
-					? q.rows.map((r) => String(r).trim()).filter(Boolean)
-					: [];
-				const value = answers[q.id];
-				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-				const map = value as Record<string, string>;
-				return rows.some((row) => !String(map[row] ?? '').trim());
-			}
-			if (q.type === 'matrix_ms') {
-				const rows = Array.isArray(q.rows)
-					? q.rows.map((r) => String(r).trim()).filter(Boolean)
-					: [];
-				const value = answers[q.id];
-				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-				const map = value as Record<string, string[]>;
-				return rows.some((row) => !Array.isArray(map[row]) || map[row].length === 0);
-			}
-			if (q.type === 'short_grid') {
-				const rows = Array.isArray(q.rows)
-					? q.rows.map((r) => String(r).trim()).filter(Boolean)
-					: [];
-				const columns = Array.isArray(q.columns)
-					? q.columns.map((c) => String(c).trim()).filter(Boolean)
-					: [];
-				const value = answers[q.id];
-				if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-				const map = value as Record<string, Record<string, string>>;
-				return rows.some((row) => {
-					const rowMap = map[row] ?? {};
-					return columns.some((col) => !String(rowMap[col] ?? '').trim());
-				});
-			}
-			if (q.type === 'short' && q.short_required === false) return false;
-			return !String(answers[q.id] ?? '').trim();
-		}).length
-	);
+	function isAnswered(q: Question): boolean {
+		if (q.type === 'ms') {
+			const selected = answers[q.id];
+			return Array.isArray(selected) && selected.length > 0;
+		}
+		if (q.type === 'matrix') {
+			const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+			const value = answers[q.id];
+			if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+			return !rows.some((row) => !String((value as Record<string, string>)[row] ?? '').trim());
+		}
+		if (q.type === 'matrix_ms') {
+			const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+			const value = answers[q.id];
+			if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+			return !rows.some((row) => !Array.isArray((value as Record<string, string[]>)[row]) || (value as Record<string, string[]>)[row].length === 0);
+		}
+		if (q.type === 'short_grid') {
+			const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : [];
+			const cols = Array.isArray(q.columns) ? q.columns.map((c) => String(c).trim()).filter(Boolean) : [];
+			const value = answers[q.id];
+			if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+			const map = value as Record<string, Record<string, string>>;
+			return !rows.some((row) => cols.some((col) => !String((map[row] ?? {})[col] ?? '').trim()));
+		}
+		if (q.type === 'short' && q.short_required === false) return true;
+		return Boolean(String(answers[q.id] ?? '').trim());
+	}
 
-	async function onSubmit(event: SubmitEvent) {
-		event.preventDefault();
+	const currentQuestion = $derived(questions[currentStep]);
+	const currentAnswered = $derived(currentQuestion ? isAnswered(currentQuestion) : false);
+	const isLastStep = $derived(currentStep === questions.length - 1);
+	const allAnswered = $derived(questions.every(isAnswered));
+
+	async function submitAll() {
 		if (submitting) return;
 		submitting = true;
 		errorMsg = '';
@@ -160,26 +143,11 @@
 		if (blockId) fd.set('blockId', blockId);
 		for (const q of questions) {
 			if (q.type === 'ms') {
-				const selected = Array.isArray(answers[q.id]) ? (answers[q.id] as string[]) : [];
-				fd.set(q.id, JSON.stringify(selected));
-			} else if (q.type === 'matrix') {
-				const current =
-					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
-						? (answers[q.id] as Record<string, string>)
-						: {};
-				fd.set(q.id, JSON.stringify(current));
-			} else if (q.type === 'matrix_ms') {
-				const current =
-					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
-						? (answers[q.id] as Record<string, string[]>)
-						: {};
-				fd.set(q.id, JSON.stringify(current));
+				fd.set(q.id, JSON.stringify(Array.isArray(answers[q.id]) ? answers[q.id] : []));
+			} else if (q.type === 'matrix' || q.type === 'matrix_ms') {
+				fd.set(q.id, JSON.stringify(answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) ? answers[q.id] : {}));
 			} else if (q.type === 'short_grid') {
-				const current =
-					answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id])
-						? (answers[q.id] as Record<string, Record<string, string>>)
-						: {};
-				fd.set(q.id, JSON.stringify(current));
+				fd.set(q.id, JSON.stringify(answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) ? answers[q.id] : {}));
 			} else {
 				fd.set(q.id, String(answers[q.id] ?? ''));
 			}
@@ -188,8 +156,7 @@
 			const res = await fetch('/api/quiz/grade', { method: 'POST', body: fd });
 			if (!res.ok) {
 				const body = await res.json().catch(() => null);
-				errorMsg =
-					typeof body?.error === 'string' ? body.error : 'Grading failed. Please try again.';
+				errorMsg = typeof body?.error === 'string' ? body.error : 'Grading failed. Please try again.';
 				return;
 			}
 			const body = (await res.json()) as { passed: boolean; score: number };
@@ -202,432 +169,286 @@
 		}
 	}
 
+	function handleNext() {
+		if (!currentAnswered) return;
+		if (isLastStep) {
+			submitAll();
+		} else {
+			currentStep++;
+		}
+	}
+
 	function retake() {
 		answers = {};
 		result = null;
 		errorMsg = '';
 		randomizeEpoch += 1;
+		currentStep = 0;
 	}
 </script>
 
 {#if result?.passed}
-	<div class="space-y-3 rounded border border-emerald-700 bg-emerald-900/30 p-4">
-		<p class="text-lg font-semibold text-emerald-200">Passed! Score: {result.score}%</p>
-		<p class="text-sm text-emerald-200">
-			Your request has been sent to a mentor for the hands-on "Do" checkoff. Visit the
-			<a class="underline" href="/passport">passport</a> or your dashboard to track status.
+	<div
+		class="rounded-2xl border p-6 text-center"
+		style="background: color-mix(in srgb, var(--app-success) 8%, var(--app-surface)); border-color: color-mix(in srgb, var(--app-success) 30%, transparent);"
+	>
+		<div
+			class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full"
+			style="background: color-mix(in srgb, var(--app-success) 15%, transparent);"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" style="color: var(--app-success);"><polyline points="4 12 10 18 20 6" /></svg>
+		</div>
+		<p class="text-xl font-bold" style="color: var(--app-success);">Passed — {result.score}%</p>
+		<p class="mt-1 text-sm" style="color: var(--app-text-muted);">
+			A mentor checkoff request has been sent. Check your
+			<a class="underline" href="/passport">passport</a> or dashboard.
 		</p>
 	</div>
 {:else}
-	<form class="space-y-3" onsubmit={onSubmit}>
-		{#if result && !result.passed}
-			<div
-				class="rounded-xl border p-3 text-sm"
-				style="border-color: color-mix(in srgb, var(--app-warning) 35%, transparent); background: color-mix(in srgb, var(--app-warning) 10%, transparent); color: color-mix(in srgb, var(--app-warning) 80%, white);"
-			>
-				You scored {result.score}% (need {passingScore}% to pass). Review the questions and try
-				again.
-			</div>
-		{/if}
-		{#if errorMsg}
-			<div
-				class="rounded-xl border p-3 text-sm"
-				style="border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); background: color-mix(in srgb, var(--app-danger) 10%, transparent); color: color-mix(in srgb, var(--app-danger) 80%, white);"
-			>
-				{errorMsg}
-			</div>
-		{/if}
+	<!-- Header -->
+	<div class="mb-4 flex items-center justify-between">
+		<p class="eyebrow-label">Knowledge check</p>
+		<span class="mono text-[12px]" style="color: var(--app-text-muted);">
+			Q {currentStep + 1} OF {questions.length} · PASS ≥ {passingScore}%
+		</span>
+	</div>
 
-		{#each questions as question, i (question.id ?? i)}
-			<!-- div + heading instead of fieldset/legend: the browser default
-			     for <legend> floats it half-over the fieldset's top border,
-			     which reads as "weird margin" above each quiz question. -->
-			<div
-				class="space-y-2 rounded-xl border p-3"
-				style="border-color: var(--app-glass-border); background: var(--app-glass-bg);"
-			>
-				<p
-					class="text-[10px] font-bold tracking-[0.18em] uppercase"
-					style="color: var(--app-text-muted);"
-				>
-					Question {i + 1}
-				</p>
-				<p class="font-medium">{question.prompt}</p>
-				{#if question.type === 'mc'}
-					<div class="space-y-1">
-						{#each displayOptions[question.id] ?? [] as option, oi (oi)}
-							<label
-								class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-800"
-							>
-								<input
-									type="radio"
-									name={question.id}
-									value={option}
-									class="accent-yellow-400"
-									checked={answers[question.id] === option}
-									onchange={() => (answers[question.id] = option)}
-									required
-									disabled={submitting || !allowSubmit}
-								/>
-								<span>{option}</span>
-							</label>
-						{/each}
-					</div>
-				{:else if question.type === 'ms'}
-					<div class="space-y-1">
-						{#each displayOptions[question.id] ?? [] as option, oi (oi)}
-							<label
-								class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-800"
-							>
-								<input
-									type="checkbox"
-									name={`${question.id}-${oi}`}
-									value={option}
-									class="accent-yellow-400"
-									checked={Array.isArray(answers[question.id]) &&
-										(answers[question.id] as string[]).includes(option)}
-									onchange={(event) => {
-										const checked = (event.currentTarget as HTMLInputElement).checked;
-										const current = Array.isArray(answers[question.id])
-											? ([...(answers[question.id] as string[])] as string[])
-											: [];
-										answers[question.id] = checked
-											? Array.from(new Set([...current, option]))
-											: current.filter((value) => value !== option);
-									}}
-									disabled={submitting || !allowSubmit || isMsOptionDisabled(question, option)}
-								/>
-								<span>{option}</span>
-							</label>
-						{/each}
-						{#if getMaxSelect(question) != null}
-							<p class="text-xs text-slate-400">
-								Select up to {getMaxSelect(question)} option{getMaxSelect(question) === 1
-									? ''
-									: 's'}.
-							</p>
-						{/if}
-					</div>
-				{:else if question.type === 'tf'}
-					<div class="flex gap-2">
-						{#each ['true', 'false'] as v (v)}
-							<label
-								class={`cursor-pointer rounded border px-4 py-1 text-sm ${
-									answers[question.id] === v
-										? 'border-yellow-400 bg-yellow-900/40 text-yellow-100'
-										: 'border-slate-800 bg-slate-800 hover:bg-slate-700'
-								}`}
-							>
-								<input
-									type="radio"
-									name={question.id}
-									value={v}
-									class="sr-only"
-									checked={answers[question.id] === v}
-									onchange={() => (answers[question.id] = v)}
-									required
-									disabled={submitting || !allowSubmit}
-								/>
-								{v === 'true' ? 'True' : 'False'}
-							</label>
-						{/each}
-					</div>
-				{:else if question.type === 'matrix' || question.type === 'matrix_ms' || question.type === 'short_grid'}
-					{@const rows = Array.isArray(question.rows)
-						? question.rows.map((r) => String(r).trim()).filter(Boolean)
-						: []}
-					{@const cols = Array.isArray(question.columns)
-						? question.columns.map((c) => String(c).trim()).filter(Boolean)
-						: []}
-					<div class="space-y-3">
-						<div class="space-y-2 md:hidden">
-							{#each rows as row, ri (ri)}
-								<div class="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3">
-									<p class="mb-2 text-xs font-semibold tracking-wide text-slate-300 uppercase">
-										{row}
-									</p>
-									<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-										{#each cols as col, ci (ci)}
-											<label
-												class="flex items-center justify-between gap-2 rounded border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-xs text-slate-200"
-											>
-												<span class="truncate">{col}</span>
-												{#if question.type === 'matrix'}
-													<input
-														type="radio"
-														name={`${question.id}-${ri}`}
-														value={col}
-														checked={Boolean(
-															answers[question.id] &&
-															typeof answers[question.id] === 'object' &&
-															!Array.isArray(answers[question.id]) &&
-															(answers[question.id] as Record<string, string>)[row] === col
-														)}
-														onchange={() => {
-															const current =
-																answers[question.id] &&
-																typeof answers[question.id] === 'object' &&
-																!Array.isArray(answers[question.id])
-																	? { ...(answers[question.id] as Record<string, string>) }
-																	: {};
-															current[row] = col;
-															answers[question.id] = current;
-														}}
-														disabled={submitting || !allowSubmit}
-														class="h-4 w-4 accent-yellow-400"
-													/>
-												{:else if question.type === 'matrix_ms'}
-													<input
-														type="checkbox"
-														name={`${question.id}-${ri}-${ci}`}
-														value={col}
-														checked={Boolean(
-															answers[question.id] &&
-															typeof answers[question.id] === 'object' &&
-															!Array.isArray(answers[question.id]) &&
-															Array.isArray(
-																(answers[question.id] as Record<string, string[]>)[row]
-															) &&
-															(answers[question.id] as Record<string, string[]>)[row].includes(col)
-														)}
-														onchange={(event) => {
-															const checked = (event.currentTarget as HTMLInputElement).checked;
-															const current =
-																answers[question.id] &&
-																typeof answers[question.id] === 'object' &&
-																!Array.isArray(answers[question.id])
-																	? { ...(answers[question.id] as Record<string, string[]>) }
-																	: {};
-															const rowSelections = Array.isArray(current[row])
-																? [...current[row]]
-																: [];
-															current[row] = checked
-																? Array.from(new Set([...rowSelections, col]))
-																: rowSelections.filter((value) => value !== col);
-															answers[question.id] = current;
-														}}
-														disabled={submitting || !allowSubmit}
-														class="h-4 w-4 accent-yellow-400"
-													/>
-												{:else}
-													<input
-														type="text"
-														name={`${question.id}-${ri}-${ci}`}
-														value={answers[question.id] &&
-														typeof answers[question.id] === 'object' &&
-														!Array.isArray(answers[question.id]) &&
-														(answers[question.id] as Record<string, Record<string, string>>)[row]
-															? ((answers[question.id] as Record<string, Record<string, string>>)[
-																	row
-																][col] ?? '')
-															: ''}
-														oninput={(event) => {
-															const text = (event.currentTarget as HTMLInputElement).value;
-															const current =
-																answers[question.id] &&
-																typeof answers[question.id] === 'object' &&
-																!Array.isArray(answers[question.id])
-																	? {
-																			...(answers[question.id] as Record<
-																				string,
-																				Record<string, string>
-																			>)
-																		}
-																	: {};
-															const rowMap = { ...(current[row] ?? {}) };
-															rowMap[col] = text;
-															current[row] = rowMap;
-															answers[question.id] = current;
-														}}
-														class="w-28 rounded-md border border-slate-700 bg-slate-800/90 px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/60 focus:outline-none"
-														placeholder="Enter"
-														disabled={submitting || !allowSubmit}
-													/>
-												{/if}
-											</label>
-										{/each}
-									</div>
-								</div>
-							{/each}
-						</div>
+	{#if result && !result.passed}
+		<div
+			class="mb-4 rounded-xl border p-3 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-warning) 35%, transparent); background: color-mix(in srgb, var(--app-warning) 8%, transparent); color: var(--app-warning);"
+		>
+			You scored {result.score}% — need {passingScore}% to pass. Review your answers and try again.
+		</div>
+	{/if}
+	{#if errorMsg}
+		<div
+			class="mb-4 rounded-xl border p-3 text-sm"
+			style="border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); background: color-mix(in srgb, var(--app-danger) 8%, transparent); color: var(--app-danger);"
+		>
+			{errorMsg}
+		</div>
+	{/if}
 
-						<div
-							class="hidden overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/40 shadow-[0_10px_30px_rgba(0,0,0,0.25)] md:block"
+	{#if currentQuestion}
+		{@const q = currentQuestion}
+		<div
+			class="rounded-2xl border p-5"
+			style="background: var(--app-surface); border-color: var(--app-border);"
+		>
+			<!-- Question text -->
+			<p class="mb-4 text-[15px] font-semibold leading-snug" style="color: var(--app-text);">{q.prompt}</p>
+
+			<!-- MC options -->
+			{#if q.type === 'mc'}
+				<div class="flex flex-col gap-2">
+					{#each displayOptions[q.id] ?? [] as option, oi (oi)}
+						{@const selected = answers[q.id] === option}
+						<button
+							type="button"
+							class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] transition-all"
+							style="background: {selected ? 'color-mix(in srgb, var(--app-accent) 10%, white)' : 'var(--app-surface)'}; border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; color: {selected ? 'var(--app-accent)' : 'var(--app-text)'}; font-weight: {selected ? '600' : '400'}; cursor: {submitting || !allowSubmit ? 'not-allowed' : 'pointer'}; opacity: {submitting || !allowSubmit ? 0.6 : 1};"
+							onclick={() => { if (!submitting && allowSubmit) answers[q.id] = option; }}
+							disabled={submitting || !allowSubmit}
 						>
-							<div class="overflow-x-auto">
-								<table class="min-w-full border-separate border-spacing-0 text-sm">
-									<thead>
-										<tr>
-											<th
-												class="sticky left-0 z-10 border-r border-b border-slate-700 bg-slate-900 px-3 py-2 text-left text-xs font-semibold text-slate-400"
-											></th>
-											{#each cols as col}
-												<th
-													class="border-b border-slate-700 bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-slate-200"
-													>{col}</th
-												>
-											{/each}
-										</tr>
-									</thead>
-									<tbody>
-										{#each rows as row, ri (ri)}
-											<tr class="odd:bg-slate-900/20 even:bg-slate-900/40">
-												<td
-													class="sticky left-0 z-10 border-t border-r border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200"
-													>{row}</td
-												>
-												{#each cols as col, ci (ci)}
-													<td class="border-t border-slate-700 px-3 py-2 text-center">
-														{#if question.type === 'matrix'}
-															<input
-																type="radio"
-																name={`${question.id}-${ri}`}
-																value={col}
-																checked={Boolean(
-																	answers[question.id] &&
-																	typeof answers[question.id] === 'object' &&
-																	!Array.isArray(answers[question.id]) &&
-																	(answers[question.id] as Record<string, string>)[row] === col
-																)}
-																onchange={() => {
-																	const current =
-																		answers[question.id] &&
-																		typeof answers[question.id] === 'object' &&
-																		!Array.isArray(answers[question.id])
-																			? { ...(answers[question.id] as Record<string, string>) }
-																			: {};
-																	current[row] = col;
-																	answers[question.id] = current;
-																}}
-																disabled={submitting || !allowSubmit}
-																class="h-4 w-4 accent-yellow-400"
-															/>
-														{:else if question.type === 'matrix_ms'}
-															<input
-																type="checkbox"
-																name={`${question.id}-${ri}-${ci}`}
-																value={col}
-																checked={Boolean(
-																	answers[question.id] &&
-																	typeof answers[question.id] === 'object' &&
-																	!Array.isArray(answers[question.id]) &&
-																	Array.isArray(
-																		(answers[question.id] as Record<string, string[]>)[row]
-																	) &&
-																	(answers[question.id] as Record<string, string[]>)[row].includes(
-																		col
-																	)
-																)}
-																onchange={(event) => {
-																	const checked = (event.currentTarget as HTMLInputElement).checked;
-																	const current =
-																		answers[question.id] &&
-																		typeof answers[question.id] === 'object' &&
-																		!Array.isArray(answers[question.id])
-																			? { ...(answers[question.id] as Record<string, string[]>) }
-																			: {};
-																	const rowSelections = Array.isArray(current[row])
-																		? [...current[row]]
-																		: [];
-																	current[row] = checked
-																		? Array.from(new Set([...rowSelections, col]))
-																		: rowSelections.filter((value) => value !== col);
-																	answers[question.id] = current;
-																}}
-																disabled={submitting || !allowSubmit}
-																class="h-4 w-4 accent-yellow-400"
-															/>
-														{:else}
-															<input
-																type="text"
-																name={`${question.id}-${ri}-${ci}`}
-																value={answers[question.id] &&
-																typeof answers[question.id] === 'object' &&
-																!Array.isArray(answers[question.id]) &&
-																(answers[question.id] as Record<string, Record<string, string>>)[
-																	row
-																]
-																	? ((
-																			answers[question.id] as Record<string, Record<string, string>>
-																		)[row][col] ?? '')
-																	: ''}
-																oninput={(event) => {
-																	const text = (event.currentTarget as HTMLInputElement).value;
-																	const current =
-																		answers[question.id] &&
-																		typeof answers[question.id] === 'object' &&
-																		!Array.isArray(answers[question.id])
-																			? {
-																					...(answers[question.id] as Record<
-																						string,
-																						Record<string, string>
-																					>)
-																				}
-																			: {};
-																	const rowMap = { ...(current[row] ?? {}) };
-																	rowMap[col] = text;
-																	current[row] = rowMap;
-																	answers[question.id] = current;
-																}}
-																class="w-full min-w-28 rounded-md border border-slate-700 bg-slate-800/90 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/60 focus:outline-none"
-																placeholder="Enter text"
-																disabled={submitting || !allowSubmit}
-															/>
-														{/if}
-													</td>
-												{/each}
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<input
-						class="w-full rounded bg-slate-800 px-2 py-2"
-						name={question.id}
-						value={typeof answers[question.id] === 'string' ? answers[question.id] : ''}
-						oninput={(event) =>
-							(answers[question.id] = (event.currentTarget as HTMLInputElement).value)}
-						placeholder="Your answer"
-						required={question.short_required !== false}
-						disabled={submitting || !allowSubmit}
-					/>
-				{/if}
-			</div>
-		{/each}
+							<span
+								class="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2"
+								style="border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; background: {selected ? 'var(--app-accent)' : 'transparent'};"
+							>
+								{#if selected}
+									<span class="h-2 w-2 rounded-full" style="background: white;"></span>
+								{/if}
+							</span>
+							{option}
+						</button>
+					{/each}
+				</div>
 
-		<div class="flex flex-wrap items-center gap-3">
+			<!-- MS (multi-select) options -->
+			{:else if q.type === 'ms'}
+				{#if getMaxSelect(q) != null}
+					<p class="mb-2 text-[12px]" style="color: var(--app-text-dim);">Select up to {getMaxSelect(q)}.</p>
+				{/if}
+				<div class="flex flex-col gap-2">
+					{#each displayOptions[q.id] ?? [] as option, oi (oi)}
+						{@const checked = Array.isArray(answers[q.id]) && (answers[q.id] as string[]).includes(option)}
+						{@const disabled = submitting || !allowSubmit || isMsOptionDisabled(q, option)}
+						<button
+							type="button"
+							class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] transition-all"
+							style="background: {checked ? 'color-mix(in srgb, var(--app-accent) 10%, white)' : 'var(--app-surface)'}; border-color: {checked ? 'var(--app-accent)' : 'var(--app-border)'}; color: {checked ? 'var(--app-accent)' : 'var(--app-text)'}; font-weight: {checked ? '600' : '400'}; cursor: {disabled ? 'not-allowed' : 'pointer'}; opacity: {disabled && !checked ? 0.45 : 1};"
+							onclick={() => {
+								if (disabled && !checked) return;
+								if (submitting || !allowSubmit) return;
+								const cur = Array.isArray(answers[q.id]) ? ([...(answers[q.id] as string[])] as string[]) : [];
+								answers[q.id] = checked ? cur.filter((v) => v !== option) : Array.from(new Set([...cur, option]));
+							}}
+						>
+							<span
+								class="grid h-5 w-5 shrink-0 place-items-center rounded"
+								style="border: 2px solid {checked ? 'var(--app-accent)' : 'var(--app-border)'}; background: {checked ? 'var(--app-accent)' : 'transparent'};"
+							>
+								{#if checked}
+									<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><polyline points="4 12 10 18 20 6" /></svg>
+								{/if}
+							</span>
+							{option}
+						</button>
+					{/each}
+				</div>
+
+			<!-- True/False -->
+			{:else if q.type === 'tf'}
+				<div class="flex gap-3">
+					{#each ['true', 'false'] as v (v)}
+						{@const selected = answers[q.id] === v}
+						<button
+							type="button"
+							class="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-all"
+							style="background: {selected ? 'color-mix(in srgb, var(--app-accent) 10%, white)' : 'var(--app-surface)'}; border-color: {selected ? 'var(--app-accent)' : 'var(--app-border)'}; color: {selected ? 'var(--app-accent)' : 'var(--app-text-muted)'}; cursor: {submitting || !allowSubmit ? 'not-allowed' : 'pointer'};"
+							onclick={() => { if (!submitting && allowSubmit) answers[q.id] = v; }}
+							disabled={submitting || !allowSubmit}
+						>
+							{v === 'true' ? 'True' : 'False'}
+						</button>
+					{/each}
+				</div>
+
+			<!-- Matrix / Matrix MS -->
+			{:else if q.type === 'matrix' || q.type === 'matrix_ms' || q.type === 'short_grid'}
+				{@const rows = Array.isArray(q.rows) ? q.rows.map((r) => String(r).trim()).filter(Boolean) : []}
+				{@const cols = Array.isArray(q.columns) ? q.columns.map((c) => String(c).trim()).filter(Boolean) : []}
+				<div class="overflow-x-auto rounded-xl border" style="border-color: var(--app-border);">
+					<table class="min-w-full border-separate border-spacing-0 text-sm">
+						<thead>
+							<tr>
+								<th class="border-b border-r px-3 py-2 text-left text-xs font-semibold" style="border-color: var(--app-border); color: var(--app-text-dim); background: var(--app-surface-alt);"></th>
+								{#each cols as col}
+									<th class="border-b px-3 py-2 text-center text-xs font-semibold" style="border-color: var(--app-border); color: var(--app-text-muted); background: var(--app-surface-alt);">{col}</th>
+								{/each}
+							</tr>
+						</thead>
+						<tbody>
+							{#each rows as row, ri (ri)}
+								<tr style="background: {ri % 2 === 0 ? 'var(--app-surface)' : 'var(--app-surface-alt)'};">
+									<td class="border-t border-r px-3 py-2 text-xs font-medium" style="border-color: var(--app-border); color: var(--app-text);">{row}</td>
+									{#each cols as col, ci (ci)}
+										<td class="border-t px-3 py-2 text-center" style="border-color: var(--app-border);">
+											{#if q.type === 'matrix'}
+												<input
+													type="radio"
+													name={`${q.id}-${ri}`}
+													value={col}
+													checked={Boolean(answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) && (answers[q.id] as Record<string, string>)[row] === col)}
+													onchange={() => {
+														const cur = answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) ? { ...(answers[q.id] as Record<string, string>) } : {};
+														cur[row] = col;
+														answers[q.id] = cur;
+													}}
+													disabled={submitting || !allowSubmit}
+													class="h-4 w-4"
+													style="accent-color: var(--app-accent);"
+												/>
+											{:else if q.type === 'matrix_ms'}
+												<input
+													type="checkbox"
+													name={`${q.id}-${ri}-${ci}`}
+													value={col}
+													checked={Boolean(answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) && Array.isArray((answers[q.id] as Record<string, string[]>)[row]) && (answers[q.id] as Record<string, string[]>)[row].includes(col))}
+													onchange={(event) => {
+														const chk = (event.currentTarget as HTMLInputElement).checked;
+														const cur = answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) ? { ...(answers[q.id] as Record<string, string[]>) } : {};
+														const rs = Array.isArray(cur[row]) ? [...cur[row]] : [];
+														cur[row] = chk ? Array.from(new Set([...rs, col])) : rs.filter((v) => v !== col);
+														answers[q.id] = cur;
+													}}
+													disabled={submitting || !allowSubmit}
+													class="h-4 w-4"
+													style="accent-color: var(--app-accent);"
+												/>
+											{:else}
+												<input
+													type="text"
+													value={answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) && (answers[q.id] as Record<string, Record<string, string>>)[row] ? ((answers[q.id] as Record<string, Record<string, string>>)[row][col] ?? '') : ''}
+													oninput={(event) => {
+														const text = (event.currentTarget as HTMLInputElement).value;
+														const cur = answers[q.id] && typeof answers[q.id] === 'object' && !Array.isArray(answers[q.id]) ? { ...(answers[q.id] as Record<string, Record<string, string>>) } : {};
+														const rm = { ...(cur[row] ?? {}) };
+														rm[col] = text;
+														cur[row] = rm;
+														answers[q.id] = cur;
+													}}
+													class="w-full min-w-24 rounded-lg border px-2 py-1.5 text-xs"
+													style="border-color: var(--app-border); background: var(--app-surface); color: var(--app-text);"
+													placeholder="Enter"
+													disabled={submitting || !allowSubmit}
+												/>
+											{/if}
+										</td>
+									{/each}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+
+			<!-- Short answer -->
+			{:else}
+				<input
+					class="w-full rounded-xl border px-4 py-3 text-[14px]"
+					style="border-color: var(--app-border); background: var(--app-surface); color: var(--app-text);"
+					value={typeof answers[q.id] === 'string' ? answers[q.id] : ''}
+					oninput={(event) => (answers[q.id] = (event.currentTarget as HTMLInputElement).value)}
+					placeholder="Your answer…"
+					required={q.short_required !== false}
+					disabled={submitting || !allowSubmit}
+				/>
+			{/if}
+		</div>
+
+		<!-- Step navigation -->
+		<div class="mt-4 flex items-center justify-between gap-3">
 			<button
-				class="rounded bg-yellow-400 px-4 py-2 font-semibold text-slate-900 disabled:opacity-60"
-				type="submit"
-				disabled={!allowSubmit || submitting || unanswered > 0}
+				type="button"
+				class="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+				style="background: transparent; border: none; color: {currentStep > 0 ? 'var(--app-text-muted)' : 'transparent'}; cursor: {currentStep > 0 ? 'pointer' : 'default'};"
+				onclick={() => { if (currentStep > 0) currentStep--; }}
+				disabled={currentStep === 0}
 			>
-				{!allowSubmit
-					? 'Quiz already passed'
-					: submitting
-						? 'Grading…'
-						: result && !result.passed
-							? 'Resubmit'
-							: 'Submit quiz'}
+				← Back
 			</button>
-			{#if unanswered > 0}
-				<span class="text-xs text-slate-400">{unanswered} question(s) unanswered</span>
-			{/if}
 			{#if !allowSubmit}
-				<span class="text-xs text-slate-400"
-					>{lockedMessage || 'No resubmission needed right now.'}</span
+				<span class="text-xs" style="color: var(--app-text-dim);">{lockedMessage || 'Quiz already passed.'}</span>
+			{:else}
+				<button
+					type="button"
+					class="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
+					style="background: {currentAnswered ? 'var(--app-accent)' : 'var(--app-border)'}; color: {currentAnswered ? 'white' : 'var(--app-text-dim)'}; border: none; cursor: {currentAnswered && !submitting ? 'pointer' : 'not-allowed'};"
+					onclick={handleNext}
+					disabled={!currentAnswered || submitting}
 				>
+					{#if submitting}
+						Grading…
+					{:else if isLastStep}
+						Submit quiz →
+					{:else}
+						Record answer →
+					{/if}
+				</button>
 			{/if}
-			{#if result && !result.passed}
+		</div>
+
+		{#if result && !result.passed}
+			<div class="mt-3 flex justify-center">
 				<button
 					type="button"
 					onclick={retake}
-					class="rounded border border-slate-800 px-3 py-2 text-sm hover:bg-slate-800"
-					>Clear answers</button
+					class="text-sm underline"
+					style="background: none; border: none; color: var(--app-text-muted); cursor: pointer;"
 				>
-			{/if}
-		</div>
-	</form>
+					Clear answers &amp; retry
+				</button>
+			</div>
+		{/if}
+	{/if}
 {/if}

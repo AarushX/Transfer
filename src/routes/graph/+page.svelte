@@ -6,6 +6,8 @@
 	type NodeTeamTarget = { node_id: string; team_id: string };
 	type NodeTeamGroupTarget = { node_id: string; team_group_id: string };
 	type ProfileTeam = { team_id: string; team_group_id?: string | null; category_slug?: string | null };
+	type TeamRow = { id: string; name?: string | null; color_hex?: string | null; team_group_id?: string | null };
+	type TeamGroupRow = { id: string; name?: string | null; color_hex?: string | null };
 
 	// Build lookup maps
 	const targetTeamIdsByNode = $derived.by(() => {
@@ -43,51 +45,58 @@
 
 	const teamColorById = $derived(
 		new Map(
-			((data.teams as Array<{ id: string; color_hex?: string | null }>) ?? []).map((r) => [
-				String(r.id),
-				String(r.color_hex ?? '')
-			])
+			((data.teams as TeamRow[]) ?? []).map((r) => [String(r.id), String(r.color_hex ?? '')])
 		)
 	);
 
-	// All unique team groups that have nodes
-	type TeamGroupRow = { id: string; name?: string | null; color_hex?: string | null };
-	const allTeamGroups = $derived(
-		(data.teamGroups as TeamGroupRow[]).filter((tg) => {
-			const tgId = String(tg.id);
-			return (data.nodeTeamGroupTargets as NodeTeamGroupTarget[]).some(
-				(r) => String(r.team_group_id) === tgId
-			);
-		})
+	// Team groups the user belongs to
+	const userTeamGroups = $derived(
+		(data.teamGroups as TeamGroupRow[]).filter((tg) => userTeamGroupIds.has(String(tg.id)))
 	);
 
-	// Selected filter — null = user's teams, string = specific team group id
-	let filterGroupId = $state<string | null>(null);
-
-	const activeGroupIds = $derived(
-		filterGroupId ? new Set([filterGroupId]) : userTeamGroupIds
+	// Individual subteams the user belongs to, grouped by their team_group_id
+	const userSubteams = $derived(
+		(data.teams as TeamRow[]).filter((t) => userTeamIds.has(String(t.id)))
 	);
 
-	const filteredNodes = $derived(
-		(data.nodes as Array<{ id: string; title: string; slug: string }>).filter((n) => {
-			const teamTargets = targetTeamIdsByNode.get(String(n.id));
-			const groupTargets = targetTeamGroupIdsByNode.get(String(n.id));
-			if (!teamTargets?.size && !groupTargets?.size) return false;
-			for (const gid of activeGroupIds) {
-				if (groupTargets?.has(gid)) return true;
-			}
-			// Also include nodes targeted at teams within the active group
-			for (const teamId of userTeamIds) {
-				if (teamTargets?.has(teamId)) {
-					const team = (data.teams as Array<{ id: string; team_group_id?: string | null }>).find(
-						(t) => String(t.id) === teamId
-					);
-					if (team && activeGroupIds.has(String(team.team_group_id ?? ''))) return true;
+	// Filter mode: { type: 'group', id } | { type: 'team', id }
+	// Default to the first group the user belongs to
+	type FilterMode = { type: 'group'; id: string } | { type: 'team'; id: string };
+	let filter = $state<FilterMode>({ type: 'group', id: userTeamGroups[0] ? String(userTeamGroups[0].id) : '' });
+
+	const filteredNodes = $derived.by(() => {
+		const nodes = data.nodes as Array<{ id: string; title: string; slug: string }>;
+		if (filter.type === 'group') {
+			// Show nodes targeting this group directly, OR targeting any team within this group that the user belongs to
+			return nodes.filter((n) => {
+				const groupTargets = targetTeamGroupIdsByNode.get(String(n.id));
+				if (groupTargets?.has(filter.id)) return true;
+				const teamTargets = targetTeamIdsByNode.get(String(n.id));
+				if (!teamTargets?.size) return false;
+				for (const teamId of userTeamIds) {
+					if (teamTargets.has(teamId)) {
+						const team = (data.teams as TeamRow[]).find((t) => String(t.id) === teamId);
+						if (team && String(team.team_group_id ?? '') === filter.id) return true;
+					}
 				}
-			}
-			return false;
-		})
-	);
+				return false;
+			});
+		} else {
+			// Show nodes targeting this specific subteam, or the parent group of this subteam
+			const team = (data.teams as TeamRow[]).find((t) => String(t.id) === filter.id);
+			const parentGroupId = team ? String(team.team_group_id ?? '') : '';
+			return nodes.filter((n) => {
+				const teamTargets = targetTeamIdsByNode.get(String(n.id));
+				if (teamTargets?.has(filter.id)) return true;
+				// Also include group-wide nodes that cover this subteam's parent group
+				if (parentGroupId) {
+					const groupTargets = targetTeamGroupIdsByNode.get(String(n.id));
+					if (groupTargets?.has(parentGroupId)) return true;
+				}
+				return false;
+			});
+		}
+	});
 
 	const filteredScope = $derived(new Set(filteredNodes.map((n) => String(n.id))));
 
@@ -114,6 +123,15 @@
 		}
 		return out;
 	});
+
+	function chipActive(f: FilterMode): boolean {
+		return f.type === filter.type && f.id === filter.id;
+	}
+	function chipStyle(f: FilterMode, color?: string | null) {
+		const active = chipActive(f);
+		const bg = color ?? 'var(--app-accent)';
+		return `background: ${active ? bg : 'var(--app-surface)'}; border-color: ${active ? bg : 'var(--app-border)'}; color: ${active ? 'white' : 'var(--app-text-muted)'};`;
+	}
 </script>
 
 <div class="flex h-[calc(100dvh-5rem)] flex-col gap-3 md:h-[calc(100dvh-4rem)]">
@@ -126,35 +144,27 @@
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">
-			<button
-				type="button"
-				onclick={() => (filterGroupId = null)}
-				class="rounded-full border px-3 py-1 text-[12px] font-bold transition-colors"
-				style="background: {filterGroupId === null
-					? 'var(--app-accent)'
-					: 'var(--app-surface)'}; border-color: {filterGroupId === null
-					? 'var(--app-accent)'
-					: 'var(--app-border)'}; color: {filterGroupId === null
-					? 'white'
-					: 'var(--app-text-muted)'};"
-			>
-				My teams
-			</button>
-			{#each allTeamGroups as tg}
+			<!-- Team group chips (main teams) -->
+			{#each userTeamGroups as tg}
 				<button
 					type="button"
-					onclick={() => (filterGroupId = filterGroupId === String(tg.id) ? null : String(tg.id))}
+					onclick={() => (filter = { type: 'group', id: String(tg.id) })}
 					class="rounded-full border px-3 py-1 text-[12px] font-bold transition-colors"
-					style="background: {filterGroupId === String(tg.id)
-						? (tg.color_hex ?? 'var(--app-accent)')
-						: 'var(--app-surface)'}; border-color: {filterGroupId === String(tg.id)
-						? (tg.color_hex ?? 'var(--app-accent)')
-						: 'var(--app-border)'}; color: {filterGroupId === String(tg.id)
-						? 'white'
-						: 'var(--app-text-muted)'};"
+					style={chipStyle({ type: 'group', id: String(tg.id) }, tg.color_hex)}
 				>
 					{tg.name}
 				</button>
+				<!-- Subteams within this group -->
+				{#each userSubteams.filter((t) => String(t.team_group_id) === String(tg.id)) as team}
+					<button
+						type="button"
+						onclick={() => (filter = { type: 'team', id: String(team.id) })}
+						class="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors"
+						style={chipStyle({ type: 'team', id: String(team.id) }, team.color_hex)}
+					>
+						{team.name}
+					</button>
+				{/each}
 			{/each}
 		</div>
 	</div>

@@ -311,6 +311,18 @@
 			0 0 0 3px color-mix(in srgb, var(--app-accent) 20%, transparent),
 			var(--app-glass-shadow);
 	}
+	.cw-search input {
+		background: transparent;
+		border: none;
+		border-radius: 0;
+		padding: 0;
+		box-shadow: none;
+	}
+	.cw-search input:hover,
+	.cw-search input:focus {
+		border: none;
+		box-shadow: none;
+	}
 
 	.cw-pill {
 		display: inline-flex;

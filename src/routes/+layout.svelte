@@ -57,12 +57,6 @@
 				},
 				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') },
 				{
-					href: '/lettering',
-					label: 'Season',
-					icon: 'award',
-					match: (p: string) => p.startsWith('/lettering')
-				},
-				{
 					href: '/media',
 					label: 'Media',
 					icon: 'image',
@@ -462,7 +456,7 @@
 							<NotificationsBell
 								userId={data.user.id}
 								initialUnread={data.unreadNotificationCount ?? 0}
-								align="right"
+								align="left"
 								drop="up"
 							/>
 						</div>
