@@ -34,18 +34,21 @@
 
 	let legendMinimized = $state(true);
 
-	const NODE_R = 26;
+	const NODE_W = 150;
+	const NODE_H = 46;
 	const MIN_ZOOM = 0.15;
 	const MAX_ZOOM = 3;
 
 	const STATE_COLOR: Record<string, string> = {
-		completed: '#34d399',
-		in_progress: '#06b6d4',
-		mentor_checkoff_pending: '#fbbf24',
-		video_pending: '#06b6d4',
-		quiz_pending: '#06b6d4',
-		available: '#8b5cf6',
-		locked: '#475569'
+		completed: '#1e9e4c',
+		in_progress: '#3e7a8c',
+		mentor_checkoff_pending: '#c95f00',
+		checkoff_needs_review: '#c95f00',
+		checkoff_blocked: '#d93025',
+		video_pending: '#3e7a8c',
+		quiz_pending: '#3e7a8c',
+		available: '#5c6b60',
+		locked: '#c8d2c9'
 	};
 
 	// When a subteam color is supplied for a node, prefer that over the
@@ -119,8 +122,8 @@
 			perLayerNodes.set(l, arr);
 		}
 
-		const hSpacing = 200;
-		const vSpacing = 100;
+		const hSpacing = 220;
+		const vSpacing = 64;
 		const padX = 120;
 		const padY = 80;
 
@@ -167,27 +170,22 @@
 				const from = nodeMap.get(p.prerequisite_node_id);
 				const to = nodeMap.get(p.node_id);
 				if (!from || !to) return null;
-				const dx = to.x - from.x;
-				const dy = to.y - from.y;
-				const dist = Math.hypot(dx, dy);
-				if (dist === 0) return null;
-				const ux = dx / dist,
-					uy = dy / dist;
+				// Orthogonal connector: exit right edge of from, enter left edge of to
+				const fx = from.x + NODE_W / 2;
+				const fy = from.y;
+				const tx = to.x - NODE_W / 2;
+				const ty = to.y;
+				const midX = (fx + tx) / 2;
+				const d = `M ${fx} ${fy} H ${midX} V ${ty} H ${tx}`;
 				return {
 					key: `${p.prerequisite_node_id}->${p.node_id}`,
-					x1: from.x + ux * NODE_R,
-					y1: from.y + uy * NODE_R,
-					x2: to.x - ux * NODE_R,
-					y2: to.y - uy * NODE_R,
+					d,
 					isActive: from.state === 'completed' && to.state !== 'locked'
 				};
 			})
 			.filter(Boolean) as Array<{
 			key: string;
-			x1: number;
-			y1: number;
-			x2: number;
-			y2: number;
+			d: string;
 			isActive: boolean;
 		}>;
 	});
@@ -239,10 +237,10 @@
 
 		const xs = layoutNodes.map((n) => n.x);
 		const ys = layoutNodes.map((n) => n.y);
-		const minX = Math.min(...xs) - NODE_R;
-		const maxX = Math.max(...xs) + NODE_R;
-		const minY = Math.min(...ys) - NODE_R;
-		const maxY = Math.max(...ys) + NODE_R + 20; // +20 for label below node
+		const minX = Math.min(...xs) - NODE_W / 2;
+		const maxX = Math.max(...xs) + NODE_W / 2;
+		const minY = Math.min(...ys) - NODE_H / 2;
+		const maxY = Math.max(...ys) + NODE_H / 2;
 
 		const bboxW = maxX - minX;
 		const bboxH = maxY - minY;
@@ -466,8 +464,8 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		bind:this={containerEl}
-		class="relative overflow-hidden rounded-2xl border backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {didPan
+		class="relative overflow-hidden rounded-2xl border"
+		style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow); height: 100%; touch-action: none; user-select: none; cursor: {didPan
 			? 'grabbing'
 			: 'grab'};"
 		onwheel={handleWheel}
@@ -482,23 +480,8 @@
 	>
 		<svg {viewBox} style="width: 100%; height: 100%; display: block;">
 			<defs>
-				{#each Object.entries(STATE_COLOR) as [key, color]}
-					<radialGradient id="fill-{key}">
-						<stop offset="0%" stop-color={color} stop-opacity="0.9" />
-						<stop offset="100%" stop-color={color} stop-opacity="0.4" />
-					</radialGradient>
-					<radialGradient id="halo-{key}">
-						<stop offset="0%" stop-color={color} stop-opacity="0.5" />
-						<stop offset="60%" stop-color={color} stop-opacity="0.1" />
-						<stop offset="100%" stop-color={color} stop-opacity="0" />
-					</radialGradient>
-				{/each}
-				<linearGradient id="edge-active-grad" x1="0" y1="0" x2="1" y2="0">
-					<stop offset="0%" stop-color="#34d399" />
-					<stop offset="100%" stop-color="#06b6d4" />
-				</linearGradient>
-				<pattern id="dotgrid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-					<circle cx="2" cy="2" r="1" fill="#1e293b" />
+				<pattern id="dotgrid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+					<circle cx="1.5" cy="1.5" r="1" fill="#d4dcd5" />
 				</pattern>
 			</defs>
 
@@ -506,24 +489,14 @@
 
 			<!-- Edges -->
 			{#each edges as edge (edge.key)}
-				<g>
-					<path
-						d="M {edge.x1} {edge.y1} L {edge.x2} {edge.y2}"
-						stroke={edge.isActive ? 'url(#edge-active-grad)' : '#1e293b'}
-						stroke-width={edge.isActive ? 1.5 : 1}
-						fill="none"
-						stroke-dasharray={edge.isActive ? '0' : '4 4'}
-					/>
-					{#if edge.isActive}
-						<circle r="2" fill="#06b6d4">
-							<animateMotion
-								dur="3s"
-								repeatCount="indefinite"
-								path="M {edge.x1} {edge.y1} L {edge.x2} {edge.y2}"
-							/>
-						</circle>
-					{/if}
-				</g>
+				<path
+					d={edge.d}
+					stroke={edge.isActive ? '#1e9e4c' : '#c8d2c9'}
+					stroke-width={edge.isActive ? 1.5 : 1.2}
+					fill="none"
+					stroke-dasharray={edge.isActive ? '0' : '5 4'}
+					stroke-linecap="round"
+				/>
 			{/each}
 
 			<!-- Nodes -->
@@ -531,140 +504,81 @@
 				{@const color = colorFor(node)}
 				{@const isLocked = node.state === 'locked'}
 				{@const isSelected = effectiveSelected?.id === node.id}
+				{@const nx = node.x - NODE_W / 2}
+				{@const ny = node.y - NODE_H / 2}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<g
 					data-node-id={node.id}
-					style="cursor: pointer; pointer-events: bounding-box;"
+					style="cursor: pointer;"
 					onmouseenter={() => (hovered = node)}
 					onmouseleave={() => (hovered = null)}
 				>
-					{#if !isLocked}
-						<circle
-							cx={node.x}
-							cy={node.y}
-							r={NODE_R + 10}
-							fill={color}
-							opacity={node.state === 'in_progress' ||
-							node.state === 'video_pending' ||
-							node.state === 'quiz_pending'
-								? 0.35
-								: 0.18}
-							style="pointer-events: none; filter: blur(6px);"
+					<!-- Card shadow -->
+					{#if isSelected}
+						<rect
+							x={nx - 2}
+							y={ny - 2}
+							width={NODE_W + 4}
+							height={NODE_H + 4}
+							rx="5"
+							fill="none"
+							stroke={color}
+							stroke-width="2"
+							opacity="0.5"
 						/>
 					{/if}
-					<circle
-						cx={node.x}
-						cy={node.y}
-						r={NODE_R}
-						fill={isLocked ? '#0f1729' : color}
-						fill-opacity={isLocked ? 1 : 0.78}
-						stroke={color}
-						stroke-width={isSelected
-							? 2.5
-							: node.state === 'in_progress' ||
-								  node.state === 'video_pending' ||
-								  node.state === 'quiz_pending'
-								? 2
-								: 1.2}
-						opacity={isLocked ? 0.5 : 1}
-						style={isSelected ? `filter: drop-shadow(0 0 8px ${color});` : ''}
+					<!-- Card background -->
+					<rect
+						x={nx}
+						y={ny}
+						width={NODE_W}
+						height={NODE_H}
+						rx="4"
+						fill={isLocked ? '#f0f2ef' : 'white'}
+						stroke={isSelected ? color : '#e2e7e0'}
+						stroke-width={isSelected ? 1.5 : 1}
 					/>
-					<foreignObject
-						x={node.x - NODE_R}
-						y={node.y - NODE_R}
-						width={NODE_R * 2}
-						height={NODE_R * 2}
-						style="pointer-events: none;"
-					>
-						<div
-							style="width: 100%; height: 100%; display: grid; place-items: center; color: {isLocked
-								? '#475569'
-								: 'white'}; pointer-events: none; cursor: inherit;"
-						>
-							{#if node.state === 'completed'}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="3"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									style="width: 20px; height: 20px; pointer-events: none;"
-									><polyline points="4 12 10 18 20 6" /></svg
-								>
-							{:else if node.state === 'in_progress' || node.state === 'video_pending' || node.state === 'quiz_pending'}
-								<svg
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									stroke="none"
-									style="width: 18px; height: 18px; pointer-events: none;"
-									><polygon points="6 4 20 12 6 20 6 4" /></svg
-								>
-							{:else if node.state === 'mentor_checkoff_pending'}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									style="width: 18px; height: 18px; pointer-events: none;"
-									><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg
-								>
-							{:else if node.state === 'available'}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									style="width: 18px; height: 18px; pointer-events: none;"
-									><circle cx="12" cy="12" r="9" /><circle
-										cx="12"
-										cy="12"
-										r="3"
-										fill="currentColor"
-									/></svg
-								>
-							{:else}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									style="width: 16px; height: 16px; pointer-events: none;"
-									><rect x="5" y="11" width="14" height="10" rx="2" /><path
-										d="M8 11V8a4 4 0 0 1 8 0v3"
-									/></svg
-								>
-							{/if}
+					<!-- Team/status color bar (left edge) -->
+					<rect
+						x={nx}
+						y={ny}
+						width="4"
+						height={NODE_H}
+						rx="4"
+						fill={isLocked ? '#c8d2c9' : color}
+						opacity={isLocked ? 0.5 : 1}
+					/>
+					<!-- Cover right half of bar's radius so it stays square on right -->
+					<rect x={nx + 2} y={ny} width="2" height={NODE_H} fill={isLocked ? '#c8d2c9' : color} opacity={isLocked ? 0.5 : 1} />
+					<!-- Title text -->
+					<foreignObject x={nx + 10} y={ny} width={NODE_W - 24} height={NODE_H} style="pointer-events: none;">
+						<div style="width: 100%; height: 100%; display: flex; align-items: center; padding: 0 2px; box-sizing: border-box;">
+							<span style="font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 11.5px; font-weight: 700; color: {isLocked ? '#8b988e' : '#1a211c'}; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; pointer-events: none;">
+								{node.title}
+							</span>
 						</div>
 					</foreignObject>
-					<text
-						x={node.x}
-						y={node.y + NODE_R + 18}
-						text-anchor="middle"
-						fill={isLocked ? '#475569' : '#e6edf7'}
-						font-size="11"
-						font-weight="600"
-						style="font-family: Inter, sans-serif; pointer-events: none;"
-					>
-						{node.title}
-					</text>
-					<!-- Hit target: invisible rect spanning circle + label so the whole
-					     visible node area is reliably clickable, even where foreignObject
-					     would otherwise swallow the event. -->
-					<rect
-						x={node.x - NODE_R - 4}
-						y={node.y - NODE_R - 4}
-						width={NODE_R * 2 + 8}
-						height={NODE_R * 2 + 30}
-						fill="transparent"
-						style="pointer-events: all;"
+					<!-- Status indicator dot -->
+					<circle
+						cx={nx + NODE_W - 9}
+						cy={node.y}
+						r="4"
+						fill={isLocked ? '#c8d2c9' : color}
+						opacity={isLocked ? 0.5 : 0.85}
 					/>
+					{#if node.state === 'completed'}
+						<path
+							d="M {nx + NODE_W - 12} {node.y} l 3 3 l 5 -5"
+							stroke="white"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							fill="none"
+							style="pointer-events: none;"
+						/>
+					{/if}
+					<!-- Full hit rect -->
+					<rect x={nx} y={ny} width={NODE_W} height={NODE_H} fill="transparent" style="pointer-events: all;" />
 				</g>
 			{/each}
 		</svg>
@@ -793,10 +707,8 @@
 					{#each [['completed', 'Completed'], ['in_progress', 'In progress'], ['mentor_checkoff_pending', 'Awaiting mentor'], ['available', 'Available'], ['locked', 'Locked']] as [key, label]}
 						<div class="flex items-center gap-2 text-[11px]">
 							<span
-								class="h-2.5 w-2.5 rounded-full"
-								style="background: {STATE_COLOR[key]}; {key !== 'locked'
-									? `box-shadow: 0 0 6px ${STATE_COLOR[key]};`
-									: ''}"
+								class="h-2.5 w-1"
+								style="background: {STATE_COLOR[key]}; border-radius: 2px; flex-shrink: 0;"
 							></span>
 							<span style="color: var(--app-text-muted);">{label}</span>
 						</div>

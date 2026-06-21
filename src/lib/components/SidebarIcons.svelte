@@ -16,7 +16,8 @@
 		| 'calendar'
 		| 'heart'
 		| 'award'
-		| 'image';
+		| 'image'
+		| 'graph';
 	let { name, class: className = 'h-3.5 w-3.5' }: { name: IconName; class?: string } = $props();
 </script>
 
@@ -273,5 +274,20 @@
 		<rect x="3" y="3" width="18" height="18" rx="2" />
 		<circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
 		<path d="m21 15-5-5L5 21" />
+	</svg>
+{:else if name === 'graph'}
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		class={className}
+	>
+		<rect x="2" y="9" width="5" height="5" rx="1" />
+		<rect x="17" y="4" width="5" height="5" rx="1" />
+		<rect x="17" y="15" width="5" height="5" rx="1" />
+		<path d="M7 11.5h4.5v-4H17M7 11.5h4.5v4H17" />
 	</svg>
 {/if}

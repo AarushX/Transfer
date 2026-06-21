@@ -1,57 +1,50 @@
 @import 'tailwindcss';
 
 :root {
-	--app-bg: #0a0f1c;
-	--app-surface: #121a2b;
-	--app-surface-alt: #1a2438;
-	--app-border: #36456a;
-	--app-text: #e6edf7;
-	--app-text-muted: #aab9d6;
-	--app-text-dim: #8693b3;
-	--app-accent: #8b5cf6;
+	--app-bg: #f4f6f3;
+	--app-surface: #ffffff;
+	--app-surface-alt: #eef1ed;
+	--app-border: #e2e7e0;
+	--app-text: #1a211c;
+	--app-text-muted: #5c6b60;
+	--app-text-dim: #8b988e;
+	--app-accent: #1e9e4c;
 	--app-accent-text: #ffffff;
-	--app-success: #34d399;
-	--app-warning: #fbbf24;
-	--app-danger: #fb7185;
-	--app-info: #06b6d4;
-	--app-pink: #f472b6;
-	--app-link: #60a5fa;
-	--app-link-hover: #3b82f6;
-	--app-input-bg: #111a2e;
-	--app-input-text: #e6edf7;
-	--app-table-header-bg: #1a2438;
-	--app-table-row-hover: #182136;
-	--app-overlay-scrim: #020617;
-	--app-focus-ring: #a78bfa;
-	--app-button-secondary-bg: #1a2438;
-	--app-button-secondary-text: #d6e2f5;
-	--app-button-secondary-border: #334766;
+	--app-success: #1e9e4c;
+	--app-warning: #c95f00;
+	--app-danger: #d93025;
+	--app-info: #3e7a8c;
+	--app-pink: #c05c8a;
+	--app-link: #1e9e4c;
+	--app-link-hover: #0e6b22;
+	--app-input-bg: #ffffff;
+	--app-input-text: #1a211c;
+	--app-table-header-bg: #eef1ed;
+	--app-table-row-hover: #e7f6ec;
+	--app-overlay-scrim: #1a211c;
+	--app-focus-ring: #1e9e4c;
+	--app-button-secondary-bg: #ffffff;
+	--app-button-secondary-text: #5c6b60;
+	--app-button-secondary-border: #e2e7e0;
 
-	/* Glass tokens */
-	--app-glass-bg: color-mix(in srgb, var(--app-surface) 55%, transparent);
-	--app-glass-bg-hover: color-mix(in srgb, var(--app-surface) 75%, transparent);
-	--app-glass-border: color-mix(in srgb, var(--app-text) 14%, transparent);
-	--app-glass-border-hover: color-mix(in srgb, var(--app-text) 22%, transparent);
-	--app-glass-shine: linear-gradient(
-		135deg,
-		color-mix(in srgb, var(--app-text) 6%, transparent) 0%,
-		transparent 40%
-	);
+	/* Glass tokens — light theme */
+	--app-glass-bg: rgba(255, 255, 255, 0.85);
+	--app-glass-bg-hover: rgba(255, 255, 255, 0.97);
+	--app-glass-border: #e2e7e0;
+	--app-glass-border-hover: #b9c4bb;
+	--app-glass-shine: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 40%);
 	--app-glass-shadow:
-		0 8px 32px -4px rgba(2, 6, 23, 0.7), 0 2px 8px -2px rgba(2, 6, 23, 0.4),
-		inset 0 1px 0 0 color-mix(in srgb, white 6%, transparent);
+		0 1px 3px rgba(26, 33, 28, 0.08), 0 1px 2px rgba(26, 33, 28, 0.04),
+		inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
 
-	/* Accent fills. Originally a purple→cyan→pink gradient; flattened to the
-	   theme accent so brand surfaces (buttons, progress bars, headings,
-	   selection chips) all read as one solid color rather than a rainbow. */
+	/* Accent fills */
 	--aurora: var(--app-accent);
 	--aurora-soft: color-mix(in srgb, var(--app-accent) 18%, transparent);
 	--app-gradient-accent: var(--app-accent);
 
-	/* Mesh gradient orbs — positioned via the .mesh-bg class */
 	--app-mesh-1: var(--app-accent);
 	--app-mesh-2: var(--app-info);
-	--app-mesh-3: color-mix(in srgb, var(--app-accent) 60%, var(--app-danger));
+	--app-mesh-3: color-mix(in srgb, var(--app-accent) 60%, var(--app-warning));
 }
 
 html,
@@ -62,47 +55,17 @@ body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	font-family:
-		'Inter',
+		'Atkinson Hyperlegible',
 		-apple-system,
 		BlinkMacSystemFont,
 		system-ui,
 		sans-serif;
 	font-feature-settings: 'cv11', 'ss01';
-	letter-spacing: -0.011em;
+	letter-spacing: -0.006em;
 }
 
 .mesh-bg {
 	position: relative;
-}
-
-.mesh-bg::before {
-	content: '';
-	position: fixed;
-	inset: -10%;
-	z-index: 0;
-	pointer-events: none;
-	background:
-		radial-gradient(
-			ellipse 60% 50% at 15% 20%,
-			color-mix(in srgb, #8b5cf6 18%, transparent) 0%,
-			transparent 60%
-		),
-		radial-gradient(
-			ellipse 50% 60% at 85% 80%,
-			color-mix(in srgb, #06b6d4 14%, transparent) 0%,
-			transparent 60%
-		),
-		radial-gradient(
-			ellipse 40% 40% at 50% 5%,
-			color-mix(in srgb, #f472b6 10%, transparent) 0%,
-			transparent 55%
-		),
-		radial-gradient(
-			ellipse 80% 60% at 100% 0%,
-			color-mix(in srgb, #1e3a8a 18%, transparent) 0%,
-			transparent 70%
-		);
-	filter: blur(20px);
 }
 
 body {
@@ -111,13 +74,13 @@ body {
 }
 
 ::selection {
-	background: color-mix(in srgb, var(--app-accent) 35%, transparent);
+	background: color-mix(in srgb, var(--app-accent) 22%, transparent);
 	color: var(--app-text);
 }
 
 * {
 	scrollbar-width: thin;
-	scrollbar-color: color-mix(in srgb, var(--app-text-muted) 55%, transparent) transparent;
+	scrollbar-color: color-mix(in srgb, var(--app-text-muted) 35%, transparent) transparent;
 }
 
 main a {
@@ -133,7 +96,7 @@ select,
 textarea {
 	background-color: var(--app-input-bg);
 	color: var(--app-input-text);
-	border: 1px solid var(--app-glass-border);
+	border: 1px solid var(--app-border);
 	border-radius: 0.75rem;
 	transition:
 		border-color 0.15s ease,
@@ -151,7 +114,7 @@ select:focus,
 textarea:focus {
 	outline: none;
 	border-color: var(--app-accent);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 15%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 12%, transparent);
 }
 
 button:focus-visible,
@@ -165,7 +128,6 @@ a:focus-visible {
 	outline-offset: 0;
 }
 
-/* Tokenize common legacy button color patterns across routes/components. */
 button[class~='bg-yellow-400'],
 a[class~='bg-yellow-400'],
 button[class~='bg-amber-400'],
@@ -196,7 +158,7 @@ a[class*='border-slate-7'] {
 
 button[class*='hover:bg-slate-8']:hover,
 a[class*='hover:bg-slate-8']:hover {
-	background: color-mix(in srgb, var(--app-button-secondary-bg) 80%, white 20%) !important;
+	background: color-mix(in srgb, var(--app-button-secondary-bg) 80%, #1a211c 20%) !important;
 }
 
 @media (min-width: 768px) {
@@ -206,17 +168,7 @@ a[class*='hover:bg-slate-8']:hover {
 	}
 }
 
-/* GPU-accelerate heavy backdrop-filter elements */
-.backdrop-blur-xl,
-[style*='backdrop-filter'] {
-	will-change: transform;
-	-webkit-transform: translateZ(0);
-	transform: translateZ(0);
-}
-
-/* ============================================================
-   Aurora border wrapper
-   ============================================================ */
+/* Aurora border */
 .aurora-border {
 	position: relative;
 	border-radius: 18px;
@@ -227,46 +179,39 @@ a[class*='hover:bg-slate-8']:hover {
 	border-radius: 17px;
 }
 
-/* ============================================================
-   Chip utility classes
-   ============================================================ */
+/* Chip utility classes — adjusted for light backgrounds */
 .chip-violet {
-	color: #c4b5fd;
-	background: color-mix(in srgb, #8b5cf6 14%, transparent);
-	border-color: color-mix(in srgb, #8b5cf6 30%, transparent);
+	color: #5b21b6;
+	background: color-mix(in srgb, #8b5cf6 10%, transparent);
+	border-color: color-mix(in srgb, #8b5cf6 22%, transparent);
 }
 .chip-cyan {
-	color: #67e8f9;
-	background: color-mix(in srgb, #06b6d4 14%, transparent);
-	border-color: color-mix(in srgb, #06b6d4 30%, transparent);
+	color: #0c6d87;
+	background: color-mix(in srgb, #06b6d4 10%, transparent);
+	border-color: color-mix(in srgb, #06b6d4 22%, transparent);
 }
 .chip-emerald {
-	color: #6ee7b7;
-	background: color-mix(in srgb, #34d399 14%, transparent);
-	border-color: color-mix(in srgb, #34d399 30%, transparent);
+	color: #065f46;
+	background: color-mix(in srgb, #34d399 10%, transparent);
+	border-color: color-mix(in srgb, #34d399 22%, transparent);
 }
 .chip-amber {
-	color: #fcd34d;
-	background: color-mix(in srgb, #fbbf24 14%, transparent);
-	border-color: color-mix(in srgb, #fbbf24 30%, transparent);
+	color: #78350f;
+	background: color-mix(in srgb, #fbbf24 10%, transparent);
+	border-color: color-mix(in srgb, #fbbf24 22%, transparent);
 }
 .chip-pink {
-	color: #f9a8d4;
-	background: color-mix(in srgb, #f472b6 14%, transparent);
-	border-color: color-mix(in srgb, #f472b6 30%, transparent);
+	color: #831843;
+	background: color-mix(in srgb, #f472b6 10%, transparent);
+	border-color: color-mix(in srgb, #f472b6 22%, transparent);
 }
 .chip-rose {
-	color: #fda4af;
-	background: color-mix(in srgb, #fb7185 14%, transparent);
-	border-color: color-mix(in srgb, #fb7185 30%, transparent);
+	color: #881337;
+	background: color-mix(in srgb, #fb7185 10%, transparent);
+	border-color: color-mix(in srgb, #fb7185 22%, transparent);
 }
 
-/* ============================================================
-   Typography utilities
-   ============================================================ */
-/* Was a purple→cyan→pink gradient; flattened to the single theme accent
-   so headings (Dashboard "Hi …", page titles, etc.) sit on a clean
-   brand color. */
+/* Typography */
 .gradient-text {
 	color: var(--app-accent);
 	background: none;
@@ -276,8 +221,8 @@ a[class*='hover:bg-slate-8']:hover {
 }
 .eyebrow-label {
 	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.14em;
+	font-weight: 700;
+	letter-spacing: 0.1em;
 	text-transform: uppercase;
 	color: var(--app-text-dim);
 }
@@ -285,9 +230,7 @@ a[class*='hover:bg-slate-8']:hover {
 	font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* ============================================================
-   Animations
-   ============================================================ */
+/* Animations */
 @keyframes shimmer {
 	0% {
 		background-position: -200% 0;
@@ -299,7 +242,7 @@ a[class*='hover:bg-slate-8']:hover {
 @keyframes fadeUp {
 	from {
 		opacity: 0;
-		transform: translateY(8px);
+		transform: translateY(6px);
 	}
 	to {
 		opacity: 1;
@@ -316,37 +259,12 @@ a[class*='hover:bg-slate-8']:hover {
 		opacity: 0;
 	}
 }
-@keyframes orbDrift {
-	0%,
-	100% {
-		transform: translate(0, 0) scale(1);
-	}
-	33% {
-		transform: translate(60px, -40px) scale(1.08);
-	}
-	66% {
-		transform: translate(-40px, 50px) scale(0.95);
-	}
-}
 
 .fade-up {
-	animation: fadeUp 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.shimmer-text {
-	background: linear-gradient(
-		90deg,
-		rgba(255, 255, 255, 0.1) 0%,
-		rgba(255, 255, 255, 0.4) 50%,
-		rgba(255, 255, 255, 0.1) 100%
-	);
-	background-size: 200% 100%;
-	animation: shimmer 3s linear infinite;
-	-webkit-background-clip: text;
-	background-clip: text;
-	-webkit-text-fill-color: transparent;
+	animation: fadeUp 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* Live dot with pulse ring */
+/* Live dot */
 .live-dot {
 	position: relative;
 	width: 8px;
@@ -363,13 +281,11 @@ a[class*='hover:bg-slate-8']:hover {
 	color: inherit;
 }
 
-/* ============================================================
-   Aurora progress bar
-   ============================================================ */
+/* Aurora progress bar */
 .aurora-progress {
 	height: 6px;
 	border-radius: 999px;
-	background: color-mix(in srgb, var(--app-text) 8%, transparent);
+	background: var(--app-border);
 	overflow: hidden;
 	position: relative;
 }
@@ -377,29 +293,13 @@ a[class*='hover:bg-slate-8']:hover {
 	height: 100%;
 	border-radius: inherit;
 	background: var(--aurora);
-	box-shadow: 0 0 16px -2px color-mix(in srgb, var(--app-accent) 60%, transparent);
 	transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-	position: relative;
-}
-.aurora-progress-fill::after {
-	content: '';
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-	background-size: 200% 100%;
-	animation: shimmer 2.4s linear infinite;
 }
 
-/* ============================================================
-   Background grain texture
-   ============================================================ */
-.mesh-bg::after {
-	content: '';
-	position: fixed;
-	inset: 0;
-	z-index: 0;
-	pointer-events: none;
-	opacity: 0.4;
-	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-	mix-blend-mode: overlay;
+/* GPU-accelerate backdrop-filter elements */
+.backdrop-blur-xl,
+[style*='backdrop-filter'] {
+	will-change: transform;
+	-webkit-transform: translateZ(0);
+	transform: translateZ(0);
 }

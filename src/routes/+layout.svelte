@@ -49,7 +49,19 @@
 					icon: 'courses',
 					match: (p: string) => p.startsWith('/coursework')
 				},
+				{
+					href: '/graph',
+					label: 'Skill map',
+					icon: 'graph',
+					match: (p: string) => p.startsWith('/graph')
+				},
 				{ href: '/scan', label: 'Scan', icon: 'scan', match: (p: string) => p.startsWith('/scan') },
+				{
+					href: '/lettering',
+					label: 'Season',
+					icon: 'award',
+					match: (p: string) => p.startsWith('/lettering')
+				},
 				{
 					href: '/media',
 					label: 'Media',
@@ -178,7 +190,13 @@
 <svelte:head>
 	<title>{data.orgName} · Transfer</title>
 	<link rel="icon" href={data.orgIconDataUrl || favicon} />
-	<meta name="theme-color" content="#020617" />
+	<meta name="theme-color" content="#f4f6f3" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
 </svelte:head>
 
 {#if isAttendanceKiosk || isLoggedOut || isLoginPage}
@@ -560,11 +578,9 @@
 
 <style>
 	.sidebar-glass {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
+		background: var(--app-surface);
+		border-color: var(--app-border);
 		color: var(--app-text);
-		backdrop-filter: blur(24px) saturate(1.4);
-		-webkit-backdrop-filter: blur(24px) saturate(1.4);
 	}
 	.nav-link {
 		transition: all 0.15s ease;

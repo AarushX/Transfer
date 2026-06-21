@@ -308,84 +308,86 @@
 	);
 </script>
 
-<!-- Top bar: fixed to the viewport edges so it mirrors the bottom block-strip
-     instead of floating inside main's padding. Breaks out of the layout's
-     `mx-auto max-w-6xl px-6 md:px-10 py-8 md:py-10` wrapper. -->
-<div class="fixed top-0 right-0 left-0 z-20 md:left-64">
-	<header
-		class="course-topbar relative border-b backdrop-blur-xl"
-		style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+<!-- Work-order card header -->
+<div class="mb-6">
+	<a
+		href="/dashboard"
+		class="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors"
+		style="color: var(--app-text-dim);"
 	>
-		<!-- Row padding (py-4) matches the sidebar header's py-4 so the two
-		     headers line up at the same horizontal axis on desktop. -->
-		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
-			<div class="flex min-w-0 items-center gap-3">
-				<a
-					href="/dashboard"
-					class="shrink-0 text-xs font-semibold transition-colors hover:brightness-125"
-					style="color: var(--app-text-dim);">← Dashboard</a
-				>
-				<!-- Slim vertical separator. h-3 + low-opacity glass-border so the
-				     line reads as the thinnest hairline possible without
-				     disappearing entirely. -->
-				<span
-					class="h-3 shrink-0"
-					style="width: 1px; background: color-mix(in srgb, var(--app-glass-border) 55%, transparent);"
-					aria-hidden="true"
-				></span>
-				<h1 class="truncate text-base font-semibold tracking-tight" style="color: var(--app-text);">
-					{data.node.title}
-				</h1>
-			</div>
-			<div class="flex flex-wrap items-center gap-3">
+		<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+		Dashboard
+	</a>
+	<div
+		class="rounded-2xl border"
+		style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow);"
+	>
+		<!-- Title row -->
+		<div class="border-b px-5 py-4" style="border-color: var(--app-border);">
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<h1 class="text-lg font-bold tracking-tight" style="color: var(--app-text);">{data.node.title}</h1>
 				<StatusChip label={statusInfo.label} tone={statusTone} />
-				{#if blocks.length > 0}
-					<span class="flex items-center gap-1">
-						{#each blocks as block, i (block.id)}
-							{@const done = isBlockCompleted(block)}
-							{@const current = i === activeBlockIndex && !done}
-							<span
-								class="inline-block h-2 w-2 rounded-full transition-all"
-								style={done
-									? 'background: var(--app-success); box-shadow: 0 0 6px var(--app-success);'
-									: current
-										? 'background: var(--app-warning); box-shadow: 0 0 6px var(--app-warning);'
-										: 'background: color-mix(in srgb, var(--app-text) 15%, transparent);'}
-								title={`${blockTypeLabel(block.type)}: ${done ? 'Complete' : current ? 'Current' : 'Upcoming'}`}
-							></span>
-						{/each}
-					</span>
-					<span class="mono text-xs" style="color: var(--app-text-dim);"
-						>{completedBlockCount}/{blocks.length}</span
-					>
-				{/if}
 			</div>
+			{#if data.previewBypass}
+				<p class="mt-1 text-xs" style="color: var(--app-info);">Preview mode: prerequisite locks are bypassed.</p>
+			{/if}
 		</div>
-		{#if data.previewBypass}
-			<p class="px-4 pb-2 text-xs md:px-6" style="color: var(--app-info);">
-				Preview mode: prerequisite locks are bypassed for mentor/admin preview.
-			</p>
+		<!-- Metadata columns -->
+		<div class="grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0" style="border-color: var(--app-border);">
+			{#each [
+				{ key: 'CODE', val: (data.node as any).code ?? '—' },
+				{ key: 'BLOCKS', val: blocks.length > 0 ? `${completedBlockCount} / ${blocks.length}` : '—' },
+				{ key: 'PREREQS', val: prereqPlan.length > 0 ? `${completedPrereqs.length} / ${prereqPlan.length}` : 'None' },
+				{ key: 'PROGRESS', val: blocks.length > 0 ? `${progressPercent}%` : '—' }
+			] as col}
+				<div class="px-4 py-3">
+					<p class="eyebrow-label mb-1">{col.key}</p>
+					<p class="mono text-[15px] font-bold" style="color: var(--app-text);">{col.val}</p>
+				</div>
+			{/each}
+		</div>
+		<!-- Step tracker -->
+		{#if blocks.length > 0}
+			<div class="border-t px-5 py-3" style="border-color: var(--app-border);">
+				<div class="flex items-center gap-2 overflow-x-auto pb-0.5">
+					{#each blocks as block, i (block.id)}
+						{@const done = isBlockCompleted(block)}
+						{@const current = i === activeBlockIndex && !done}
+						{@const accessible = allBlocksComplete || i <= activeBlockIndex}
+						<button
+							type="button"
+							onclick={() => {
+								if (!accessible) return;
+								hasManualBlockSelection = true;
+								selectedBlockIndex = i;
+							}}
+							disabled={!accessible}
+							class="step-btn flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-bold transition-all"
+							style="background: {done ? 'color-mix(in srgb,var(--app-success) 10%,transparent)' : current ? 'color-mix(in srgb,var(--app-accent) 10%,transparent)' : 'var(--app-surface-alt)'}; border-color: {done ? 'color-mix(in srgb,var(--app-success) 40%,transparent)' : current ? 'var(--app-accent)' : 'var(--app-border)'}; color: {done ? 'var(--app-success)' : current ? 'var(--app-accent)' : 'var(--app-text-muted)'}; opacity: {accessible ? 1 : 0.4}; cursor: {accessible ? 'pointer' : 'not-allowed'};"
+						>
+							{#if done}
+								<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+							{:else}
+								<span class="mono text-[10px]">{i + 1}</span>
+							{/if}
+							{blockTypeLabel(block.type)}
+						</button>
+						{#if i < blocks.length - 1}
+							<span class="shrink-0 text-[10px]" style="color: var(--app-border);">—</span>
+						{/if}
+					{/each}
+				</div>
+			</div>
 		{/if}
-		<!-- Progress used to render here as a 2px aurora bar, but the dots row
-		     and "N/M" count already convey the same information. Keeping the
-		     bar made the header read as visually busy without adding info. -->
-	</header>
+	</div>
 </div>
 
-<!-- pt-12 clears the fixed top bar (~60px = py-4 row + 3px progress) with a
-     small visual buffer below. main's existing py-8 stacks on top of this
-     padding, so first-child y ≈ 32 (main) + 48 (section pt) = 80px from
-     viewport top — bar bottom is at ~60, giving a clean ~20px gap. -->
-<section class="space-y-4 pt-12">
+<section class="space-y-4">
 	{#if awaitingMentor && !completed}
 		<div
 			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
 			style="animation-delay: 0.06s;"
 		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-2xl"
-				style="background: var(--app-glass-shine);"
-			></div>
 			<div class="relative">
 				<p class="eyebrow-label mb-2">Mentor Review</p>
 				<h2 class="text-lg font-semibold" style="color: var(--app-text);">
@@ -402,7 +404,7 @@
 				{#if data.checkoffQrDataUrl}
 					<div
 						class="mt-4 rounded-xl border p-4"
-						style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+						style="background: var(--app-surface); border-color: var(--app-border);"
 					>
 						<p class="text-xs" style="color: var(--app-text-muted);">
 							Show this QR to a mentor. Scanning it approves this submitted checkoff directly.
@@ -423,10 +425,6 @@
 			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl"
 			style="animation-delay: 0.06s;"
 		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-2xl"
-				style="background: var(--app-glass-shine);"
-			></div>
 			<div class="relative">
 				<div class="mb-2 flex items-center gap-2">
 					<span
@@ -487,10 +485,6 @@
 			class="fade-up glass-card relative overflow-hidden rounded-2xl border p-5 text-sm backdrop-blur-xl"
 			style="animation-delay: 0.06s;"
 		>
-			<div
-				class="pointer-events-none absolute inset-0 rounded-2xl"
-				style="background: var(--app-glass-shine);"
-			></div>
 			<p class="relative" style="color: var(--app-text-muted);">
 				No blocks have been added to this module yet. Ask a mentor to configure the course.
 			</p>
@@ -592,7 +586,7 @@
 								{#if c.content}
 									<div
 										class="rounded-xl border p-4 text-sm whitespace-pre-wrap"
-										style="background: var(--app-glass-bg); border-color: var(--app-glass-border); color: var(--app-text);"
+										style="background: var(--app-surface); border-color: var(--app-border); color: var(--app-text);"
 									>
 										{c.content}
 									</div>
@@ -600,7 +594,7 @@
 								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
 									<div
 										class="rounded-xl border p-4"
-										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+										style="background: var(--app-surface); border-color: var(--app-border);"
 									>
 										<p class="eyebrow-label mb-2">Resources</p>
 										<ul class="space-y-2 text-sm">
@@ -656,7 +650,7 @@
 								{#if c.show_mentor_checklist_to_students && Array.isArray(c.mentor_checklist) && c.mentor_checklist.length > 0}
 									<div
 										class="rounded-xl border p-4"
-										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+										style="background: var(--app-surface); border-color: var(--app-border);"
 									>
 										<p class="eyebrow-label mb-2">Mentor checklist</p>
 										<ul class="space-y-1.5 text-sm" style="color: var(--app-text);">
@@ -675,7 +669,7 @@
 								{#if Array.isArray(c.resource_links) && c.resource_links.length > 0}
 									<div
 										class="rounded-xl border p-4"
-										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+										style="background: var(--app-surface); border-color: var(--app-border);"
 									>
 										<p class="eyebrow-label mb-2">Resources</p>
 										<ul class="space-y-2 text-sm">
@@ -711,7 +705,7 @@
 										};
 									}}
 									class="space-y-4 rounded-xl border p-4"
-									style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+									style="background: var(--app-surface); border-color: var(--app-border);"
 								>
 									<p class="eyebrow-label">Submission</p>
 									<input type="hidden" name="block_id" value={activeBlock.id} />
@@ -802,7 +796,7 @@
 								{#if data.review}
 									<div
 										class="rounded-xl border p-4 text-sm"
-										style="background: var(--app-glass-bg); border-color: var(--app-glass-border);"
+										style="background: var(--app-surface); border-color: var(--app-border);"
 									>
 										<div
 											class="pointer-events-none absolute inset-0 rounded-xl"
@@ -917,11 +911,9 @@
 
 <style>
 	.glass-card {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
+		background: var(--app-surface);
+		border-color: var(--app-border);
 		box-shadow: var(--app-glass-shadow);
-		backdrop-filter: blur(20px) saturate(140%);
-		-webkit-backdrop-filter: blur(20px) saturate(140%);
 	}
 
 	/* Section divider used in the locked-course prereq listing. Same pattern
@@ -954,43 +946,42 @@
 	}
 
 	.resource-link {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
+		background: var(--app-surface-alt);
+		border-color: var(--app-border);
 	}
 	.resource-link:hover {
-		background: var(--app-glass-bg-hover);
-		border-color: var(--app-glass-border-hover);
+		background: var(--app-table-row-hover);
+		border-color: color-mix(in srgb, var(--app-accent) 30%, transparent);
 	}
 
 	.upload-btn {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
+		background: var(--app-surface-alt);
+		border-color: var(--app-border);
 		color: var(--app-text);
 	}
 	.upload-btn:hover:not(:disabled) {
-		background: var(--app-glass-bg-hover);
-		border-color: var(--app-glass-border-hover);
+		background: var(--app-table-row-hover);
+		border-color: color-mix(in srgb, var(--app-accent) 30%, transparent);
 	}
 
 	.photo-preview {
-		background: var(--app-glass-bg);
+		background: var(--app-surface-alt);
 	}
 
 	.block-strip {
-		border-color: var(--app-glass-border);
-		background: color-mix(in srgb, var(--app-surface) 85%, transparent);
-		backdrop-filter: blur(20px) saturate(140%);
-		-webkit-backdrop-filter: blur(20px) saturate(140%);
+		border-color: var(--app-border);
+		background: var(--app-surface);
+		box-shadow: 0 -1px 4px rgba(26, 33, 28, 0.06);
 	}
 
 	.strip-block {
-		background: var(--app-glass-bg);
-		border-color: var(--app-glass-border);
+		background: var(--app-surface-alt);
+		border-color: var(--app-border);
 		cursor: pointer;
 	}
 	.strip-block:hover:not(:disabled) {
-		background: var(--app-glass-bg-hover);
-		border-color: var(--app-glass-border-hover);
+		background: var(--app-table-row-hover);
+		border-color: color-mix(in srgb, var(--app-accent) 30%, transparent);
 	}
 	.strip-done {
 		border-color: color-mix(in srgb, var(--app-success) 40%, transparent);
@@ -1008,5 +999,9 @@
 	.strip-locked {
 		cursor: not-allowed;
 		opacity: 0.5;
+	}
+	.step-btn:focus-visible {
+		outline: 2px solid var(--app-accent);
+		outline-offset: 2px;
 	}
 </style>

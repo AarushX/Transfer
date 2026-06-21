@@ -3,7 +3,6 @@
 	import StatusRail from '$lib/components/dashboard/StatusRail.svelte';
 	import UpNextStrip from '$lib/components/dashboard/UpNextStrip.svelte';
 	import ParentBlock from '$lib/components/dashboard/ParentBlock.svelte';
-	import SkillTree from '$lib/components/SkillTree.svelte';
 
 	type Node = {
 		id: string;
@@ -324,20 +323,45 @@
 		return out;
 	});
 
-	// --- Up next strip (in-progress first, then takeable, cap at 9 for a 3x3 grid) ---
+	// --- Stat counts ---
+	const certifiedCount = $derived(
+		primaryNodes.filter((n) => effectiveStatusFor(n.id) === 'completed').length
+	);
+	const inProgressCount = $derived(
+		primaryNodes.filter((n) =>
+			['video_pending', 'quiz_pending', 'mentor_checkoff_pending', 'checkoff_needs_review', 'checkoff_blocked', 'in_progress'].includes(effectiveStatusFor(n.id))
+		).length
+	);
+
+	// --- Up next strip (in-progress first, then takeable, cap at 9) ---
 	const upNextCourses = $derived.by(() => {
 		const inProgress = inProgressPrimary ?? [];
 		const takeable = takeablePrimary ?? [];
 		const seen = new Set<string>();
-		const out: Array<{ id: string; title: string; slug: string; subteamLabel: string }> = [];
+		const out: Array<{
+			id: string;
+			title: string;
+			slug: string;
+			subteamLabel: string;
+			status: string;
+			done: number;
+			total: number;
+			teamColor: string;
+		}> = [];
 		for (const n of [...inProgress, ...takeable]) {
 			if (seen.has(n.id)) continue;
 			seen.add(n.id);
+			const total = totalModulesForNode(n.id);
+			const done = Math.min(blockDoneByNode[n.id] ?? 0, total);
 			out.push({
 				id: String(n.id),
 				title: String(n.title),
 				slug: String(n.slug),
-				subteamLabel: linkedTeamLabelForNode(n.id)
+				subteamLabel: linkedTeamLabelForNode(n.id),
+				status: effectiveStatusFor(n.id),
+				done,
+				total,
+				teamColor: accentColorForNode(n.id)
 			});
 			if (out.length >= 9) break;
 		}
@@ -404,16 +428,28 @@
 			</div>
 		</div>
 
-		<!-- Two-column layout first: what the student has to act on today.
-		     The big-picture skill map sits below as context, not on top.
-		     4fr/1fr (instead of 2fr/1fr) shrinks the right rail to roughly
-		     half its original width so the QR / hours / lettering tiles read
-		     as a side dock instead of competing with the main grid. -->
-		<div class="grid gap-4 md:grid-cols-[4fr_1fr]">
-			<!-- Left column: 3-row grid of the courses the user actually has to do -->
-			<UpNextStrip courses={upNextCourses} />
+		<!-- Stat cards row -->
+		<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+			{#each [
+				{ label: 'Certified', value: certifiedCount, color: 'var(--app-success)', hint: 'skills complete' },
+				{ label: 'In progress', value: inProgressCount, color: 'var(--app-warning)', hint: 'skills active' },
+				{ label: 'Hours', value: (data.hoursSeason ?? 0).toFixed(1), color: 'var(--app-info)', hint: `of ${data.hoursTarget ?? 0} goal` },
+				{ label: 'Lettering', value: `${Math.min(100, data.letteringProgress?.pct ?? 0)}%`, color: 'var(--app-accent)', hint: 'season progress' }
+			] as stat}
+				<div
+					class="rounded-2xl border p-4"
+					style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow);"
+				>
+					<p class="eyebrow-label">{stat.label}</p>
+					<p class="mono mt-1.5 text-2xl font-bold" style="color: {stat.color};">{stat.value}</p>
+					<p class="mt-0.5 text-[11px]" style="color: var(--app-text-dim);">{stat.hint}</p>
+				</div>
+			{/each}
+		</div>
 
-			<!-- Right rail -->
+		<!-- Main two-column area -->
+		<div class="grid gap-4 md:grid-cols-[1fr_240px]">
+			<UpNextStrip courses={upNextCourses} />
 			<StatusRail
 				passportQrDataUrl={data.passportQrDataUrl ?? ''}
 				hoursSeason={data.hoursSeason ?? 0}
@@ -422,35 +458,21 @@
 			/>
 		</div>
 
-		<!-- Skill map: every course offered to the user's team and subteams,
-		     nodes tinted by subteam color. -->
+		<!-- Skill map link prompt -->
 		{#if primaryNodes.length > 0}
-			<div class="fade-up rounded-2xl" style="height: 600px;">
-				<SkillTree
-					nodes={primaryNodes}
-					statuses={data.statuses}
-					prerequisites={data.prerequisites}
-					scope={skillMapScope}
-					{subteamByNode}
-					teamColors={teamColorMap}
-					clickHrefBase="/learn/"
-				/>
-			</div>
+			<a
+				href="/graph"
+				class="flex items-center justify-between rounded-2xl border px-5 py-4 transition-colors"
+				style="background: var(--app-surface); border-color: var(--app-border); box-shadow: var(--app-glass-shadow);"
+			>
+				<div>
+					<p class="text-[14px] font-bold" style="color: var(--app-text);">Skill map</p>
+					<p class="text-[12px]" style="color: var(--app-text-dim);">See all {primaryNodes.length} skills and your full certification path</p>
+				</div>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--app-accent); flex-shrink: 0;">
+					<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+				</svg>
+			</a>
 		{/if}
 	{/if}
 </section>
-
-<style>
-	.hero-glass::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		background: linear-gradient(
-			135deg,
-			color-mix(in srgb, white 6%, transparent) 0%,
-			transparent 40%
-		);
-		pointer-events: none;
-	}
-</style>
